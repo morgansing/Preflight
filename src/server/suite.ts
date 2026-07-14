@@ -1,9 +1,11 @@
-import { scenarios } from "@/lib/fixtures/scenarios";
+import { getSuite } from "@/lib/fixtures/scenarios";
+import { tierById } from "@/lib/suite-tiers";
 
 /**
- * The smoke suite: 24 scenarios spanning every category — including all
- * three trap categories — so a first live run finishes in minutes, not
- * hours. The full 200-scenario suite is available as an option.
+ * The smoke suite: 24 hand-picked scenarios spanning every category —
+ * including all three trap categories — so a first live run finishes in
+ * minutes. Larger tiers (Standard 200 → Max 10,000) take a prefix of
+ * the deterministic scenario space.
  */
 export const SMOKE_SUITE: string[] = [
   // Product questions
@@ -42,6 +44,12 @@ export const SMOKE_SUITE: string[] = [
   "SCN-0196",
 ];
 
-export function suiteScenarioIds(suite: "smoke" | "full"): string[] {
-  return suite === "full" ? scenarios.map((s) => s.id) : SMOKE_SUITE;
+export function suiteScenarioIds(suiteId: string): string[] | null {
+  if (suiteId === "smoke" || suiteId === "full") {
+    // "full" is the legacy name for the 200-scenario standard tier.
+    return suiteId === "smoke" ? SMOKE_SUITE : getSuite(200).map((s) => s.id);
+  }
+  const tier = tierById(suiteId);
+  if (!tier) return null;
+  return getSuite(tier.size).map((s) => s.id);
 }

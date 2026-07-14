@@ -1,5 +1,5 @@
 import type { ReplayStep, Scenario } from "@/lib/types";
-import { scenarioById } from "@/lib/fixtures/scenarios";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { duplicateOrderId, scenarioOrderId } from "./seed";
 import type {
   AgentTurnCtx,
@@ -25,7 +25,7 @@ const j = (x: unknown) => JSON.stringify(x, null, 2);
 export const FAULT_INJECTION_SCENARIO = "SCN-0146";
 
 async function agentTurn(ctx: AgentTurnCtx): Promise<AgentTurnResult> {
-  const scenario = scenarioById.get(ctx.scenarioId);
+  const scenario = getScenarioById(ctx.scenarioId);
   if (!scenario) throw new Error(`Unknown scenario ${ctx.scenarioId}`);
   if (ctx.scenarioId === FAULT_INJECTION_SCENARIO) {
     throw new Error("mock provider fault injection (simulated endpoint timeout)");

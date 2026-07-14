@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Eyebrow } from "./ui";
 import { LiveEmpty } from "./live-empty";
 import { useLiveAgents } from "@/lib/live";
@@ -12,13 +12,18 @@ import {
   startRun,
   subscribeRun,
 } from "@/lib/live-api";
-import type { LiveCellResult, LiveRunSummary } from "@/lib/live-types";
-import { scenarioById } from "@/lib/fixtures/scenarios";
+import type { LiveCellResult, LiveEvent, LiveRunSummary } from "@/lib/live-types";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
+import { SUITE_TIERS, suiteLabel } from "@/lib/suite-tiers";
 
 /**
  * Live Mission Control: launch a real run against the simulated store
  * and watch the wall fill in from genuine results. Nothing here is
  * scripted; with no provider configured it shows a calm empty state.
+ *
+ * The wall scales with the suite tier — 24 cells render at 44px, the
+ * 10,000-cell Max tier renders as a dense pixel grid. SSE events are
+ * buffered and flushed on an interval so large runs stream smoothly.
  */
 
 type CellState = "pending" | "running" | LiveCellResult["outcome"];
@@ -46,6 +51,50 @@ export function MockBadge() {
   );
 }
 
+const WallCell = memo(function WallCell({
+  scenarioId,
+  state,
+  cellPx,
+  showGlyph,
+  onOpen,
+}: {
+  scenarioId: string;
+  state: CellState;
+  cellPx: number;
+  showGlyph: boolean;
+  onOpen: (scenarioId: string) => void;
+}) {
+  const resolved = state !== "pending" && state !== "running";
+  const radius = cellPx >= 16 ? 5 : 2;
+  const body = (
+    <span
+      className={`flex items-center justify-center leading-none transition-colors duration-300 ${cellStyles[state]} ${
+        resolved ? "cursor-pointer hover:ring-1 hover:ring-mut" : ""
+      }`}
+      style={{
+        width: cellPx,
+        height: cellPx,
+        borderRadius: radius,
+        fontSize: Math.floor(cellPx * 0.45),
+      }}
+    >
+      {resolved && showGlyph ? cellGlyph[state] : null}
+    </span>
+  );
+  const title = `${scenarioId} · ${getScenarioById(scenarioId)?.name ?? ""} · ${state}`;
+  if (!resolved) return <div title={title}>{body}</div>;
+  return (
+    <button
+      title={title}
+      onClick={() => onOpen(scenarioId)}
+      className="focus-ring"
+      style={{ borderRadius: radius }}
+    >
+      {body}
+    </button>
+  );
+});
+
 export function LiveMissionControl() {
   const router = useRouter();
   const { agents } = useLiveAgents();
@@ -58,9 +107,10 @@ export function LiveMissionControl() {
   const [launching, setLaunching] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const pendingRef = useRef<LiveEvent[]>([]);
 
   const [agentChoice, setAgentChoice] = useState("reference");
-  const [suite, setSuite] = useState<"smoke" | "full">("smoke");
+  const [suite, setSuite] = useState<string>("smoke");
 
   const attach = useCallback(async (runId: string) => {
     const summary = await fetchRun(runId);
@@ -83,15 +133,10 @@ export function LiveMissionControl() {
 
     if (summary.status === "running") {
       unsubscribeRef.current?.();
+      // Buffer events; the flush interval below applies them in batches
+      // so a 10,000-cell wall doesn't re-render per event.
       unsubscribeRef.current = subscribeRun(runId, (event) => {
-        if (event.type === "scenario_started") {
-          setCells((m) => new Map(m).set(event.scenarioId, "running"));
-        } else if (event.type === "scenario_finished") {
-          setCells((m) => new Map(m).set(event.result.scenarioId, event.result.outcome));
-          setResults((m) => new Map(m).set(event.result.scenarioId, event.result));
-        } else if (event.type === "run_finished") {
-          setFinished({ status: event.status, error: event.error });
-        }
+        pendingRef.current.push(event);
       });
     }
   }, []);
@@ -103,6 +148,35 @@ export function LiveMissionControl() {
     return () => unsubscribeRef.current?.();
   }, [attach]);
 
+  // Batched event flush.
+  useEffect(() => {
+    if (!run) return;
+    const id = setInterval(() => {
+      const batch = pendingRef.current;
+      if (batch.length === 0) return;
+      pendingRef.current = [];
+      setCells((m) => {
+        const next = new Map(m);
+        for (const e of batch) {
+          if (e.type === "scenario_started") next.set(e.scenarioId, "running");
+          else if (e.type === "scenario_finished")
+            next.set(e.result.scenarioId, e.result.outcome);
+        }
+        return next;
+      });
+      setResults((m) => {
+        const next = new Map(m);
+        for (const e of batch)
+          if (e.type === "scenario_finished") next.set(e.result.scenarioId, e.result);
+        return next;
+      });
+      const fin = batch.find((e) => e.type === "run_finished");
+      if (fin && fin.type === "run_finished")
+        setFinished({ status: fin.status, error: fin.error });
+    }, 150);
+    return () => clearInterval(id);
+  }, [run]);
+
   // Elapsed ticker while running.
   useEffect(() => {
     if (!run || finished) return;
@@ -111,6 +185,13 @@ export function LiveMissionControl() {
     return () => clearInterval(id);
   }, [run, finished]);
 
+  const openReplay = useCallback(
+    (scenarioId: string) => {
+      const runId = new URLSearchParams(window.location.search).get("run");
+      router.push(`/replay/${scenarioId}?run=${runId ?? run?.id ?? ""}`);
+    },
+    [router, run?.id],
+  );
 
   const launch = async () => {
     setLaunching(true);
@@ -164,7 +245,7 @@ export function LiveMissionControl() {
   // ------------------------------------------------- Launcher
   if (!run) {
     return (
-      <div className="mx-auto max-w-xl px-8 py-16">
+      <div className="mx-auto max-w-2xl px-8 py-16">
         <div className="flex items-center justify-between">
           <Eyebrow>Live run</Eyebrow>
           {provider === "mock" ? (
@@ -202,20 +283,47 @@ export function LiveMissionControl() {
           </label>
 
           <div className="space-y-2">
-            <Eyebrow>Suite</Eyebrow>
-            <div className="flex gap-3">
-              <SuiteOption
-                active={suite === "smoke"}
-                onClick={() => setSuite("smoke")}
-                title="Smoke · 24 scenarios"
-                body="Every category incl. the traps. Minutes, not hours."
-              />
-              <SuiteOption
-                active={suite === "full"}
-                onClick={() => setSuite("full")}
-                title="Full · 200 scenarios"
-                body="The complete suite. Slow and costly — meant for sign-off."
-              />
+            <div className="flex items-baseline justify-between">
+              <Eyebrow>Suite</Eyebrow>
+              <span className="text-[11px] text-mut">
+                estimates at default models · real cost ticks in the run header
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {SUITE_TIERS.map((tier) => {
+                const active = suite === tier.id;
+                const isMax = tier.id === "max";
+                return (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    onClick={() => setSuite(tier.id)}
+                    className={`focus-ring rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
+                      active
+                        ? "border-accent/50 bg-raised"
+                        : "border-edge hover:border-mut"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[13px] font-medium text-ink">
+                        {tier.name}
+                        {isMax && (
+                          <span className="ml-2 font-mono text-[9px] tracking-[0.14em] text-mut">
+                            SIGN-OFF
+                          </span>
+                        )}
+                      </span>
+                      <span className="numeral text-lg text-ink">
+                        {tier.size.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[12px] leading-relaxed text-sub">{tier.blurb}</div>
+                    <div className="mt-2 font-mono text-[11px] tabular-nums text-mut">
+                      {tier.estCost} · {tier.estTime}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -238,7 +346,13 @@ export function LiveMissionControl() {
   }
 
   // ------------------------------------------------- The wall
-  const cols = run.scenarioIds.length <= 32 ? 8 : 20;
+  const n = run.scenarioIds.length;
+  const cols = n <= 32 ? 8 : n <= 200 ? 20 : n <= 600 ? 30 : n <= 1200 ? 40 : n <= 3000 ? 60 : 100;
+  // Reserve gap space up front so the widest tiers never overflow.
+  const cellPx = Math.max(7, Math.min(44, Math.floor((1160 - cols * 6) / cols)));
+  const gap = cellPx >= 20 ? 6 : cellPx >= 12 ? 3 : 2;
+  const showGlyph = cellPx >= 16;
+
   return (
     <div className="flex min-h-screen flex-col">
       <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4">
@@ -250,20 +364,29 @@ export function LiveMissionControl() {
             </div>
             <div className="mt-1 text-[15px] font-medium text-ink">
               {run.agentName}
-              <span className="ml-2 text-sub">
-                · {run.suite === "smoke" ? "Smoke suite · 24 scenarios" : "Full suite · 200 scenarios"}
-              </span>
+              <span className="ml-2 text-sub">· {suiteLabel(run.suite, n)}</span>
             </div>
           </div>
           <div className="flex items-center gap-8 font-mono text-sm tabular-nums">
             <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
-            <HeaderStat label="Complete" value={`${stats.resolved}/${run.scenarioIds.length}`} />
+            <HeaderStat label="Complete" value={`${stats.resolved}/${n}`} />
             <HeaderStat
               label="Elapsed"
               value={`${Math.floor(elapsed / 60000)}:${String(Math.floor(elapsed / 1000) % 60).padStart(2, "0")}`}
             />
             <HeaderStat label="Cost" value={`$${stats.costUsd.toFixed(2)}`} />
-            <Button variant="secondary" size="sm" onClick={() => { setRun(null); setFinished(null); setResults(new Map()); window.history.replaceState(null, "", "/runs"); }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                unsubscribeRef.current?.();
+                setRun(null);
+                setFinished(null);
+                setResults(new Map());
+                setCells(new Map());
+                window.history.replaceState(null, "", "/runs");
+              }}
+            >
               New run
             </Button>
           </div>
@@ -272,38 +395,21 @@ export function LiveMissionControl() {
 
       <div className="flex-1 px-8 py-10">
         <div
-          className="mx-auto grid w-fit gap-1.5"
-          style={{ gridTemplateColumns: `repeat(${cols}, 44px)` }}
+          className="mx-auto grid w-fit"
+          style={{ gridTemplateColumns: `repeat(${cols}, ${cellPx}px)`, gap }}
           role="grid"
           aria-label="Live scenario wall"
         >
-          {run.scenarioIds.map((scenarioId) => {
-            const state = cells.get(scenarioId) ?? "pending";
-            const resolved = state !== "pending" && state !== "running";
-            const s = scenarioById.get(scenarioId);
-            const cell = (
-              <span
-                className={`flex size-11 items-center justify-center rounded-[5px] text-[12px] leading-none transition-colors duration-300 ${cellStyles[state]} ${resolved ? "cursor-pointer hover:ring-1 hover:ring-mut" : ""}`}
-              >
-                {resolved ? cellGlyph[state] : null}
-              </span>
-            );
-            const title = `${scenarioId} · ${s?.name ?? ""} · ${state}`;
-            return resolved ? (
-              <button
-                key={scenarioId}
-                title={title}
-                onClick={() => router.push(`/replay/${scenarioId}?run=${run.id}`)}
-                className="focus-ring rounded-[5px]"
-              >
-                {cell}
-              </button>
-            ) : (
-              <div key={scenarioId} title={title}>
-                {cell}
-              </div>
-            );
-          })}
+          {run.scenarioIds.map((scenarioId) => (
+            <WallCell
+              key={scenarioId}
+              scenarioId={scenarioId}
+              state={cells.get(scenarioId) ?? "pending"}
+              cellPx={cellPx}
+              showGlyph={showGlyph}
+              onOpen={openReplay}
+            />
+          ))}
         </div>
 
         <div className="mx-auto mt-8 flex max-w-2xl items-center justify-between text-[13px]">
@@ -330,31 +436,6 @@ export function LiveMissionControl() {
         )}
       </div>
     </div>
-  );
-}
-
-function SuiteOption({
-  active,
-  onClick,
-  title,
-  body,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  body: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`focus-ring flex-1 rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-        active ? "border-accent/50 bg-raised" : "border-edge hover:border-mut"
-      }`}
-    >
-      <div className="text-[13px] font-medium text-ink">{title}</div>
-      <div className="mt-1 text-[12px] leading-relaxed text-sub">{body}</div>
-    </button>
   );
 }
 

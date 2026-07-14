@@ -1,6 +1,11 @@
 "use client";
 
-import type { LiveEvent, LiveReplayPayload, LiveRunSummary } from "./live-types";
+import type {
+  LiveEvent,
+  LiveReplayPayload,
+  LiveRunListItem,
+  LiveRunSummary,
+} from "./live-types";
 
 export async function fetchProviderStatus(): Promise<"anthropic" | "mock" | null> {
   const res = await fetch("/api/live/status");
@@ -8,7 +13,7 @@ export async function fetchProviderStatus(): Promise<"anthropic" | "mock" | null
   return (await res.json()).provider;
 }
 
-export async function fetchRuns(): Promise<LiveRunSummary[]> {
+export async function fetchRuns(): Promise<LiveRunListItem[]> {
   const res = await fetch("/api/live/runs");
   if (!res.ok) return [];
   return res.json();
@@ -24,7 +29,7 @@ export async function startRun(body: {
   agentName: string;
   agentKind: string;
   endpoint?: string;
-  suite: "smoke" | "full";
+  suite: string; // tier id, e.g. smoke | standard | extended | scale | exhaustive | max
 }): Promise<{ runId: string } | { error: string }> {
   const res = await fetch("/api/live/runs", {
     method: "POST",

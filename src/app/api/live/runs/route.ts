@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { launchRun } from "@/server/harness";
-import type { LiveRunSummary } from "@/lib/live-types";
+import type { LiveRunListItem } from "@/lib/live-types";
 
 export const dynamic = "force-dynamic";
 
@@ -9,30 +9,37 @@ export async function GET() {
   const runs = await prisma.liveRun.findMany({
     orderBy: { startedAt: "desc" },
     take: 20,
-    include: { results: true },
   });
-  const summaries: LiveRunSummary[] = runs.map((run) => ({
-    id: run.id,
-    agentName: run.agentName,
-    agentKind: run.agentKind,
-    provider: run.provider as "anthropic" | "mock",
-    suite: run.suite as "smoke" | "full",
-    status: run.status as LiveRunSummary["status"],
-    error: run.error ?? undefined,
-    startedAt: run.startedAt.toISOString(),
-    finishedAt: run.finishedAt?.toISOString(),
-    scenarioIds: JSON.parse(run.scenariosJson),
-    results: run.results.map((r) => ({
-      scenarioId: r.scenarioId,
-      outcome: r.outcome as LiveRunSummary["results"][number]["outcome"],
-      failureReason: r.failureReason ?? undefined,
-      severity: r.severity as LiveRunSummary["results"][number]["severity"],
-      tokens: r.tokens,
-      costUsd: r.costUsd,
-      latencyMs: r.latencyMs,
-    })),
-  }));
-  return NextResponse.json(summaries);
+  const grouped = await prisma.liveResult.groupBy({
+    by: ["runId", "outcome"],
+    _count: { _all: true },
+    where: { runId: { in: runs.map((r) => r.id) } },
+  });
+
+  const items: LiveRunListItem[] = runs.map((run) => {
+    const counts = { pass: 0, fail: 0, partial: 0, error: 0 };
+    for (const g of grouped) {
+      if (g.runId === run.id && g.outcome in counts) {
+        counts[g.outcome as keyof typeof counts] = g._count._all;
+      }
+    }
+    const scored = counts.pass + counts.fail + counts.partial;
+    return {
+      id: run.id,
+      agentName: run.agentName,
+      agentKind: run.agentKind,
+      provider: run.provider as "anthropic" | "mock",
+      suite: run.suite,
+      status: run.status as LiveRunListItem["status"],
+      error: run.error ?? undefined,
+      startedAt: run.startedAt.toISOString(),
+      finishedAt: run.finishedAt?.toISOString(),
+      total: (JSON.parse(run.scenariosJson) as string[]).length,
+      counts,
+      score: scored ? Math.round((counts.pass / scored) * 100) : 0,
+    };
+  });
+  return NextResponse.json(items);
 }
 
 export async function POST(request: NextRequest) {
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
     agentName: String(body.agentName ?? "Reference agent"),
     agentKind: agentKind as "reference" | "http" | "mcp",
     endpoint: body.endpoint ? String(body.endpoint) : undefined,
-    suite: body.suite === "full" ? "full" : "smoke",
+    suite: String(body.suite ?? "smoke"),
   });
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });

@@ -468,7 +468,7 @@ function buildScenarios(): { scenarios: Scenario[]; outcomes: Map<string, Outcom
 
 const built = buildScenarios();
 
-/** All 200 scenarios in the demo suite, in stable order. */
+/** The base 200 scenarios — the pre-baked demo suite, in stable order. */
 export const scenarios: Scenario[] = built.scenarios;
 
 /** Fixed outcome per scenario for the pre-baked demo run. */
@@ -477,3 +477,89 @@ export const demoOutcomes: Map<string, Outcome> = built.outcomes;
 export const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
 
 export const categories = SPECS.map((s) => s.category);
+
+/* ------------------------------------------------------------------ */
+/* Extended suites — the library scales past the base 200, up to      */
+/* 10,000 scenarios. The base 200 are never regenerated (the demo     */
+/* depends on them byte-for-byte); scenarios 201+ are produced        */
+/* deterministically, distributed across categories in the same       */
+/* proportions, so getSuite(500) is always a prefix of getSuite(10000).*/
+/* ------------------------------------------------------------------ */
+
+export const BASE_SUITE_SIZE = scenarios.length; // 200
+export const MAX_SUITE_SIZE = 10_000;
+
+/** Category layout for indices beyond the base — smooth weighted
+ * round-robin so proportions hold at every prefix length. */
+const extensionLayout: number[] = (() => {
+  const layout: number[] = [];
+  const acc = SPECS.map(() => 0);
+  for (let i = 0; i < MAX_SUITE_SIZE - BASE_SUITE_SIZE; i++) {
+    let best = 0;
+    for (let s = 0; s < SPECS.length; s++) {
+      acc[s] += SPECS[s].count / BASE_SUITE_SIZE;
+      if (acc[s] > acc[best]) best = s;
+    }
+    acc[best] -= 1;
+    layout.push(best);
+  }
+  return layout;
+})();
+
+/** Within-category ordinal for each extension index (continues past
+ * the base count, so name variants keep cycling seamlessly). */
+const extensionOrdinal: number[] = (() => {
+  const counts = SPECS.map((s) => s.count);
+  return extensionLayout.map((specIdx) => counts[specIdx]++);
+})();
+
+const extCache = new Map<number, Scenario>();
+
+/** Deterministically generate scenario n (1-based, n > 200). */
+function extensionScenario(n: number): Scenario {
+  const hit = extCache.get(n);
+  if (hit) return hit;
+
+  const spec = SPECS[extensionLayout[n - BASE_SUITE_SIZE - 1]];
+  const k = extensionOrdinal[n - BASE_SUITE_SIZE - 1];
+  const rng = mulberry32((0x5eed_0001 ^ Math.imul(n, 2654435761)) >>> 0);
+
+  const base = spec.bases[k % spec.bases.length];
+  const variant = spec.variants[Math.floor(k / spec.bases.length) % spec.variants.length];
+  const wave = Math.floor(k / (spec.bases.length * spec.variants.length)) + 1;
+  const order = `A${pad(38210 + n * 7, 5)}`;
+
+  const scenario: Scenario = {
+    id: `SCN-${pad(n, 4)}`,
+    name: wave > 1 ? `${base} · ${variant} #${wave}` : `${base} · ${variant}`,
+    category: spec.category,
+    severity: spec.severity,
+    rubric: spec.rubric,
+    persona: pick(rng, spec.personas),
+    openingMessage: pick(rng, spec.openings).replace("%ORDER%", order),
+    hiddenFacts: pick(rng, spec.hiddenFacts),
+    passCriteria: spec.passCriteria,
+    mustNot: spec.mustNot,
+  };
+  extCache.set(n, scenario);
+  return scenario;
+}
+
+/** The suite at a given size. Sizes ≤200 slice the base; larger sizes
+ * append deterministic extension scenarios. */
+export function getSuite(size: number): Scenario[] {
+  const clamped = Math.max(1, Math.min(MAX_SUITE_SIZE, Math.floor(size)));
+  if (clamped <= BASE_SUITE_SIZE) return scenarios.slice(0, clamped);
+  const out = scenarios.slice();
+  for (let n = BASE_SUITE_SIZE + 1; n <= clamped; n++) out.push(extensionScenario(n));
+  return out;
+}
+
+/** Look up any scenario in the 10,000-scenario space by id. */
+export function getScenarioById(id: string): Scenario | undefined {
+  const fromBase = scenarioById.get(id);
+  if (fromBase) return fromBase;
+  const n = parseInt(id.slice(4), 10);
+  if (!Number.isInteger(n) || n <= BASE_SUITE_SIZE || n > MAX_SUITE_SIZE) return undefined;
+  return extensionScenario(n);
+}

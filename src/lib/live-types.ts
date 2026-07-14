@@ -23,13 +23,30 @@ export interface LiveRunSummary {
   agentName: string;
   agentKind: string;
   provider: "anthropic" | "mock";
-  suite: "smoke" | "full";
+  suite: string; // tier id: smoke | standard | extended | scale | exhaustive | max
   status: "running" | "complete" | "error";
   error?: string;
   startedAt: string;
   finishedAt?: string;
   scenarioIds: string[];
   results: LiveCellResult[];
+}
+
+/** Lightweight run listing — aggregates only, no per-scenario results.
+ * A Max-tier run has 10,000 results; lists must not carry them. */
+export interface LiveRunListItem {
+  id: string;
+  agentName: string;
+  agentKind: string;
+  provider: "anthropic" | "mock";
+  suite: string;
+  status: "running" | "complete" | "error";
+  error?: string;
+  startedAt: string;
+  finishedAt?: string;
+  total: number;
+  counts: { pass: number; fail: number; partial: number; error: number };
+  score: number;
 }
 
 export type LiveEvent =

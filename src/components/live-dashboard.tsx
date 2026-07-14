@@ -5,15 +5,25 @@ import { useEffect, useState } from "react";
 import { ButtonLink, Card, EmptyState, Eyebrow } from "./ui";
 import { ReadinessCard } from "./readiness-card";
 import { MockBadge } from "./live-mission-control";
-import { fetchRuns } from "@/lib/live-api";
-import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
+import { fetchRun, fetchRuns } from "@/lib/live-api";
+import { scoreOf, type LiveRunListItem, type LiveRunSummary } from "@/lib/live-types";
 import { strengthsAndWeaknesses } from "@/lib/live-analyze";
+import { suiteLabel } from "@/lib/suite-tiers";
 
 export function LiveDashboard() {
-  const [runs, setRuns] = useState<LiveRunSummary[] | null>(null);
+  const [runs, setRuns] = useState<LiveRunListItem[] | null>(null);
+  const [latest, setLatest] = useState<LiveRunSummary | null>(null);
 
   useEffect(() => {
-    fetchRuns().then(setRuns);
+    (async () => {
+      const list = await fetchRuns();
+      const latestComplete = list.find((r) => r.status === "complete");
+      const full = latestComplete ? await fetchRun(latestComplete.id) : null;
+      return { list, full };
+    })().then(({ list, full }) => {
+      setRuns(list);
+      setLatest(full);
+    });
   }, []);
 
   if (!runs) return null;
@@ -43,15 +53,16 @@ export function LiveDashboard() {
     );
   }
 
-  const latest = runs.find((r) => r.status === "complete");
   const sw = latest ? strengthsAndWeaknesses(latest) : null;
 
   return (
     <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-4">
         {runs.slice(0, 6).map((run) => {
-          const score = scoreOf(run.results);
+          const score = run.score;
           const running = run.status === "running";
+          const resolved =
+            run.counts.pass + run.counts.fail + run.counts.partial + run.counts.error;
           return (
             <Link
               key={run.id}
@@ -77,7 +88,8 @@ export function LiveDashboard() {
                     {run.provider === "mock" && <MockBadge />}
                   </div>
                   <div className="mt-2 text-[13px] text-mut">
-                    {run.suite} suite · {run.results.length}/{run.scenarioIds.length} scenarios ·{" "}
+                    {suiteLabel(run.suite, run.total)} · {resolved.toLocaleString()}/
+                    {run.total.toLocaleString()} ·{" "}
                     {running
                       ? "running now"
                       : new Date(run.startedAt).toLocaleString("en-US", {

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { scenarios } from "@/lib/fixtures/scenarios";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { between, intBetween, mulberry32, pick, type Rng } from "@/lib/seeded";
 
 /**
@@ -78,7 +78,21 @@ function personFor(rng: Rng) {
   return `${pick(rng, FIRST)} ${pick(rng, LAST)}`;
 }
 
-export async function resetAndSeed(prisma: PrismaClient): Promise<void> {
+const CHUNK = 1000;
+
+async function createManyChunked<T>(
+  create: (args: { data: T[] }) => Promise<unknown>,
+  rows: T[],
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    await create({ data: rows.slice(i, i + CHUNK) });
+  }
+}
+
+export async function resetAndSeed(
+  prisma: PrismaClient,
+  scenarioIds: string[],
+): Promise<void> {
   // Reset store state, in FK order. Run history (LiveRun + LiveResult
   // transcripts) is deliberately kept — replays and benchmarks must
   // survive later runs; only the store itself resets.
@@ -139,8 +153,11 @@ export async function resetAndSeed(prisma: PrismaClient): Promise<void> {
     });
   }
 
-  // --- One grounded order per scenario -------------------------------
-  for (const s of scenarios) {
+  // --- One grounded order per scenario in this run's suite -----------
+  const suiteScenarios = scenarioIds
+    .map((id) => getScenarioById(id))
+    .filter((s): s is NonNullable<typeof s> => !!s);
+  for (const s of suiteScenarios) {
     const n = parseInt(s.id.slice(4), 10);
     const orderId = scenarioOrderId(s.id);
     const custId = `cus_${50000 + n}`;
@@ -346,8 +363,8 @@ export async function resetAndSeed(prisma: PrismaClient): Promise<void> {
     }
   }
 
-  await prisma.customer.createMany({ data: customers });
-  await prisma.order.createMany({ data: orders });
-  await prisma.shippingEvent.createMany({ data: events });
-  await prisma.refund.createMany({ data: refunds });
+  await createManyChunked((args) => prisma.customer.createMany(args), customers);
+  await createManyChunked((args) => prisma.order.createMany(args), orders);
+  await createManyChunked((args) => prisma.shippingEvent.createMany(args), events);
+  await createManyChunked((args) => prisma.refund.createMany(args), refunds);
 }

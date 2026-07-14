@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ReplayView, type ReplayLike } from "@/app/(app)/replay/[id]/replay-view";
 import { LiveEmpty } from "./live-empty";
 import { fetchLiveReplay } from "@/lib/live-api";
-import { scenarioById } from "@/lib/fixtures/scenarios";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
 import type { Scenario } from "@/lib/types";
 
 /** Live replay: the persisted transcript of a real run, in the same
@@ -18,7 +18,7 @@ export function LiveReplay({ scenarioId }: { scenarioId: string }) {
 
   useEffect(() => {
     const runId = new URLSearchParams(window.location.search).get("run");
-    const scenario = scenarioById.get(scenarioId);
+    const scenario = getScenarioById(scenarioId);
     const load = async (): Promise<typeof state> => {
       if (!runId || !scenario) return { phase: "missing" };
       const payload = await fetchLiveReplay(runId, scenarioId);

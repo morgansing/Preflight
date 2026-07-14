@@ -2,25 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { Button, Eyebrow, SeverityLabel } from "@/components/ui";
-import { scenarios as suite } from "@/lib/fixtures/scenarios";
-import { demoOutcomes } from "@/lib/fixtures/scenarios";
+import { demoOutcomes, getSuite } from "@/lib/fixtures/scenarios";
+import { LIBRARY_SIZES } from "@/lib/suite-tiers";
+import { useLibrarySize } from "@/lib/library-size";
 import type { Scenario, Severity } from "@/lib/types";
 import { useMode } from "@/lib/mode";
 import { LiveEmpty } from "@/components/live-empty";
 
+const PAGE_SIZE = 100;
+
 export default function ScenariosPage() {
   const { mode } = useMode();
+  const { size: librarySize, setSize: setLibrarySize } = useLibrarySize();
   const [selected, setSelected] = useState<Scenario | null>(null);
   const [creating, setCreating] = useState(false);
   const [drafts, setDrafts] = useState<Scenario[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
-  const all = useMemo(() => [...drafts, ...suite], [drafts]);
-  const cats = useMemo(
-    () => [...new Set(all.map((s) => s.category))],
-    [all],
+  const all = useMemo(() => [...drafts, ...getSuite(librarySize)], [drafts, librarySize]);
+  const cats = useMemo(() => [...new Set(all.map((s) => s.category))], [all]);
+  const filtered = useMemo(
+    () => (filter ? all.filter((s) => s.category === filter) : all),
+    [all, filter],
   );
-  const rows = filter ? all.filter((s) => s.category === filter) : all;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const rows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   if (mode === "live") return <LiveEmpty surface="the scenario library" />;
 
@@ -32,21 +40,56 @@ export default function ScenariosPage() {
             Scenarios
           </h1>
           <p className="mt-2 text-sm text-sub">
-            {all.length} scenarios · Ecommerce Support Suite v2
+            {all.length.toLocaleString()} scenarios · Ecommerce Support Suite v2
           </p>
         </div>
         <Button onClick={() => setCreating(true)}>New scenario</Button>
       </div>
 
+      {/* Library size — the first 200 are the hand-shaped base suite;
+          larger sizes extend it deterministically, up to 10,000. */}
+      <div className="mt-8 flex flex-wrap items-center gap-2">
+        <Eyebrow className="mr-2">Library size</Eyebrow>
+        {LIBRARY_SIZES.map((n) => (
+          <button
+            key={n}
+            onClick={() => {
+              setLibrarySize(n);
+              setPage(0);
+            }}
+            className={`focus-ring h-8 rounded-md border px-3 font-mono text-[12px] tabular-nums transition-colors duration-150 cursor-pointer ${
+              librarySize === n
+                ? "border-accent/50 bg-accent/10 text-accent"
+                : "border-edge text-sub hover:border-mut hover:text-ink"
+            }`}
+          >
+            {n.toLocaleString()}
+          </button>
+        ))}
+        <span className="ml-2 text-[12px] text-mut">
+          sizes past 200 extend the base suite deterministically
+        </span>
+      </div>
+
       {/* Category filter */}
-      <div className="mt-8 flex flex-wrap gap-2">
-        <FilterChip label="All" active={filter === null} onClick={() => setFilter(null)} />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <FilterChip
+          label="All"
+          active={filter === null}
+          onClick={() => {
+            setFilter(null);
+            setPage(0);
+          }}
+        />
         {cats.map((c) => (
           <FilterChip
             key={c}
             label={c}
             active={filter === c}
-            onClick={() => setFilter(filter === c ? null : c)}
+            onClick={() => {
+              setFilter(filter === c ? null : c);
+              setPage(0);
+            }}
           />
         ))}
       </div>
@@ -86,6 +129,38 @@ export default function ScenariosPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {pageCount > 1 && (
+        <div className="mt-4 flex items-center justify-between text-[13px]">
+          <span className="font-mono text-[12px] tabular-nums text-mut">
+            {(safePage * PAGE_SIZE + 1).toLocaleString()}–
+            {Math.min(filtered.length, (safePage + 1) * PAGE_SIZE).toLocaleString()} of{" "}
+            {filtered.length.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={safePage === 0}
+              onClick={() => setPage(safePage - 1)}
+            >
+              ← Prev
+            </Button>
+            <span className="font-mono text-[12px] tabular-nums text-mut">
+              {safePage + 1} / {pageCount}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={safePage >= pageCount - 1}
+              onClick={() => setPage(safePage + 1)}
+            >
+              Next →
+            </Button>
+          </div>
+        </div>
+      )}
 
       {selected && (
         <Drawer onClose={() => setSelected(null)} title={selected.name}>

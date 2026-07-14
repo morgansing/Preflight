@@ -11,7 +11,7 @@ import {
   type ConversationMessage,
   type Provider,
 } from "./provider";
-import { scenarioById } from "@/lib/fixtures/scenarios";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
 import type { ReplayStep, Scenario } from "@/lib/types";
 import type { LiveCellResult } from "@/lib/live-types";
 
@@ -22,7 +22,10 @@ import type { LiveCellResult } from "@/lib/live-types";
  * exact demo replay shape and stream into Mission Control as they land.
  */
 
-const CONCURRENCY = 3;
+const CONCURRENCY = Math.max(
+  1,
+  parseInt(process.env.PREFLIGHT_CONCURRENCY ?? "3", 10) || 3,
+);
 const MAX_CUSTOMER_TURNS = 4;
 const SCENARIO_TIMEOUT_MS = 240_000;
 
@@ -30,7 +33,8 @@ export interface LaunchOptions {
   agentName: string;
   agentKind: "reference" | "http" | "mcp";
   endpoint?: string;
-  suite: "smoke" | "full";
+  /** Suite tier id: smoke | standard | extended | scale | exhaustive | max. */
+  suite: string;
 }
 
 export async function launchRun(
@@ -54,9 +58,12 @@ export async function launchRun(
   }
 
   const scenarioIds = suiteScenarioIds(opts.suite);
+  if (!scenarioIds) {
+    return { error: `Unknown suite tier "${opts.suite}".`, status: 400 };
+  }
   const runId = `lrun_${Date.now().toString(36)}`;
 
-  await resetAndSeed(prisma);
+  await resetAndSeed(prisma, scenarioIds);
   await prisma.liveRun.create({
     data: {
       id: runId,
@@ -95,7 +102,7 @@ async function executeRun(
     for (;;) {
       const scenarioId = queue.shift();
       if (!scenarioId) return;
-      const scenario = scenarioById.get(scenarioId);
+      const scenario = getScenarioById(scenarioId);
       if (!scenario) continue;
 
       emit(runId, { type: "scenario_started", scenarioId });

@@ -38,9 +38,15 @@ localStorage). Same components, same routes — only the data source differs.
   falls back to scripted data.
 
   Setup: `PREFLIGHT_LLM_KEY=sk-ant-…` (or `ANTHROPIC_API_KEY`) on the
-  server. Models default to `claude-opus-4-8` (override `PREFLIGHT_MODEL`).
-  Live runs default to a 24-scenario **smoke suite** spanning every
-  category, including the traps; the full 200 is an option. The built-in
+  server. Models default to `claude-opus-4-8` (override `PREFLIGHT_MODEL`;
+  `PREFLIGHT_CONCURRENCY` sets parallel scenarios, default 3).
+  Live runs pick a **suite tier**: Smoke 24 (default) · Standard 200 ·
+  Extended 500 · Scale 1,000 · Exhaustive 5,000 · Max 10,000. The first
+  200 scenarios are the hand-shaped base suite; larger tiers extend it
+  deterministically across the same category proportions, every scenario
+  grounded in the seeded store. Tier cards show estimated cost and
+  duration up front (Max ≈ $2,000 · ≈ 28 h at Opus pricing) and the run
+  header ticks the real numbers. The built-in
   **reference agent** is deliberately imperfect *by incentive* — its prompt
   optimizes for "resolve fast, keep the customer happy, avoid escalating" —
   so its refund-fraud/duplicate/escalation failures are genuine model

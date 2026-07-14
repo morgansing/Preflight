@@ -5,30 +5,26 @@ import { useEffect, useMemo, useState } from "react";
 import { ReadinessCard } from "./readiness-card";
 import { Button, Eyebrow, EmptyState, ButtonLink } from "./ui";
 import { MockBadge } from "./live-mission-control";
-import { fetchRuns } from "@/lib/live-api";
+import { fetchRun, fetchRuns } from "@/lib/live-api";
 import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
-import { scenarioById } from "@/lib/fixtures/scenarios";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
+import { suiteLabel } from "@/lib/suite-tiers";
 
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
 /** The live readiness report — computed from a real run's results. */
 export function LiveReport() {
-  const [runs, setRuns] = useState<LiveRunSummary[] | null>(null);
-  const [runParam, setRunParam] = useState<string | null>(null);
+  // undefined = loading; null = no completed run to report on.
+  const [run, setRun] = useState<LiveRunSummary | null | undefined>(undefined);
 
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get("run");
-    fetchRuns().then((rs) => {
-      setRunParam(param);
-      setRuns(rs);
-    });
+    (async () => {
+      const list = await fetchRuns();
+      const targetId = param ?? list.find((r) => r.status === "complete")?.id;
+      return targetId ? await fetchRun(targetId) : null;
+    })().then(setRun);
   }, []);
-
-  const run = useMemo(() => {
-    if (!runs) return null;
-    if (runParam) return runs.find((r) => r.id === runParam) ?? null;
-    return runs.find((r) => r.status === "complete") ?? null;
-  }, [runs, runParam]);
 
   const report = useMemo(() => {
     if (!run) return null;
@@ -36,7 +32,7 @@ export function LiveReport() {
     const byCategory = new Map<string, { pass: number; fail: number; partial: number; total: number }>();
     for (const r of results) {
       if (r.outcome === "error") continue;
-      const cat = scenarioById.get(r.scenarioId)?.category ?? "Other";
+      const cat = getScenarioById(r.scenarioId)?.category ?? "Other";
       const c = byCategory.get(cat) ?? { pass: 0, fail: 0, partial: 0, total: 0 };
       c.total += 1;
       if (r.outcome === "pass") c.pass += 1;
@@ -64,13 +60,13 @@ export function LiveReport() {
             results
               .filter(
                 (r) =>
-                  scenarioById.get(r.scenarioId)?.category === name &&
+                  getScenarioById(r.scenarioId)?.category === name &&
                   (r.outcome === "fail" || r.outcome === "partial") &&
                   r.failureReason,
               )
               .map((r) => r.failureReason as string),
           ),
-        ],
+        ].slice(0, 3),
       }));
     const risks = results
       .filter((r) => r.outcome === "fail")
@@ -82,7 +78,7 @@ export function LiveReport() {
     return { score: scoreOf(results), strengths, weaknesses, taxonomy, risks, errors, tokens, cost };
   }, [run]);
 
-  if (!runs) return null;
+  if (run === undefined) return null;
   if (!run || !report) {
     return (
       <div className="mx-auto max-w-2xl px-8 py-24">
@@ -117,7 +113,7 @@ export function LiveReport() {
           </div>
           <h1 className="font-display mt-3 text-4xl tracking-tight text-ink">{run.agentName}</h1>
           <p className="mt-2 text-sm text-sub">
-            {run.suite === "smoke" ? "Smoke suite · 24 scenarios" : "Full suite · 200 scenarios"} ·{" "}
+            {suiteLabel(run.suite, run.scenarioIds.length)} ·{" "}
             {new Date(run.startedAt).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}
           </p>
         </div>
@@ -169,7 +165,7 @@ export function LiveReport() {
           </h2>
           <ol className="mt-6 space-y-6">
             {report.risks.map((risk, i) => {
-              const s = scenarioById.get(risk.scenarioId);
+              const s = getScenarioById(risk.scenarioId);
               return (
                 <li key={risk.scenarioId} className="flex gap-5">
                   <span className="numeral mt-0.5 text-2xl text-mut">{i + 1}</span>

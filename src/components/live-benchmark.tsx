@@ -4,23 +4,30 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ButtonLink, Card, EmptyState, Eyebrow, SeverityLabel } from "./ui";
 import { MockBadge } from "./live-mission-control";
-import { fetchRuns } from "@/lib/live-api";
+import { fetchRun, fetchRuns } from "@/lib/live-api";
 import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
-import { scenarioById } from "@/lib/fixtures/scenarios";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
 import type { Severity } from "@/lib/types";
 
 /** Live benchmark: diff the two most recent completed runs. */
 export function LiveBenchmark() {
-  const [runs, setRuns] = useState<LiveRunSummary[] | null>(null);
+  // undefined = loading; null = fewer than two completed runs.
+  const [pair, setPair] = useState<{ a: LiveRunSummary; b: LiveRunSummary } | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
-    fetchRuns().then(setRuns);
+    (async () => {
+      const complete = (await fetchRuns()).filter((r) => r.status === "complete");
+      if (complete.length < 2) return null;
+      const [b, a] = await Promise.all([fetchRun(complete[0].id), fetchRun(complete[1].id)]);
+      return a && b ? { a, b } : null;
+    })().then(setPair);
   }, []);
 
   const diff = useMemo(() => {
-    const complete = (runs ?? []).filter((r) => r.status === "complete");
-    if (complete.length < 2) return null;
-    const [b, a] = complete; // newest first
+    if (!pair) return null;
+    const { a, b } = pair; // b = newest
     const aByScenario = new Map(a.results.map((r) => [r.scenarioId, r.outcome]));
     const shared = b.results.filter((r) => aByScenario.has(r.scenarioId));
     const newlyBroken = shared.filter(
@@ -30,9 +37,9 @@ export function LiveBenchmark() {
       (r) => r.outcome === "pass" && ["fail", "partial"].includes(aByScenario.get(r.scenarioId)!),
     );
     return { a, b, newlyBroken, newlyPassing };
-  }, [runs]);
+  }, [pair]);
 
-  if (!runs) return null;
+  if (pair === undefined) return null;
   if (!diff) {
     return (
       <div className="mx-auto max-w-2xl px-8 py-24">
@@ -155,8 +162,8 @@ function DiffList({
       <p className="mt-1.5 text-[13px] text-sub">{note}</p>
       <div className="mt-4 space-y-2">
         {items.length === 0 && <p className="text-[13px] text-mut">None.</p>}
-        {items.map((item) => {
-          const s = scenarioById.get(item.id);
+        {items.slice(0, 30).map((item) => {
+          const s = getScenarioById(item.id);
           return (
             <Link
               key={item.id}
@@ -180,6 +187,9 @@ function DiffList({
             </Link>
           );
         })}
+        {items.length > 30 && (
+          <p className="pt-1 text-[12px] text-mut">+{items.length - 30} more</p>
+        )}
       </div>
     </section>
   );
