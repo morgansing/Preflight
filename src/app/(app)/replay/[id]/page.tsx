@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { getReplay } from "@/lib/fixtures/replays";
 import { scenarioById } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
-import { LiveEmpty } from "@/components/live-empty";
+import { LiveReplay } from "@/components/live-replay";
 import { ReplayView } from "./replay-view";
 
 export default function ReplayPage({
@@ -16,7 +16,7 @@ export default function ReplayPage({
   const { id } = use(params);
   const { mode } = useMode();
 
-  if (mode === "live") return <LiveEmpty surface="Replay" />;
+  if (mode === "live") return <LiveReplay scenarioId={id} />;
 
   const scenario = scenarioById.get(id);
   const replay = getReplay(id);

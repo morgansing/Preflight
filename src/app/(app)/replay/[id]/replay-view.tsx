@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Replay, ReplayStep, Scenario } from "@/lib/types";
+import type { LiveOutcome } from "@/lib/live-types";
 import { Button, Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
+
+/** Replay shape shared by both modes — live adds the "error" outcome. */
+export type ReplayLike = Omit<Replay, "outcome"> & { outcome: LiveOutcome };
 
 /**
  * Replay — three columns, cinematic, dark.
@@ -18,7 +22,7 @@ export function ReplayView({
   replay,
 }: {
   scenario: Scenario;
-  replay: Replay;
+  replay: ReplayLike;
 }) {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(true);

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { Outcome, Severity } from "@/lib/types";
+import type { Severity } from "@/lib/types";
+import type { LiveOutcome } from "@/lib/live-types";
 
 /* Base components. Every one of these leans on the Part 2 rules:
  * hairline borders, 8px-scale spacing, one accent, calm motion. */
@@ -87,16 +88,19 @@ export function Card({
 /* Status language: colour never carries meaning alone — every outcome
  * pairs a dot with a glyph or label. Red means failure and nothing else. */
 
-export const outcomeColor: Record<Outcome, string> = {
+export const outcomeColor: Record<LiveOutcome, string> = {
   pass: "var(--color-accent)",
   fail: "var(--color-fail)",
   partial: "var(--color-warn)",
+  // Infra failure, not agent failure — amber on purpose, never red.
+  error: "var(--color-warn)",
 };
 
-export const outcomeGlyph: Record<Outcome, string> = {
+export const outcomeGlyph: Record<LiveOutcome, string> = {
   pass: "✓",
   fail: "✗",
   partial: "◐",
+  error: "!",
 };
 
 export function Dot({ color, className = "" }: { color: string; className?: string }) {
@@ -109,11 +113,12 @@ export function Dot({ color, className = "" }: { color: string; className?: stri
   );
 }
 
-export function OutcomeChip({ outcome }: { outcome: Outcome }) {
-  const labels: Record<Outcome, string> = {
+export function OutcomeChip({ outcome }: { outcome: LiveOutcome }) {
+  const labels: Record<LiveOutcome, string> = {
     pass: "Pass",
     fail: "Fail",
     partial: "Partial",
+    error: "Run error",
   };
   return (
     <span

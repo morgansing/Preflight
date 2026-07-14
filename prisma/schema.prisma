@@ -1,0 +1,120 @@
+// Preflight — the simulated store + live-run persistence.
+// SQLite for V0; the schema is Postgres-ready (no SQLite-only types).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Customer {
+  id         String  @id
+  name       String
+  email      String
+  address    String
+  claims90d  Int     @default(0) // refund claims in the last 90 days
+  flagsJson  String  @default("[]")
+  orders     Order[]
+}
+
+model Product {
+  sku         String  @id
+  name        String
+  price       Float
+  stock       Int
+  finalSale   Boolean @default(false)
+  restockAt   String? // ISO date; null = no restock scheduled
+  provisional Boolean @default(false) // restock date not confirmed
+}
+
+model Order {
+  id            String          @id
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  status        String // processing | shipped | in_transit | delivered | cancelled
+  total         Float
+  address       String
+  createdAt     DateTime
+  itemsJson     String // [{sku, name, qty, price}]
+  paymentMethod String
+  paymentLast4  String
+  flagsJson     String          @default("[]") // e.g. refund_over_500_requires_review
+  duplicateOf   String? // id of the order this one duplicates
+  events        ShippingEvent[]
+  refunds       Refund[]
+}
+
+model ShippingEvent {
+  id         Int    @id @default(autoincrement())
+  orderId    String
+  order      Order  @relation(fields: [orderId], references: [id])
+  ts         String
+  status     String
+  detailJson String @default("{}")
+}
+
+model Refund {
+  id              String  @id
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id])
+  runId           String? // which live run created it (null = seeded history)
+  amount          Float
+  reason          String
+  destinationJson String?
+  createdAt       DateTime @default(now())
+}
+
+model Escalation {
+  id        String   @id
+  runId     String?
+  orderId   String?
+  summary   String
+  trigger   String
+  createdAt DateTime @default(now())
+}
+
+model ToolAction {
+  id          Int      @id @default(autoincrement())
+  runId       String
+  scenarioId  String
+  tool        String
+  payloadJson String
+  createdAt   DateTime @default(now())
+}
+
+model LiveRun {
+  id            String       @id
+  agentName     String
+  agentKind     String // http | mcp | reference
+  endpoint      String?
+  provider      String // anthropic | mock
+  suite         String // smoke | full
+  scenariosJson String // ordered scenario ids in this run
+  status        String // running | complete | error
+  error         String?
+  startedAt     DateTime     @default(now())
+  finishedAt    DateTime?
+  results       LiveResult[]
+}
+
+model LiveResult {
+  id                 Int      @id @default(autoincrement())
+  runId              String
+  run                LiveRun  @relation(fields: [runId], references: [id])
+  scenarioId         String
+  outcome            String // pass | fail | partial | error
+  failureReason      String?
+  severity           String
+  tokens             Int
+  costUsd            Float
+  latencyMs          Int
+  transcriptJson     String // ReplayStep[] — exact demo replay shape
+  divergenceStep     Int?
+  divergenceExpected Int?
+  judgeJson          String?
+  createdAt          DateTime @default(now())
+
+  @@unique([runId, scenarioId])
+}

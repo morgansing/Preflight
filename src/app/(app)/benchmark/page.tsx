@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, Eyebrow, SeverityLabel } from "@/components/ui";
-import { LiveEmpty } from "@/components/live-empty";
+import { LiveBenchmark } from "@/components/live-benchmark";
 import { demoBenchmark, type BenchmarkEntry } from "@/lib/fixtures/benchmark";
 import { useMode } from "@/lib/mode";
 import type { Severity } from "@/lib/types";
@@ -13,7 +13,7 @@ import type { Severity } from "@/lib/types";
  */
 export default function BenchmarkPage() {
   const { mode } = useMode();
-  if (mode === "live") return <LiveEmpty surface="Benchmark" />;
+  if (mode === "live") return <LiveBenchmark />;
 
   const b = demoBenchmark;
   const delta = b.b.score - b.a.score;

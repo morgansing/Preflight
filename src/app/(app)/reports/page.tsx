@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ReadinessCard } from "@/components/readiness-card";
 import { Button, Eyebrow } from "@/components/ui";
-import { LiveEmpty } from "@/components/live-empty";
+import { LiveReport } from "@/components/live-report";
 import { demoReport } from "@/lib/fixtures/report";
 import { readiness, runStats } from "@/lib/fixtures/run";
 import { useMode } from "@/lib/mode";
@@ -14,7 +14,7 @@ import { useMode } from "@/lib/mode";
  */
 export default function ReportsPage() {
   const { mode } = useMode();
-  if (mode === "live") return <LiveEmpty surface="Reports" />;
+  if (mode === "live") return <LiveReport />;
 
   const r = demoReport;
 

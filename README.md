@@ -12,8 +12,9 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-`npm run build && npm start` for production. No API keys, no database, no
-network required — Demo mode is fully self-contained.
+`npm run build && npm start` for production. Demo mode needs no API keys
+and makes zero network calls. (`npm run dev`/`start` auto-create the SQLite
+store via `prisma db push`.)
 
 ## The two modes
 
@@ -25,10 +26,32 @@ localStorage). Same components, same routes — only the data source differs.
   looks live but is identical every time. Six failure replays are hand-authored
   end-to-end; every other cell gets a deterministic generated replay so no
   click is a dead end. Demo mode makes zero network calls.
-- **Live mode**: honest scaffolding for the real product. Register an agent
-  (HTTP endpoint, MCP endpoint, or the built-in reference agent) via
-  Agents → Connect. With no runs recorded, every surface shows a calm empty
-  state — Live mode never falls back to scripted data.
+- **Live mode**: the real product. The harness resets + reseeds a simulated
+  store (Prisma + SQLite: ~500 orders full of realistic mess, grounded in the
+  scenario suite), then runs each scenario as a genuine multi-turn
+  conversation — an LLM customer persona against the agent under test, which
+  drives real store tools (`get_order`, `issue_refund`, `escalate`, …). An
+  LLM judge grades every transcript against the scenario rubric via a strict
+  JSON-schema tool call. Results stream into Mission Control over SSE (with
+  DB catch-up on refresh) and persist in the demo replay shape, so Replay,
+  Reports and Benchmark work identically in both modes. Live mode never
+  falls back to scripted data.
+
+  Setup: `PREFLIGHT_LLM_KEY=sk-ant-…` (or `ANTHROPIC_API_KEY`) on the
+  server. Models default to `claude-opus-4-8` (override `PREFLIGHT_MODEL`).
+  Live runs default to a 24-scenario **smoke suite** spanning every
+  category, including the traps; the full 200 is an option. The built-in
+  **reference agent** is deliberately imperfect *by incentive* — its prompt
+  optimizes for "resolve fast, keep the customer happy, avoid escalating" —
+  so its refund-fraud/duplicate/escalation failures are genuine model
+  behavior. Infra failures render as amber "run error", excluded from the
+  score — red only ever means the agent failed.
+
+  For development/CI without a key, `PREFLIGHT_LLM_KEY=mock` selects an
+  explicitly-labeled deterministic mock provider (visible MOCK PROVIDER
+  badge on every surface) that exercises the real store, tools, harness,
+  persistence and streaming with scripted agent behavior. It is an explicit
+  setting, never a fallback.
 
 ## The screens
 
@@ -56,8 +79,11 @@ localStorage). Same components, same routes — only the data source differs.
 
 ## Status vs the build brief
 
-Steps 1–6 and 9 are complete (design system, Mission Control, Readiness Card +
-Dashboard, Replay, Reports/Benchmark/Scenarios, mode switch + Live scaffolding,
-landing). Steps 7–8 — the Prisma-backed simulated store, run harness, LLM judge
-and reference agent that make Live mode produce real runs — are the next
-milestone.
+All nine build steps are complete: design system, Mission Control, Readiness
+Card + Dashboard, Replay, Reports/Benchmark/Scenarios, mode switch, the
+simulated store (Prisma schema + deterministic seed + tools), the harness +
+judge + reference agent wiring Live mode end to end, and the landing page.
+Server code lives in `src/server/` (seed, store tools, providers, harness,
+prompts, SSE bus); live API routes in `src/app/api/live/`. Not yet built:
+MCP-endpoint agents (registered but rejected at run time with honest copy),
+auth, and Postgres.

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ReadinessCard } from "@/components/readiness-card";
 import { Sparkline } from "@/components/sparkline";
-import { ButtonLink, Card, Eyebrow, EmptyState } from "@/components/ui";
+import { ButtonLink, Card, Eyebrow } from "@/components/ui";
+import { LiveDashboard } from "@/components/live-dashboard";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { readiness } from "@/lib/fixtures/run";
 import { useMode } from "@/lib/mode";
@@ -26,25 +27,7 @@ export default function DashboardPage() {
       </div>
 
       {mode === "live" ? (
-        <div className="mt-16">
-          <EmptyState
-            icon={
-              <svg
-                viewBox="0 0 32 32"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.25"
-                className="size-8"
-              >
-                <rect x="5" y="9" width="22" height="16" rx="3" />
-                <path d="M16 9V5M11 17h.01M21 17h.01M12 21h8" strokeLinecap="round" />
-              </svg>
-            }
-            title="Connect your first agent to see how it holds up."
-            body="Live mode runs your agent against the simulated store for real. Register an HTTP or MCP endpoint, or start with the built-in reference agent."
-            action={<ButtonLink href="/agents/connect">Connect an agent</ButtonLink>}
-          />
-        </div>
+        <LiveDashboard />
       ) : (
         <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-4">
