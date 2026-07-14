@@ -42,10 +42,18 @@ const icons = {
       <path d="M3 13.5V8M8 13.5V4M13 13.5V6.5" strokeLinecap="round" />
     </svg>
   ),
+  setup: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+      <path d="M2.5 5h11M2.5 11h11" strokeLinecap="round" />
+      <circle cx="6" cy="5" r="1.75" fill="var(--color-surface)" />
+      <circle cx="10.5" cy="11" r="1.75" fill="var(--color-surface)" />
+    </svg>
+  ),
 };
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: icons.dashboard },
+  { href: "/setup", label: "Setup", icon: icons.setup },
   { href: "/agents", label: "Agents", icon: icons.agents },
   { href: "/scenarios", label: "Scenarios", icon: icons.scenarios },
   { href: "/runs", label: "Runs", icon: icons.runs },

@@ -84,6 +84,26 @@ model ToolAction {
   createdAt   DateTime @default(now())
 }
 
+model AgentProfile {
+  id        String   @id @default("default") // single-workspace V0
+  role      String
+  agentRef  String // "reference" or a registered agent id/name
+  toolsJson String   @default("[]")
+  updatedAt DateTime @updatedAt
+}
+
+model PolicyRule {
+  id        Int      @id @default(autoincrement())
+  profileId String   @default("default")
+  text      String
+  category  String
+  severity  String // critical | high | medium | low
+  kind      String // must | must_not
+  source    String // help_centre | document | agent_prompt | questionnaire | manual | starter
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 model LiveRun {
   id            String       @id
   agentName     String
