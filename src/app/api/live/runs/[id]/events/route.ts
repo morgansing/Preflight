@@ -41,6 +41,8 @@ export async function GET(
           type: "scenario_finished",
           result: {
             scenarioId: r.scenarioId,
+            name: r.scenarioName ?? undefined,
+            category: r.scenarioCategory ?? undefined,
             outcome: r.outcome as LiveCellResult["outcome"],
             failureReason: r.failureReason ?? undefined,
             severity: r.severity as LiveCellResult["severity"],

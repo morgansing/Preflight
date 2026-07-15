@@ -32,7 +32,30 @@ export interface AgentProfile {
   role: string;
   agentRef: string; // "reference" or a registered agent id
   tools: string[];
+  // The Agent Dossier — knowledge about the agent, not just rules.
+  // The generator reads all of it: risk tolerance shapes how adversarial
+  // the pressure mix is; tone and platform shape how personas talk.
+  platform: string;
+  tone: string;
+  riskTolerance: string;
 }
+
+export const PLATFORM_OPTIONS = ["Shopify", "WooCommerce", "Magento", "Custom stack"];
+export const TONE_OPTIONS = ["Friendly", "Formal", "Playful", "Terse"];
+export const RISK_OPTIONS = [
+  { id: "low", label: "Low — money and policy errors are unacceptable" },
+  { id: "medium", label: "Medium — some judgement calls are fine" },
+  { id: "high", label: "High — optimise for customer happiness" },
+];
+
+export const DEFAULT_PROFILE: AgentProfile = {
+  role: "support",
+  agentRef: "reference",
+  tools: [],
+  platform: "Custom stack",
+  tone: "Friendly",
+  riskTolerance: "low",
+};
 
 export const RULE_SOURCE_LABELS: Record<RuleSource, string> = {
   help_centre: "Help centre",

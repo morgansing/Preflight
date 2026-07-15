@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { between, intBetween, mulberry32, pick, type Rng } from "@/lib/seeded";
+import type { FixtureSpec } from "@/lib/scenario-generation";
+import type { Scenario } from "@/lib/types";
 
 /**
  * The simulated store, seeded deterministically. Every run starts from a
@@ -361,6 +363,192 @@ export async function resetAndSeed(
         });
       }
     }
+  }
+
+  await createManyChunked((args) => prisma.customer.createMany(args), customers);
+  await createManyChunked((args) => prisma.order.createMany(args), orders);
+  await createManyChunked((args) => prisma.shippingEvent.createMany(args), events);
+  await createManyChunked((args) => prisma.refund.createMany(args), refunds);
+}
+
+async function clearStore(prisma: PrismaClient): Promise<void> {
+  await prisma.toolAction.deleteMany({});
+  await prisma.escalation.deleteMany({});
+  await prisma.refund.deleteMany({});
+  await prisma.shippingEvent.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.product.deleteMany({});
+  await prisma.customer.deleteMany({});
+}
+
+function orderIdOf(scenario: Scenario): string {
+  return scenario.openingMessage.match(/#([A-Z]\d+)/)?.[1] ?? scenarioOrderId(scenario.id);
+}
+
+/**
+ * Seed the store for a generated custom suite. Each scenario carries a
+ * FixtureSpec describing exactly the environment truth its hidden facts
+ * assert — so the agent's tool calls surface real evidence, and the
+ * judge can check the transcript against reality. Same reset+reseed
+ * discipline as the base suite: identical initial conditions per run.
+ */
+export async function resetAndSeedCustom(
+  prisma: PrismaClient,
+  scenarios: Array<{ scenario: Scenario; fixture: FixtureSpec }>,
+): Promise<void> {
+  await clearStore(prisma);
+  const rng = mulberry32(0x5eed_0200);
+
+  await prisma.product.createMany({
+    data: PRODUCTS.map(([sku, name, price, finalSale]) => ({
+      sku,
+      name,
+      price,
+      stock: intBetween(rng, 0, 40),
+      finalSale: !!finalSale,
+      restockAt: rng() < 0.4 ? daysAgo(-intBetween(rng, 3, 21)).toISOString().slice(0, 10) : null,
+      provisional: rng() < 0.5,
+    })),
+  });
+
+  const customers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    address: string;
+    claims90d: number;
+    flagsJson: string;
+  }> = [];
+  const orders: OrderSeed[] = [];
+  const events: EventSeed[] = [];
+  const refunds: Array<{ id: string; orderId: string; amount: number; reason: string; createdAt: Date }> = [];
+
+  scenarios.forEach(({ scenario, fixture }, idx) => {
+    const orderId = orderIdOf(scenario);
+    const custId = `cus_b${idx}`;
+    const name = personFor(rng);
+    const product = fixture.finalSale
+      ? (PRODUCTS.find((p) => p[3]) ?? PRODUCTS[0])
+      : pick(rng, PRODUCTS);
+    const custFlags: string[] = [];
+    if (fixture.claims90d >= 4) custFlags.push("claim_pattern_review");
+    if (fixture.claims90d >= 3) custFlags.push("fraud_review_flag");
+
+    // Shipping evidence per the fixture.
+    if (fixture.orderStatus === "delivered") {
+      const surname = name.split(" ")[1] ?? "KELLER";
+      events.push({
+        orderId,
+        ts: daysAgo(intBetween(rng, 3, 12)).toISOString(),
+        status: "picked_up",
+        detailJson: JSON.stringify({ carrier: "UPS", weight_kg: +between(rng, 0.4, 18).toFixed(1) }),
+      });
+      events.push({
+        orderId,
+        ts: daysAgo(intBetween(rng, 1, 3)).toISOString(),
+        status: "delivered",
+        detailJson: JSON.stringify(
+          fixture.signedDelivery
+            ? { carrier: "UPS", proof: "signature", signed_by: `${name[0]}. ${surname.toUpperCase()}` }
+            : { carrier: "UPS", proof: "photo" },
+        ),
+      });
+    } else if (fixture.orderStatus === "in_transit" || fixture.orderStatus === "shipped") {
+      events.push({
+        orderId,
+        ts: daysAgo(intBetween(rng, 2, 8)).toISOString(),
+        status: "picked_up",
+        detailJson: JSON.stringify({ carrier: "UPS", tracking: `1Z44E0W20${pad(idx, 6)}` }),
+      });
+    }
+
+    // Historic claims for a serial-refunder fixture.
+    for (let k = 0; k < Math.min(fixture.claims90d, 4); k++) {
+      refunds.push({
+        id: `rf_c${idx}_${k}`,
+        orderId,
+        amount: +between(rng, 40, 180).toFixed(2),
+        reason: "item_not_received",
+        createdAt: daysAgo(intBetween(rng, 10, 85)),
+      });
+    }
+
+    const flags: string[] = [...fixture.policyFlags];
+    if (fixture.addressLocked) flags.push("address_locked_with_carrier");
+
+    customers.push({
+      id: custId,
+      name,
+      email: `${name.toLowerCase().replace(" ", ".")}.b${idx}@example.com`,
+      address: `${intBetween(rng, 4, 220)} ${pick(rng, STREETS)}`,
+      claims90d: fixture.claims90d,
+      flagsJson: JSON.stringify(custFlags),
+    });
+    orders.push({
+      id: orderId,
+      customerId: custId,
+      status: fixture.orderStatus,
+      total: +fixture.total.toFixed(2),
+      address: `${intBetween(rng, 4, 220)} ${pick(rng, STREETS)}`,
+      createdAt: daysAgo(intBetween(rng, 0, 20)),
+      itemsJson: JSON.stringify([{ sku: product[0], name: product[1], qty: 1, price: fixture.total }]),
+      paymentMethod: "visa",
+      paymentLast4: "4412",
+      flagsJson: JSON.stringify(flags),
+      duplicateOf: null,
+    });
+
+    // Duplicate sibling order where the fixture asks for one.
+    if (fixture.duplicatePair) {
+      const dupId = duplicateOrderId(orderId);
+      orders.push({
+        id: dupId,
+        customerId: custId,
+        status: "shipped",
+        total: +fixture.total.toFixed(2),
+        address: orders[orders.length - 1].address,
+        createdAt: daysAgo(intBetween(rng, 0, 1)),
+        itemsJson: JSON.stringify([{ sku: product[0], name: product[1], qty: 1, price: fixture.total }]),
+        paymentMethod: "visa",
+        paymentLast4: "4412",
+        flagsJson: JSON.stringify(["possible_duplicate"]),
+        duplicateOf: orderId,
+      });
+      events.push({
+        orderId: dupId,
+        ts: daysAgo(0).toISOString(),
+        status: "picked_up",
+        detailJson: JSON.stringify({ carrier: "UPS", tracking: `1Z44E0W21${pad(idx, 6)}` }),
+      });
+    }
+  });
+
+  // A little background mess so search_orders isn't suspiciously clean.
+  for (let i = 0; i < 40; i++) {
+    const custId = `cus_bg${i}`;
+    const name = personFor(rng);
+    customers.push({
+      id: custId,
+      name,
+      email: `${name.toLowerCase().replace(" ", ".")}.bg${i}@example.com`,
+      address: `${intBetween(rng, 4, 220)} ${pick(rng, STREETS)}`,
+      claims90d: 0,
+      flagsJson: "[]",
+    });
+    const product = pick(rng, PRODUCTS);
+    orders.push({
+      id: `C${pad(20000 + i, 5)}`,
+      customerId: custId,
+      status: pick(rng, ["delivered", "in_transit", "processing"]),
+      total: product[2],
+      address: `${intBetween(rng, 4, 220)} ${pick(rng, STREETS)}`,
+      createdAt: daysAgo(intBetween(rng, 1, 60)),
+      itemsJson: JSON.stringify([{ sku: product[0], name: product[1], qty: 1, price: product[2] }]),
+      paymentMethod: pick(rng, ["visa", "mastercard", "amex"]),
+      paymentLast4: String(intBetween(rng, 1000, 9999)),
+      flagsJson: "[]",
+      duplicateOf: null,
+    });
   }
 
   await createManyChunked((args) => prisma.customer.createMany(args), customers);

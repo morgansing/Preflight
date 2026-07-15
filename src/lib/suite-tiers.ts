@@ -68,8 +68,10 @@ export function tierById(id: string): SuiteTier | undefined {
   return SUITE_TIERS.find((t) => t.id === id);
 }
 
-/** Human label for a run's suite (tolerates legacy "full" runs). */
+/** Human label for a run's suite (tolerates legacy "full" and custom runs). */
 export function suiteLabel(suiteId: string, scenarioCount: number): string {
+  const custom = suiteId.match(/^custom:(\d+)$/);
+  if (custom) return `Rulebook suite v${custom[1]} · ${scenarioCount.toLocaleString()} scenarios`;
   const tier = tierById(suiteId);
   if (tier) return `${tier.name} suite · ${tier.size.toLocaleString()} scenarios`;
   return `${scenarioCount.toLocaleString()} scenarios`;

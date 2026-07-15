@@ -21,6 +21,11 @@ export interface ConversationMessage {
 
 export interface AgentTurnCtx {
   scenarioId: string;
+  /** The full scenario — providers use it without a global lookup, so
+   * generated custom scenarios work the same as base ones. */
+  scenario: Scenario;
+  /** Order id this scenario is grounded on (from its opening message). */
+  orderId: string;
   conversation: ConversationMessage[];
   runTool: (name: string, input: Record<string, unknown>) => Promise<unknown>;
 }

@@ -85,11 +85,44 @@ model ToolAction {
 }
 
 model AgentProfile {
-  id        String   @id @default("default") // single-workspace V0
-  role      String
-  agentRef  String // "reference" or a registered agent id/name
-  toolsJson String   @default("[]")
-  updatedAt DateTime @updatedAt
+  id            String   @id @default("default") // single-workspace V0
+  role          String
+  agentRef      String // "reference" or a registered agent id/name
+  toolsJson     String   @default("[]")
+  // The Agent Dossier — knowledge about the agent, not just rules.
+  platform      String   @default("custom")
+  tone          String   @default("friendly")
+  riskTolerance String   @default("low")
+  updatedAt     DateTime @updatedAt
+}
+
+model CustomSuite {
+  version       Int      @id @default(autoincrement())
+  name          String
+  status        String // generating | ready | error
+  error         String?
+  progress      Int      @default(0) // rules processed
+  ruleCount     Int      @default(0)
+  scenarioCount Int      @default(0)
+  provider      String // anthropic | mock
+  createdAt     DateTime @default(now())
+}
+
+model CustomScenario {
+  id            String @id // CUS-<version>-0001
+  suiteVersion  Int
+  ruleText      String
+  name          String
+  category      String
+  severity      String
+  rubric        String
+  persona       String
+  opening       String
+  hiddenJson    String @default("[]")
+  passJson      String @default("[]")
+  mustNotJson   String @default("[]")
+  pressureJson  String @default("{}")
+  fixtureJson   String @default("{}")
 }
 
 model PolicyRule {
@@ -124,6 +157,11 @@ model LiveResult {
   runId              String
   run                LiveRun  @relation(fields: [runId], references: [id])
   scenarioId         String
+  // Snapshot of the scenario as run — lists read name/category cheaply;
+  // replay reads the full definition. Decouples results from fixtures.
+  scenarioName       String?
+  scenarioCategory   String?
+  scenarioJson       String?
   outcome            String // pass | fail | partial | error
   failureReason      String?
   severity           String

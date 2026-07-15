@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Eyebrow } from "./ui";
+import { Button, ButtonLink, Card, Eyebrow } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { useMode } from "@/lib/mode";
 import { useLiveAgents } from "@/lib/live";
@@ -11,16 +11,29 @@ import {
   answersToRules,
   DEFAULT_ANSWERS,
   DEFAULT_TOOLS,
+  PLATFORM_OPTIONS,
+  RISK_OPTIONS,
   ROLE_OPTIONS,
   RULE_CATEGORIES,
   RULE_SOURCE_LABELS,
+  TONE_OPTIONS,
   TOOL_OPTIONS,
   type DraftRule,
   type QuestionnaireAnswers,
   type RuleKind,
 } from "@/lib/rulebook-types";
 import { DEMO_EXTRACTED_RULES, SAMPLE_POLICY } from "@/lib/fixtures/rulebook";
+import { pressureVectors } from "@/lib/scenario-generation";
 import type { Severity } from "@/lib/types";
+
+interface GenState {
+  status: "preview" | "generating" | "ready" | "error";
+  version?: number;
+  progress?: number;
+  ruleCount?: number;
+  total?: number;
+  error?: string;
+}
 
 /**
  * The Setup wizard: five steps from "what is this agent?" to an
@@ -51,6 +64,10 @@ export function SetupWizard() {
   const [role, setRole] = useState("support");
   const [agentRef, setAgentRef] = useState("reference");
   const [tools, setTools] = useState<string[]>(DEFAULT_TOOLS);
+  // The Agent Dossier — knowledge the generator reads alongside the rules.
+  const [platform, setPlatform] = useState("Shopify");
+  const [tone, setTone] = useState("Friendly");
+  const [riskTolerance, setRiskTolerance] = useState("low");
   const [rules, setRules] = useState<LocalRule[]>([]);
   const [provider, setProvider] = useState<"anthropic" | "mock" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,11 +76,20 @@ export function SetupWizard() {
 
   // Load existing setup.
   useEffect(() => {
-    const load = async () => {
+    type Existing = {
+      role: string;
+      agentRef: string;
+      tools: string[];
+      platform?: string;
+      tone?: string;
+      riskTolerance?: string;
+      rules: LocalRule[];
+    };
+    const load = async (): Promise<Existing | null> => {
       if (mode === "demo") {
         try {
           const raw = window.localStorage.getItem(DEMO_KEY);
-          return raw ? (JSON.parse(raw) as { role: string; agentRef: string; tools: string[]; rules: LocalRule[] }) : null;
+          return raw ? (JSON.parse(raw) as Existing) : null;
         } catch {
           return null;
         }
@@ -77,6 +103,9 @@ export function SetupWizard() {
         role: data.profile.role,
         agentRef: data.profile.agentRef,
         tools: data.profile.tools,
+        platform: data.profile.platform,
+        tone: data.profile.tone,
+        riskTolerance: data.profile.riskTolerance,
         rules: (data.rules as Array<DraftRule & { enabled: boolean }>).map((r) => ({
           ...r,
           key: nextKey(),
@@ -88,6 +117,9 @@ export function SetupWizard() {
       setRole(existing.role);
       setAgentRef(existing.agentRef);
       setTools(existing.tools);
+      if (existing.platform) setPlatform(existing.platform);
+      if (existing.tone) setTone(existing.tone);
+      if (existing.riskTolerance) setRiskTolerance(existing.riskTolerance);
       setRules(existing.rules);
     });
   }, [mode]);
@@ -130,8 +162,9 @@ export function SetupWizard() {
   const save = async () => {
     setBusy(true);
     try {
+      const dossier = { role, agentRef, tools, platform, tone, riskTolerance };
       const payload = {
-        profile: { role, agentRef, tools },
+        profile: dossier,
         rules: rules.map((r) => ({
           text: r.text,
           category: r.category,
@@ -142,7 +175,7 @@ export function SetupWizard() {
         })),
       };
       if (mode === "demo") {
-        window.localStorage.setItem(DEMO_KEY, JSON.stringify({ role, agentRef, tools, rules }));
+        window.localStorage.setItem(DEMO_KEY, JSON.stringify({ ...dossier, rules }));
         setSaved(rules.filter((r) => r.enabled).length);
         return;
       }
@@ -156,6 +189,59 @@ export function SetupWizard() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const [gen, setGen] = useState<GenState | null>(null);
+
+  // Generate a custom suite: rules × pressure grid. Demo previews the
+  // count client-side (its wall is the fixed pre-baked run); live mode
+  // runs the real generator and the suite appears in the run launcher.
+  const generate = async (perRule: number) => {
+    const enabled = rules.filter((r) => r.enabled && r.text.trim());
+    if (enabled.length === 0) {
+      setNotice("Enable at least one rule before generating.");
+      return;
+    }
+    if (mode === "demo") {
+      const total = enabled.reduce(
+        (n, r) => n + pressureVectors(r, perRule, riskTolerance).length,
+        0,
+      );
+      setGen({ status: "preview", total, ruleCount: enabled.length });
+      return;
+    }
+    setGen({ status: "generating", progress: 0, ruleCount: enabled.length });
+    await save(); // persist the rulebook the generator reads
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ perRule }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setGen({ status: "error", error: json.error ?? `HTTP ${res.status}` });
+      return;
+    }
+    // Poll until ready.
+    const poll = async () => {
+      const r = await fetch("/api/generate");
+      const d = await r.json();
+      if (!d.suite) return;
+      if (d.suite.status === "generating") {
+        setGen({
+          status: "generating",
+          progress: d.suite.progress,
+          ruleCount: d.suite.ruleCount,
+          total: d.suite.scenarioCount,
+        });
+        setTimeout(poll, 1200);
+      } else if (d.suite.status === "ready") {
+        setGen({ status: "ready", version: d.suite.version, total: d.suite.scenarioCount });
+      } else {
+        setGen({ status: "error", error: d.suite.error ?? "Generation failed" });
+      }
+    };
+    poll();
   };
 
   return (
@@ -260,11 +346,13 @@ export function SetupWizard() {
         )}
 
         {step === 2 && (
-          <Card className="space-y-4">
+          <Card className="space-y-5">
             <div>
-              <h2 className="text-[15px] font-medium text-ink">What can it do?</h2>
+              <h2 className="text-[15px] font-medium text-ink">Capabilities & dossier</h2>
               <p className="mt-1 text-[13px] text-sub">
-                Scenarios are only generated for powers the agent actually has.
+                The dossier is knowledge about the agent — the generator reads
+                it too. Risk tolerance shapes how adversarial the tests get;
+                tone and platform shape how the customers talk.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -291,6 +379,48 @@ export function SetupWizard() {
                 );
               })}
             </div>
+
+            <div className="grid grid-cols-3 gap-3 border-t border-edge pt-4">
+              <label className="space-y-1.5">
+                <Eyebrow>Platform</Eyebrow>
+                <select
+                  className="focus-ring w-full rounded-lg border border-edge bg-surface px-2.5 py-2 text-[13px] text-ink outline-none"
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                >
+                  {PLATFORM_OPTIONS.map((p) => (
+                    <option key={p}>{p}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <Eyebrow>Tone</Eyebrow>
+                <select
+                  className="focus-ring w-full rounded-lg border border-edge bg-surface px-2.5 py-2 text-[13px] text-ink outline-none"
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                >
+                  {TONE_OPTIONS.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <Eyebrow>Risk tolerance</Eyebrow>
+                <select
+                  className="focus-ring w-full rounded-lg border border-edge bg-surface px-2.5 py-2 text-[13px] text-ink outline-none"
+                  value={riskTolerance}
+                  onChange={(e) => setRiskTolerance(e.target.value)}
+                >
+                  {RISK_OPTIONS.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.id[0].toUpperCase() + r.id.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
             <Button onClick={() => setStep(3)}>Continue</Button>
           </Card>
         )}
@@ -313,6 +443,8 @@ export function SetupWizard() {
             notice={notice}
             saved={saved}
             busy={busy}
+            gen={gen}
+            onGenerate={generate}
             onSave={save}
             onBack={() => setStep(3)}
           />
@@ -592,6 +724,8 @@ function RulebookEditor({
   notice,
   saved,
   busy,
+  gen,
+  onGenerate,
   onSave,
   onBack,
 }: {
@@ -600,9 +734,12 @@ function RulebookEditor({
   notice: string | null;
   saved: number | null;
   busy: boolean;
+  gen: GenState | null;
+  onGenerate: (perRule: number) => void;
   onSave: () => void;
   onBack: () => void;
 }) {
+  const [perRule, setPerRule] = useState(6);
   const grouped = useMemo(() => {
     const map = new Map<string, LocalRule[]>();
     for (const cat of RULE_CATEGORIES) map.set(cat, []);
@@ -735,18 +872,80 @@ function RulebookEditor({
       </div>
 
       {saved !== null && (
-        <Card raised className="animate-fade-up flex items-center justify-between">
+        <Card raised className="animate-fade-up space-y-4">
           <div>
             <div className="text-[15px] font-medium text-ink">
               ✓ Rulebook approved — {saved} active rules
             </div>
             <p className="mt-1 text-[13px] text-sub">
-              This is now the contract Preflight tests against.
+              This is the contract Preflight tests against. Now turn it into
+              scenarios: each rule × a pressure grid (emotion, boundary
+              amounts, identity, deception).
             </p>
           </div>
-          <Button disabled variant="secondary" title="Next milestone: rules × pressure grid → generated scenarios">
-            Generate custom suite · next milestone
-          </Button>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-4">
+            <label className="flex items-center gap-2 text-[13px] text-sub">
+              Scenarios per rule
+              <select
+                className="focus-ring rounded-lg border border-edge bg-surface px-2 py-1.5 text-[13px] text-ink outline-none"
+                value={perRule}
+                onChange={(e) => setPerRule(Number(e.target.value))}
+              >
+                {[4, 6, 8, 10, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="font-mono text-[12px] tabular-nums text-mut">
+              ≈ {saved * perRule} scenarios
+            </span>
+            <div className="flex-1" />
+            <Button
+              onClick={() => onGenerate(perRule)}
+              disabled={gen?.status === "generating"}
+            >
+              {gen?.status === "generating" ? "Generating…" : "Generate custom suite"}
+            </Button>
+          </div>
+
+          {gen?.status === "preview" && (
+            <div className="rounded-lg border border-accent/30 bg-accent/8 p-4 text-[13px] text-sub">
+              <span className="text-accent">Preview:</span> {gen.ruleCount} rules
+              × the pressure grid ={" "}
+              <span className="text-ink">{gen.total} scenarios</span>. Demo mode
+              previews the count offline — switch to Live mode to generate a
+              runnable suite through the real engine.
+            </div>
+          )}
+          {gen?.status === "generating" && (
+            <div className="space-y-2">
+              <div className="h-1.5 overflow-hidden rounded-full bg-edge">
+                <div
+                  className="h-full bg-accent transition-all duration-500"
+                  style={{ width: `${gen.ruleCount ? Math.round(((gen.progress ?? 0) / gen.ruleCount) * 100) : 5}%` }}
+                />
+              </div>
+              <p className="font-mono text-[12px] text-mut">
+                {gen.progress ?? 0}/{gen.ruleCount} rules · {gen.total ?? 0} scenarios so far…
+              </p>
+            </div>
+          )}
+          {gen?.status === "ready" && (
+            <div className="flex items-center justify-between rounded-lg border border-accent/40 bg-accent/8 p-4">
+              <div className="text-[13px] text-ink">
+                ✓ Generated {gen.total} scenarios — suite v{gen.version} is ready to run.
+              </div>
+              <ButtonLink href="/runs">Run it →</ButtonLink>
+            </div>
+          )}
+          {gen?.status === "error" && (
+            <p className="rounded-lg border border-warn/40 bg-warn/8 p-3 text-[13px] text-warn">
+              {gen.error}
+            </p>
+          )}
         </Card>
       )}
     </div>

@@ -10,6 +10,10 @@ export type LiveOutcome = Outcome | "error";
 
 export interface LiveCellResult {
   scenarioId: string;
+  // Snapshot fields — present for generated custom scenarios (whose ids
+  // aren't in the base library) and any run recorded with a snapshot.
+  name?: string;
+  category?: string;
   outcome: LiveOutcome;
   failureReason?: string;
   severity: Severity;
@@ -54,6 +58,16 @@ export type LiveEvent =
   | { type: "scenario_finished"; result: LiveCellResult }
   | { type: "run_finished"; status: "complete" | "error"; error?: string };
 
+/** A scenario snapshot carried on results so replay/report never depend
+ * on the (regenerable) suite still existing. */
+export interface ScenarioSnapshot {
+  name: string;
+  category: string;
+  rubric: string;
+  passCriteria: string[];
+  mustNot: string[];
+}
+
 export interface LiveReplayPayload {
   scenarioId: string;
   runId: string;
@@ -68,6 +82,8 @@ export interface LiveReplayPayload {
   divergenceExpected?: number;
   criteriaMet?: string[];
   criteriaViolated?: string[];
+  /** Present for generated custom scenarios; base scenarios resolve via id. */
+  snapshot?: ScenarioSnapshot;
 }
 
 export function scoreOf(results: LiveCellResult[]): number {

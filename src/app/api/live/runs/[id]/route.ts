@@ -28,6 +28,8 @@ export async function GET(
     scenarioIds: JSON.parse(run.scenariosJson),
     results: run.results.map((r) => ({
       scenarioId: r.scenarioId,
+      name: r.scenarioName ?? undefined,
+      category: r.scenarioCategory ?? undefined,
       outcome: r.outcome as LiveRunSummary["results"][number]["outcome"],
       failureReason: r.failureReason ?? undefined,
       severity: r.severity as LiveRunSummary["results"][number]["severity"],

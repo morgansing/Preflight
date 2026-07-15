@@ -59,17 +59,43 @@ localStorage). Same components, same routes — only the data source differs.
   persistence and streaming with scripted agent behavior. It is an explicit
   setting, never a fallback.
 
+## Setup wizard + custom suite generation (Phase A + B)
+
+`/setup` turns "a connected agent" into a confirmed **Agent Dossier** and
+an approved **Rulebook**, then generates a bespoke scenario suite from it —
+so the test is built from *your* rules, not a generic library.
+
+- **The wizard** (5 steps): role → agent → capabilities + dossier
+  (platform, tone, risk tolerance — the generator reads all of it) →
+  policy → Rulebook. Four optional policy inputs converge on one Rulebook:
+  paste a help-centre URL (server crawl), paste/upload documents, paste the
+  agent's system prompt, or answer 7 questions (pure templating, no LLM).
+  Rules are AI-drafted (strict-schema extraction) and human-approved on the
+  editable Rulebook screen — the trust checkpoint.
+- **Generation** (`/api/generate`): each approved rule × a **pressure grid**
+  — emotion (calm → legal threat), **boundary amounts** (a £500 rule yields
+  £499 / £500 / £501 scenarios — thresholds are where agents break),
+  identity (regular/VIP/new/suspected-fraud), deception (honest/embellished/
+  fraudulent). Risk tolerance biases how adversarial the mix is. Each
+  scenario ships with **matching store fixtures**, so its hidden facts are
+  true in the environment (the signed delivery record actually exists).
+- The generated suite is versioned, appears in the run launcher as a
+  **Custom · From your Rulebook** tier (`custom:<version>`), and flows
+  through the wall, replay, report and benchmark unchanged — results carry a
+  scenario snapshot so replays survive suite regeneration.
+
 ## The screens
 
 | Route | What it is |
 | --- | --- |
 | `/` | Landing — hero, autoplaying wall loop (the real component, not a video) |
 | `/dashboard` | Agents under test, readiness card, sparklines |
-| `/runs` | **Mission Control** — the wall of 200 cells filling in over ~30s |
+| `/setup` | **Setup wizard** — Agent Dossier, 4 policy inputs, Rulebook, generate |
+| `/runs` | **Mission Control** — the wall filling in live (24 → 10,000 cells) |
 | `/replay/[id]` | **Replay** — saw / did / expected columns, divergence marker, ←/→ scrubber |
 | `/reports` | The readiness report — a document, not a dashboard; printable |
-| `/benchmark` | v1.2 vs v1.3 diff — newly passing / newly broken |
-| `/scenarios` | Scenario library — table, detail drawer, new-scenario form |
+| `/benchmark` | Two-run diff — newly passing / newly broken |
+| `/scenarios` | Scenario library — size selector (200 → 10,000), paginated |
 | `/components` | Design-system proof page |
 
 ## Architecture

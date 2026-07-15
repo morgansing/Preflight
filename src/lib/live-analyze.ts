@@ -13,7 +13,7 @@ export function categoryBreakdown(run: LiveRunSummary): CategoryStat[] {
   const byCategory = new Map<string, CategoryStat>();
   for (const r of run.results) {
     if (r.outcome === "error") continue;
-    const name = getScenarioById(r.scenarioId)?.category ?? "Other";
+    const name = r.category ?? getScenarioById(r.scenarioId)?.category ?? "Other";
     const c = byCategory.get(name) ?? { name, pass: 0, fail: 0, partial: 0, total: 0 };
     c.total += 1;
     if (r.outcome === "pass") c.pass += 1;

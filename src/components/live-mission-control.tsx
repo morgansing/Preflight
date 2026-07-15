@@ -53,12 +53,14 @@ export function MockBadge() {
 
 const WallCell = memo(function WallCell({
   scenarioId,
+  name,
   state,
   cellPx,
   showGlyph,
   onOpen,
 }: {
   scenarioId: string;
+  name?: string;
   state: CellState;
   cellPx: number;
   showGlyph: boolean;
@@ -81,7 +83,7 @@ const WallCell = memo(function WallCell({
       {resolved && showGlyph ? cellGlyph[state] : null}
     </span>
   );
-  const title = `${scenarioId} · ${getScenarioById(scenarioId)?.name ?? ""} · ${state}`;
+  const title = `${scenarioId} · ${name ?? getScenarioById(scenarioId)?.name ?? ""} · ${state}`;
   if (!resolved) return <div title={title}>{body}</div>;
   return (
     <button
@@ -111,6 +113,7 @@ export function LiveMissionControl() {
 
   const [agentChoice, setAgentChoice] = useState("reference");
   const [suite, setSuite] = useState<string>("smoke");
+  const [customSuite, setCustomSuite] = useState<{ version: number; scenarioCount: number } | null>(null);
 
   const attach = useCallback(async (runId: string) => {
     const summary = await fetchRun(runId);
@@ -143,6 +146,14 @@ export function LiveMissionControl() {
 
   useEffect(() => {
     fetchProviderStatus().then(setProvider);
+    // Surface a ready generated suite as its own run tier.
+    fetch("/api/generate")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.suite?.status === "ready")
+          setCustomSuite({ version: d.suite.version, scenarioCount: d.suite.scenarioCount });
+      })
+      .catch(() => {});
     const runParam = new URLSearchParams(window.location.search).get("run");
     if (runParam) void Promise.resolve().then(() => attach(runParam));
     return () => unsubscribeRef.current?.();
@@ -282,9 +293,39 @@ export function LiveMissionControl() {
             </select>
           </label>
 
+          {customSuite && (
+            <div className="space-y-2">
+              <Eyebrow>Your Rulebook suite</Eyebrow>
+              <button
+                type="button"
+                onClick={() => setSuite(`custom:${customSuite.version}`)}
+                className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
+                  suite === `custom:${customSuite.version}`
+                    ? "border-accent/50 bg-raised"
+                    : "border-accent/30 hover:border-accent/50"
+                }`}
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px] font-medium text-ink">
+                    Custom suite
+                    <span className="ml-2 font-mono text-[9px] tracking-[0.14em] text-accent">
+                      FROM YOUR RULEBOOK
+                    </span>
+                  </span>
+                  <span className="numeral text-lg text-ink">
+                    {customSuite.scenarioCount.toLocaleString()}
+                  </span>
+                </div>
+                <div className="mt-1 text-[12px] leading-relaxed text-sub">
+                  Generated from your approved rules × the pressure grid — v{customSuite.version}.
+                </div>
+              </button>
+            </div>
+          )}
+
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <Eyebrow>Suite</Eyebrow>
+              <Eyebrow>{customSuite ? "Or a standard tier" : "Suite"}</Eyebrow>
               <span className="text-[11px] text-mut">
                 estimates at default models · real cost ticks in the run header
               </span>
@@ -404,6 +445,7 @@ export function LiveMissionControl() {
             <WallCell
               key={scenarioId}
               scenarioId={scenarioId}
+              name={results.get(scenarioId)?.name}
               state={cells.get(scenarioId) ?? "pending"}
               cellPx={cellPx}
               showGlyph={showGlyph}

@@ -1,8 +1,9 @@
 import { prisma } from "./db";
 import { emit } from "./bus";
-import { resetAndSeed } from "./seed";
+import { resetAndSeed, resetAndSeedCustom } from "./seed";
 import { executeTool } from "./store-tools";
 import { suiteScenarioIds } from "./suite";
+import { loadSuiteScenarios } from "./generation";
 import { httpAgentTurn } from "./http-agent";
 import {
   getProvider,
@@ -57,13 +58,32 @@ export async function launchRun(
     return { error: `Run ${running.id} is still executing — the store is shared, one run at a time.`, status: 409 };
   }
 
-  const scenarioIds = suiteScenarioIds(opts.suite);
-  if (!scenarioIds) {
-    return { error: `Unknown suite tier "${opts.suite}".`, status: 400 };
+  // A generated custom suite is addressed as "custom:<version>". Everything
+  // downstream (wall, replay, report, benchmark) works identically because
+  // custom scenarios carry the same Scenario shape and store fixtures.
+  let scenarioIds: string[];
+  let scenarioMap: Map<string, Scenario>;
+  const customMatch = opts.suite.match(/^custom:(\d+)$/);
+  if (customMatch) {
+    const version = parseInt(customMatch[1], 10);
+    const loaded = await loadSuiteScenarios(version);
+    if (loaded.length === 0) {
+      return { error: `Custom suite v${version} has no scenarios.`, status: 400 };
+    }
+    scenarioIds = loaded.map((l) => l.scenario.id);
+    scenarioMap = new Map(loaded.map((l) => [l.scenario.id, l.scenario]));
+    await resetAndSeedCustom(prisma, loaded);
+  } else {
+    const ids = suiteScenarioIds(opts.suite);
+    if (!ids) return { error: `Unknown suite tier "${opts.suite}".`, status: 400 };
+    scenarioIds = ids;
+    scenarioMap = new Map(
+      ids.map((id) => [id, getScenarioById(id)]).filter((e): e is [string, Scenario] => !!e[1]),
+    );
+    await resetAndSeed(prisma, ids);
   }
-  const runId = `lrun_${Date.now().toString(36)}`;
 
-  await resetAndSeed(prisma, scenarioIds);
+  const runId = `lrun_${Date.now().toString(36)}`;
   await prisma.liveRun.create({
     data: {
       id: runId,
@@ -78,7 +98,7 @@ export async function launchRun(
   });
 
   // Fire and return — Mission Control follows via SSE + DB catch-up.
-  void executeRun(runId, provider, opts, scenarioIds).catch(async (err) => {
+  void executeRun(runId, provider, opts, scenarioIds, scenarioMap).catch(async (err) => {
     console.error(`[preflight] run ${runId} crashed:`, err);
     await prisma.liveRun.update({
       where: { id: runId },
@@ -95,6 +115,7 @@ async function executeRun(
   provider: Provider,
   opts: LaunchOptions,
   scenarioIds: string[],
+  scenarioMap: Map<string, Scenario>,
 ): Promise<void> {
   const queue = [...scenarioIds];
 
@@ -102,7 +123,7 @@ async function executeRun(
     for (;;) {
       const scenarioId = queue.shift();
       if (!scenarioId) return;
-      const scenario = getScenarioById(scenarioId);
+      const scenario = scenarioMap.get(scenarioId);
       if (!scenario) continue;
 
       emit(runId, { type: "scenario_started", scenarioId });
@@ -112,6 +133,11 @@ async function executeRun(
         data: {
           runId,
           scenarioId,
+          // Snapshot the scenario so replay/report don't depend on the
+          // suite still existing — custom suites can be regenerated.
+          scenarioName: scenario.name,
+          scenarioCategory: scenario.category,
+          scenarioJson: JSON.stringify(scenario),
           outcome: result.cell.outcome,
           failureReason: result.cell.failureReason ?? null,
           severity: result.cell.severity,
@@ -156,6 +182,7 @@ async function runScenario(
   const conversation: ConversationMessage[] = [];
   let tokens = 0;
   let costUsd = 0;
+  const orderId = scenario.openingMessage.match(/#([A-Z]\d+)/)?.[1] ?? "";
 
   const runTool = (name: string, input: Record<string, unknown>) =>
     executeTool(name, input, { prisma, runId, scenarioId: scenario.id });
@@ -172,7 +199,7 @@ async function runScenario(
         steps.push({ actor: "customer", kind: "message", content: customerMessage });
         conversation.push({ role: "customer", text: customerMessage });
 
-        const agent = await agentTurn({ scenarioId: scenario.id, conversation, runTool });
+        const agent = await agentTurn({ scenarioId: scenario.id, scenario, orderId, conversation, runTool });
         steps.push(...agent.steps);
         conversation.push({ role: "agent", text: agent.reply });
         tokens += agent.tokens;
@@ -202,6 +229,8 @@ async function runScenario(
     return {
       cell: {
         scenarioId: scenario.id,
+        name: scenario.name,
+        category: scenario.category,
         outcome: v.outcome,
         failureReason: v.outcome === "pass" ? undefined : v.failureReason,
         severity: v.severity,
@@ -219,6 +248,8 @@ async function runScenario(
     return {
       cell: {
         scenarioId: scenario.id,
+        name: scenario.name,
+        category: scenario.category,
         outcome: "error",
         failureReason: `Run error: ${err instanceof Error ? err.message : String(err)}`,
         severity: scenario.severity,

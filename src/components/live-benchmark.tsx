@@ -90,7 +90,7 @@ export function LiveBenchmark() {
           glyph="✗"
           title="Newly broken"
           note="Passed in the previous run, fails now."
-          items={newlyBroken.map((r) => ({ id: r.scenarioId, severity: r.severity }))}
+          items={newlyBroken.map((r) => ({ id: r.scenarioId, severity: r.severity, name: r.name, category: r.category }))}
           runId={b.id}
         />
         <DiffList
@@ -98,7 +98,7 @@ export function LiveBenchmark() {
           glyph="✓"
           title="Newly passing"
           note="Fixed since the previous run."
-          items={newlyPassing.map((r) => ({ id: r.scenarioId, severity: r.severity }))}
+          items={newlyPassing.map((r) => ({ id: r.scenarioId, severity: r.severity, name: r.name, category: r.category }))}
           runId={b.id}
         />
       </div>
@@ -143,7 +143,7 @@ function DiffList({
   glyph: string;
   title: string;
   note: string;
-  items: Array<{ id: string; severity: Severity }>;
+  items: Array<{ id: string; severity: Severity; name?: string; category?: string }>;
   runId: string;
 }) {
   return (
@@ -164,6 +164,8 @@ function DiffList({
         {items.length === 0 && <p className="text-[13px] text-mut">None.</p>}
         {items.slice(0, 30).map((item) => {
           const s = getScenarioById(item.id);
+          const name = item.name ?? s?.name ?? item.id;
+          const category = item.category ?? s?.category ?? "";
           return (
             <Link
               key={item.id}
@@ -177,10 +179,10 @@ function DiffList({
                     className="size-1.5 shrink-0 rounded-full"
                     style={{ background: `var(--color-${tone})` }}
                   />
-                  <span className="truncate text-[13px] text-ink">{s?.name ?? item.id}</span>
+                  <span className="truncate text-[13px] text-ink">{name}</span>
                 </div>
                 <div className="mt-1 pl-4 font-mono text-[11px] text-mut">
-                  {item.id} · {s?.category}
+                  {item.id} · {category}
                 </div>
               </div>
               <SeverityLabel severity={item.severity} />

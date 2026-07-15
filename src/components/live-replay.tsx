@@ -18,11 +18,30 @@ export function LiveReplay({ scenarioId }: { scenarioId: string }) {
 
   useEffect(() => {
     const runId = new URLSearchParams(window.location.search).get("run");
-    const scenario = getScenarioById(scenarioId);
     const load = async (): Promise<typeof state> => {
-      if (!runId || !scenario) return { phase: "missing" };
+      if (!runId) return { phase: "missing" };
       const payload = await fetchLiveReplay(runId, scenarioId);
       if (!payload) return { phase: "missing" };
+      // Base scenarios resolve by id; generated custom scenarios come
+      // from the snapshot the result carries.
+      const base = getScenarioById(scenarioId);
+      const scenario: Scenario | null = base
+        ? base
+        : payload.snapshot
+          ? {
+              id: scenarioId,
+              name: payload.snapshot.name,
+              category: payload.snapshot.category,
+              severity: payload.severity,
+              rubric: payload.snapshot.rubric,
+              persona: "",
+              openingMessage: "",
+              hiddenFacts: [],
+              passCriteria: payload.snapshot.passCriteria,
+              mustNot: payload.snapshot.mustNot,
+            }
+          : null;
+      if (!scenario) return { phase: "missing" };
       return {
         phase: "ready",
         scenario,

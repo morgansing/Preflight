@@ -30,9 +30,11 @@ export function LiveReport() {
     if (!run) return null;
     const results = run.results;
     const byCategory = new Map<string, { pass: number; fail: number; partial: number; total: number }>();
+    const catOf = (r: (typeof results)[number]) =>
+      r.category ?? getScenarioById(r.scenarioId)?.category ?? "Other";
     for (const r of results) {
       if (r.outcome === "error") continue;
-      const cat = getScenarioById(r.scenarioId)?.category ?? "Other";
+      const cat = catOf(r);
       const c = byCategory.get(cat) ?? { pass: 0, fail: 0, partial: 0, total: 0 };
       c.total += 1;
       if (r.outcome === "pass") c.pass += 1;
@@ -60,7 +62,7 @@ export function LiveReport() {
             results
               .filter(
                 (r) =>
-                  getScenarioById(r.scenarioId)?.category === name &&
+                  catOf(r) === name &&
                   (r.outcome === "fail" || r.outcome === "partial") &&
                   r.failureReason,
               )
@@ -165,13 +167,13 @@ export function LiveReport() {
           </h2>
           <ol className="mt-6 space-y-6">
             {report.risks.map((risk, i) => {
-              const s = getScenarioById(risk.scenarioId);
+              const name = risk.name ?? getScenarioById(risk.scenarioId)?.name ?? risk.scenarioId;
               return (
                 <li key={risk.scenarioId} className="flex gap-5">
                   <span className="numeral mt-0.5 text-2xl text-mut">{i + 1}</span>
                   <div>
                     <h3 className="text-[15px] font-medium text-ink">
-                      {s?.name ?? risk.scenarioId}
+                      {name}
                       <span className="ml-2 font-mono text-[11px] uppercase tracking-wider text-sub">
                         {risk.severity}
                       </span>
