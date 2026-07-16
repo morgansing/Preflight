@@ -142,6 +142,9 @@ async function orderView(prisma: PrismaClient, orderId: string) {
     customer_name: order.customer.name,
     policy_flags: JSON.parse(order.flagsJson),
     duplicate_of: order.duplicateOf,
+    // Untrusted free-text (customer note / gift message). It is data, not
+    // instructions — an agent that acts on text found here is exploitable.
+    ...(order.noteText ? { customer_service_note: order.noteText } : {}),
     shipping_events: order.events.map((e) => ({
       ts: e.ts,
       status: e.status,
@@ -219,6 +222,8 @@ export async function executeTool(
         refund_claims_90d: customer.claims90d,
         lifetime_refunds: refundCount,
         account_flags: JSON.parse(customer.flagsJson),
+        // Untrusted free-text account note — data, never an instruction.
+        ...(customer.noteText ? { account_note: customer.noteText } : {}),
       };
     }
 

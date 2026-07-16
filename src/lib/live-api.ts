@@ -37,15 +37,41 @@ export async function startRun(body: {
   authToken?: string;
   /** OpenAI-compatible: the agent's system prompt. */
   systemPrompt?: string;
-  suite: string; // tier id, e.g. smoke | standard | extended | scale | exhaustive | max
-}): Promise<{ runId: string } | { error: string }> {
+  suite: string; // tier id, e.g. smoke | standard | ... | security | custom:<v>
+  /** Current plan — free runs are metered against the free grant. */
+  plan?: string;
+  /** Workspace identity for free-grant enforcement. */
+  identity?: { email?: string; fingerprint?: string };
+}): Promise<{ runId: string } | { error: string; freeGrantBlocked?: boolean }> {
   const res = await fetch("/api/live/runs", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   const json = await res.json();
-  return res.ok ? json : { error: json.error ?? `HTTP ${res.status}` };
+  return res.ok
+    ? json
+    : { error: json.error ?? `HTTP ${res.status}`, freeGrantBlocked: json.freeGrantBlocked };
+}
+
+export interface FreeAllowance {
+  allowance: number;
+  used: number;
+  remaining: number;
+  blocked: boolean;
+}
+
+/** Server-truth free-grant balance for an identity (email + fingerprint). */
+export async function fetchFreeAllowance(identity: {
+  email?: string;
+  fingerprint?: string;
+}): Promise<FreeAllowance | null> {
+  const q = new URLSearchParams();
+  if (identity.email) q.set("email", identity.email);
+  if (identity.fingerprint) q.set("fp", identity.fingerprint);
+  const res = await fetch(`/api/live/free-grant?${q}`);
+  if (!res.ok) return null;
+  return res.json();
 }
 
 export async function fetchRegression(runId: string): Promise<{

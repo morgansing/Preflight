@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Button, ButtonLink, Card, Eyebrow } from "@/components/ui";
 import { useSession } from "@/lib/auth";
 import {
@@ -10,6 +11,8 @@ import {
   useBillingPrefs,
   useSimUsage,
 } from "@/lib/billing";
+import { fetchFreeAllowance, type FreeAllowance } from "@/lib/live-api";
+import { computeFingerprint } from "@/lib/identity";
 
 /**
  * Billing & usage. The meter is real — it counts simulations actually
@@ -21,6 +24,12 @@ export default function BillingPage() {
   const { session, setPlan } = useSession();
   const { prefs, addCredits, setAutoOverage } = useBillingPrefs();
   const used = useSimUsage();
+  const [freeGrant, setFreeGrant] = useState<FreeAllowance | null>(null);
+
+  useEffect(() => {
+    if (!session || session.plan !== "free") return;
+    fetchFreeAllowance({ email: session.email, fingerprint: computeFingerprint() }).then(setFreeGrant);
+  }, [session]);
 
   if (!session) {
     return (
@@ -105,6 +114,21 @@ export default function BillingPage() {
               ? `Auto-overage is on: the extra ${over.toLocaleString()} bills at $${plan.overagePer1k}/1,000 (≈ $${Math.ceil((over / 1000) * plan.overagePer1k)}).`
               : "You're past your allowance — new runs will ask you to add credits or enable auto-overage before starting."}
           </p>
+        )}
+        {plan.priceMonthly === null && freeGrant && (
+          <div className="mt-4 border-t border-edge pt-3">
+            <div className="flex items-baseline justify-between text-[13px]">
+              <span className="text-sub">Free grant</span>
+              <span className="font-mono tabular-nums text-sub">
+                {freeGrant.used.toLocaleString()} / {freeGrant.allowance.toLocaleString()} used
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-mut">
+              Enforced server-side against your email and device, so alias emails and repeat
+              sign-ups can&apos;t reset it. {freeGrant.remaining.toLocaleString()} simulations left
+              before a plan or credits are needed.
+            </p>
+          </div>
         )}
       </Card>
 

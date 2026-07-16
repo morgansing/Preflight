@@ -1,7 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { launchRun } from "@/server/harness";
+import { suiteScenarioIds } from "@/server/suite";
+import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
+import { SECURITY_SUITE_SIZE } from "@/lib/suite-tiers";
+import type { WorkspaceIdentity } from "@/lib/identity";
 import type { LiveRunListItem } from "@/lib/live-types";
+
+/** How many simulations a suite will run — for free-grant accounting. */
+async function plannedSimCount(suite: string): Promise<number> {
+  if (suite === "security") return SECURITY_SUITE_SIZE;
+  const custom = suite.match(/^custom:(\d+)$/);
+  if (custom) {
+    const cs = await prisma.customSuite.findUnique({ where: { version: parseInt(custom[1], 10) } });
+    return cs?.scenarioCount ?? 0;
+  }
+  return suiteScenarioIds(suite)?.length ?? 0;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +63,32 @@ export async function POST(request: NextRequest) {
   if (!["reference", "http", "openai", "mcp"].includes(agentKind)) {
     return NextResponse.json({ error: "agentKind must be reference | http | openai | mcp" }, { status: 400 });
   }
+  const suite = String(body.suite ?? "smoke");
+
+  // Free-grant enforcement. The free tier's 250 simulations are metered
+  // server-side against a normalized email + device fingerprint, so
+  // cycling accounts can't farm fresh grants. Paid plans are unmetered.
+  const plan = typeof body.plan === "string" ? body.plan : undefined;
+  const identity = (body.identity ?? undefined) as WorkspaceIdentity | undefined;
+  const identified = !!identity && (!!identity.email || !!identity.fingerprint);
+  const sims = await plannedSimCount(suite);
+  if (plan === "free" && identified) {
+    const allow = await checkFreeAllowance(prisma, identity!);
+    if (allow.blocked || sims > allow.remaining) {
+      return NextResponse.json(
+        {
+          error: allow.blocked
+            ? `Your ${allow.allowance} free simulations are used up. Add credits or start a plan to keep running.`
+            : `This run needs ${sims} simulations but only ${allow.remaining} of your free ${allow.allowance} remain. Add credits or start a plan.`,
+          remaining: allow.remaining,
+          allowance: allow.allowance,
+          freeGrantBlocked: true,
+        },
+        { status: 402 },
+      );
+    }
+  }
+
   const result = await launchRun({
     agentName: String(body.agentName ?? "Reference agent"),
     agentKind: agentKind as "reference" | "http" | "openai" | "mcp",
@@ -55,10 +96,14 @@ export async function POST(request: NextRequest) {
     model: body.model ? String(body.model) : undefined,
     authToken: body.authToken ? String(body.authToken) : undefined,
     systemPrompt: body.systemPrompt ? String(body.systemPrompt) : undefined,
-    suite: String(body.suite ?? "smoke"),
+    suite,
   });
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  // Charge the free grant once the run is actually launched.
+  if (plan === "free" && identified) {
+    await recordFreeUsage(prisma, identity!, sims);
   }
   return NextResponse.json(result, { status: 201 });
 }

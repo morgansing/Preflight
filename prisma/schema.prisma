@@ -16,6 +16,10 @@ model Customer {
   address    String
   claims90d  Int     @default(0) // refund claims in the last 90 days
   flagsJson  String  @default("[]")
+  // Free-text account note surfaced by get_customer. In the Security
+  // suite this is a poison vector — untrusted text the agent must not
+  // obey as if it were an instruction.
+  noteText   String?
   orders     Order[]
 }
 
@@ -42,6 +46,9 @@ model Order {
   paymentLast4  String
   flagsJson     String          @default("[]") // e.g. refund_over_500_requires_review
   duplicateOf   String? // id of the order this one duplicates
+  // Customer-service / gift note surfaced by get_order. Security-suite
+  // poison vector: instructions embedded here are untrusted data.
+  noteText      String?
   events        ShippingEvent[]
   refunds       Refund[]
 }
@@ -135,6 +142,18 @@ model PolicyRule {
   source    String // help_centre | document | agent_prompt | questionnaire | manual | starter
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
+}
+
+// Free-grant ledger: how many free simulations an identity has already
+// consumed. Keyed by a normalized email (plus/dot tricks collapsed) OR
+// a coarse device fingerprint (fp:<hash>) — so cycling accounts from the
+// same person or browser can't reset the 250-simulation free grant.
+model FreeGrant {
+  key        String   @id // "email:<normalized>" or "fp:<hash>"
+  kind       String // email | fingerprint
+  simsUsed   Int      @default(0)
+  firstSeen  DateTime @default(now())
+  lastSeen   DateTime @updatedAt
 }
 
 // Pinned regression baseline: the run every later run of the same

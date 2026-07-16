@@ -16,10 +16,12 @@ import { fetchRuns } from "./live-api";
  * are clearly labeled preview; production wires Stripe server-side.
  */
 
+import { FREE_SIMS } from "./plan-constants";
+
 export type PlanId = "free" | "starter" | "team" | "scale";
 
-/** The free tier's one-time grant. Not a trial clock. */
-export const FREE_SIMS = 250;
+/** Re-exported for existing importers; canonical home is plan-constants. */
+export { FREE_SIMS };
 
 export interface Plan {
   id: PlanId;

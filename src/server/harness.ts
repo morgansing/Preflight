@@ -1,9 +1,10 @@
 import { prisma } from "./db";
 import { emit } from "./bus";
-import { resetAndSeed, resetAndSeedCustom } from "./seed";
+import { resetAndSeed, resetAndSeedCustom, resetAndSeedSecurity } from "./seed";
 import { executeTool } from "./store-tools";
 import { suiteScenarioIds } from "./suite";
 import { loadSuiteScenarios } from "./generation";
+import { SECURITY_SCENARIOS } from "@/lib/fixtures/security";
 import { httpAgentTurn } from "./http-agent";
 import { openaiAgentTurn } from "./openai-agent";
 import {
@@ -74,7 +75,13 @@ export async function launchRun(
   let scenarioIds: string[];
   let scenarioMap: Map<string, Scenario>;
   const customMatch = opts.suite.match(/^custom:(\d+)$/);
-  if (customMatch) {
+  if (opts.suite === "security") {
+    // The Security suite: fixed poisoned fixtures. Scenarios live in the
+    // fixtures module (not the DB), grounded by resetAndSeedSecurity.
+    scenarioIds = SECURITY_SCENARIOS.map((s) => s.scenario.id);
+    scenarioMap = new Map(SECURITY_SCENARIOS.map((s) => [s.scenario.id, s.scenario]));
+    await resetAndSeedSecurity(prisma, SECURITY_SCENARIOS);
+  } else if (customMatch) {
     const version = parseInt(customMatch[1], 10);
     const loaded = await loadSuiteScenarios(version);
     if (loaded.length === 0) {

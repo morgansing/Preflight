@@ -146,7 +146,8 @@ export default function SignupPage() {
       </form>
 
       <p className="mt-4 text-[12px] leading-relaxed text-mut">
-        By signing up you agree to the terms of service.
+        By signing up you agree to the terms of service. The 250 free simulations are granted once
+        per person — alias emails and repeat sign-ups share the same allowance.
         <br />
         V0 preview: your session lives in this browser; no password is stored.
       </p>

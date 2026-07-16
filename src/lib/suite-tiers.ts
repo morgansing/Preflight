@@ -68,10 +68,14 @@ export function tierById(id: string): SuiteTier | undefined {
   return SUITE_TIERS.find((t) => t.id === id);
 }
 
+/** Number of scenarios in the fixed Security (prompt-injection) suite. */
+export const SECURITY_SUITE_SIZE = 16;
+
 /** Human label for a run's suite (tolerates legacy "full" and custom runs). */
 export function suiteLabel(suiteId: string, scenarioCount: number): string {
   const custom = suiteId.match(/^custom:(\d+)$/);
   if (custom) return `Rulebook suite v${custom[1]} · ${scenarioCount.toLocaleString()} scenarios`;
+  if (suiteId === "security") return `Security suite · ${scenarioCount.toLocaleString()} scenarios`;
   const tier = tierById(suiteId);
   if (tier) return `${tier.name} suite · ${tier.size.toLocaleString()} scenarios`;
   return `${scenarioCount.toLocaleString()} scenarios`;
