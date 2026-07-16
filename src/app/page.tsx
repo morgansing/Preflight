@@ -19,12 +19,26 @@ export default function Landing() {
             PREFLIGHT
           </span>
         </div>
-        <Link
-          href="/dashboard"
-          className="focus-ring rounded-md text-[13px] text-sub transition-colors hover:text-ink"
-        >
-          Open the app →
-        </Link>
+        <nav className="flex items-center gap-6">
+          <Link
+            href="/pricing"
+            className="focus-ring rounded-md text-[13px] text-sub transition-colors hover:text-ink"
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/login"
+            className="focus-ring rounded-md text-[13px] text-sub transition-colors hover:text-ink"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/dashboard"
+            className="focus-ring rounded-md text-[13px] text-sub transition-colors hover:text-ink"
+          >
+            Open the app →
+          </Link>
+        </nav>
       </header>
 
       <section className="py-28 text-center">
@@ -36,11 +50,17 @@ export default function Landing() {
           Test your support agent against a thousand ways it could fail —
           before it fails a customer.
         </p>
-        <div className="mt-10">
+        <div className="mt-10 flex items-center justify-center gap-3">
           <ButtonLink href="/runs" size="lg">
             Run the demo
           </ButtonLink>
+          <ButtonLink href="/signup" size="lg" variant="secondary">
+            Start free
+          </ButtonLink>
         </div>
+        <p className="mt-4 text-[12px] text-mut">
+          First 250 simulations free · no credit card required
+        </p>
       </section>
 
       {/* The wall, live */}

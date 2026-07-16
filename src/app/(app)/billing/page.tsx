@@ -1,0 +1,205 @@
+"use client";
+
+import Link from "next/link";
+import { Button, ButtonLink, Card, Eyebrow } from "@/components/ui";
+import { useSession } from "@/lib/auth";
+import {
+  CREDIT_PACKS,
+  PLANS,
+  planById,
+  useBillingPrefs,
+  useSimUsage,
+} from "@/lib/billing";
+
+/**
+ * Billing & usage. The meter is real — it counts simulations actually
+ * executed by live runs on this workspace. Purchases and plan switches
+ * are V0 previews (localStorage) until payments land server-side.
+ */
+
+export default function BillingPage() {
+  const { session, setPlan } = useSession();
+  const { prefs, addCredits, setAutoOverage } = useBillingPrefs();
+  const used = useSimUsage();
+
+  if (!session) {
+    return (
+      <div className="mx-auto max-w-xl px-8 py-24 text-center">
+        <Eyebrow>Billing</Eyebrow>
+        <h1 className="font-display mt-3 text-3xl tracking-tight text-ink">
+          Sign in to see your plan and usage
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-sub">
+          Usage is metered per workspace — simulations executed, not days elapsed.
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-3">
+          <ButtonLink href="/signup">Create a workspace</ButtonLink>
+          <ButtonLink href="/login" variant="secondary">
+            Sign in
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  }
+
+  const plan = planById(session.plan);
+  const allowance = plan.simsIncluded + prefs.extraCredits;
+  const pct = used === undefined ? 0 : Math.min(100, Math.round((used / allowance) * 100));
+  const remaining = used === undefined ? undefined : Math.max(0, allowance - used);
+  const over = used !== undefined && used > allowance ? used - allowance : 0;
+  const barTint = pct >= 100 ? "bg-fail" : pct >= 80 ? "bg-warn" : "bg-accent";
+
+  return (
+    <div className="mx-auto max-w-3xl px-8 py-10">
+      <Eyebrow>Billing &amp; usage</Eyebrow>
+      <h1 className="font-display mt-3 text-3xl tracking-tight text-ink">
+        {plan.name} plan
+        {plan.priceMonthly !== null && (
+          <span className="ml-3 text-xl text-sub">${plan.priceMonthly}/mo</span>
+        )}
+      </h1>
+      <p className="mt-2 text-sm text-sub">
+        {session.email}
+        {session.company ? ` · ${session.company}` : ""}
+      </p>
+
+      {/* Usage meter — real numbers from real runs. */}
+      <Card className="mt-8 p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <Eyebrow>Simulations used</Eyebrow>
+          <span className="font-mono text-[13px] tabular-nums text-sub">
+            {used === undefined ? "…" : used.toLocaleString()} /{" "}
+            {allowance.toLocaleString()}
+            {plan.priceMonthly === null ? " one-time" : " this cycle"}
+            {prefs.extraCredits > 0 &&
+              ` (incl. ${prefs.extraCredits.toLocaleString()} pack credits)`}
+          </span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-raised">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${barTint}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 text-[13px]">
+          <span className="text-sub">
+            {remaining === undefined
+              ? "Counting…"
+              : over > 0
+                ? `${over.toLocaleString()} simulations over allowance`
+                : `${remaining.toLocaleString()} remaining`}
+          </span>
+          <span className="font-mono text-[11px] text-mut">
+            metered from live runs on this workspace
+          </span>
+        </div>
+        {over > 0 && (
+          <p
+            className={`mt-3 rounded-lg border p-3 text-[13px] leading-relaxed ${
+              prefs.autoOverage
+                ? "border-edge text-sub"
+                : "border-warn/40 bg-warn/8 text-warn"
+            }`}
+          >
+            {prefs.autoOverage && plan.overagePer1k
+              ? `Auto-overage is on: the extra ${over.toLocaleString()} bills at $${plan.overagePer1k}/1,000 (≈ $${Math.ceil((over / 1000) * plan.overagePer1k)}).`
+              : "You're past your allowance — new runs will ask you to add credits or enable auto-overage before starting."}
+          </p>
+        )}
+      </Card>
+
+      {/* Overage controls */}
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <Card className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-[15px] font-medium text-ink">Automatic overage</div>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-sub">
+                {plan.overagePer1k
+                  ? `Bill extra usage at $${plan.overagePer1k} per 1,000 simulations instead of pausing between runs.`
+                  : "Not available on Free — upgrade to keep running past your allowance."}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs.autoOverage}
+              disabled={!plan.overagePer1k}
+              onClick={() => setAutoOverage(!prefs.autoOverage)}
+              className={`focus-ring relative mt-1 h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                prefs.autoOverage ? "bg-accent" : "bg-raised border border-edge"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 size-5 rounded-full bg-ink transition-all ${
+                  prefs.autoOverage ? "left-[22px] bg-[#08110b]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="text-[15px] font-medium text-ink">Credit packs</div>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-sub">
+            Prepaid, never expire, used after your allowance.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {CREDIT_PACKS.map((p) => (
+              <li key={p.sims} className="flex items-center justify-between gap-3">
+                <span className="font-mono text-[13px] tabular-nums text-ink">
+                  {p.sims.toLocaleString()} <span className="text-mut">· ${p.price}</span>
+                </span>
+                <Button variant="secondary" size="sm" onClick={() => addCredits(p.sims)}>
+                  Add
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+
+      {/* Plan switcher */}
+      <section className="mt-10">
+        <Eyebrow>Change plan</Eyebrow>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {PLANS.map((p) => {
+            const current = p.id === session.plan;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                disabled={current}
+                onClick={() => setPlan(p.id)}
+                className={`focus-ring rounded-lg border p-4 text-left transition-colors ${
+                  current
+                    ? "border-accent/50 bg-raised"
+                    : "border-edge cursor-pointer hover:border-mut"
+                }`}
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px] font-medium text-ink">{p.name}</span>
+                  {current && (
+                    <span className="font-mono text-[9px] tracking-[0.14em] text-accent">
+                      CURRENT
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 font-mono text-[12px] tabular-nums text-sub">
+                  {p.priceMonthly === null ? "$0" : `$${p.priceMonthly}/mo`} ·{" "}
+                  {p.simsIncluded.toLocaleString()} sims
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-[12px] leading-relaxed text-mut">
+          V0 preview: plan switches and credit packs apply to this workspace instantly and
+          nothing is charged — payments arrive with the hosted beta. Usage metering is real.{" "}
+          <Link href="/pricing" className="focus-ring rounded text-accent hover:underline">
+            Full pricing →
+          </Link>
+        </p>
+      </section>
+    </div>
+  );
+}

@@ -14,7 +14,9 @@ import {
 } from "@/lib/live-api";
 import type { LiveCellResult, LiveEvent, LiveRunSummary } from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
-import { SUITE_TIERS, suiteLabel } from "@/lib/suite-tiers";
+import { SUITE_TIERS, suiteLabel, tierById } from "@/lib/suite-tiers";
+import { useSession } from "@/lib/auth";
+import { FREE_SIMS, useBillingPrefs, useSimUsage } from "@/lib/billing";
 
 /**
  * Live Mission Control: launch a real run against the simulated store
@@ -39,6 +41,28 @@ const cellStyles: Record<CellState, string> = {
 };
 
 const cellGlyph: Record<string, string> = { pass: "✓", fail: "✗", partial: "◐", error: "!" };
+
+/** Free-tier credits line under the launcher — informs, never blocks. */
+function CreditsLine({ simsNeeded }: { simsNeeded: number }) {
+  const { session } = useSession();
+  const { prefs } = useBillingPrefs();
+  const used = useSimUsage();
+  if ((session && session.plan !== "free") || used === undefined) return null;
+  const remaining = Math.max(0, FREE_SIMS + prefs.extraCredits - used);
+  const short = simsNeeded > remaining;
+  return (
+    <p
+      className={`text-center text-[12px] ${short ? "text-warn" : "text-mut"}`}
+    >
+      This run uses {simsNeeded.toLocaleString()} simulations —{" "}
+      {remaining.toLocaleString()} of your {(FREE_SIMS + prefs.extraCredits).toLocaleString()}{" "}
+      free simulations remain.{" "}
+      <Link href="/pricing" className="focus-ring rounded text-accent hover:underline">
+        {short ? "Plans from $99/mo →" : "Pricing →"}
+      </Link>
+    </p>
+  );
+}
 
 export function MockBadge() {
   return (
@@ -380,6 +404,14 @@ export function LiveMissionControl() {
           <Button className="w-full" onClick={launch} disabled={launching}>
             {launching ? "Seeding store…" : "Start run"}
           </Button>
+
+          <CreditsLine
+            simsNeeded={
+              suite === `custom:${customSuite?.version}`
+                ? (customSuite?.scenarioCount ?? 0)
+                : (tierById(suite)?.size ?? 0)
+            }
+          />
         </Card>
 
         <p className="mt-4 text-center text-[12px] text-mut">

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMode } from "@/lib/mode";
+import { useSession } from "@/lib/auth";
+import { planById } from "@/lib/billing";
 
 /* Hand-drawn 16px line icons — no icon library, everything hairline. */
 const icons = {
@@ -64,6 +66,7 @@ const items = [
 export function NavRail() {
   const pathname = usePathname();
   const { mode, setMode } = useMode();
+  const { session } = useSession();
 
   return (
     <nav className="no-print sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-edge bg-surface px-3 py-6">
@@ -93,8 +96,36 @@ export function NavRail() {
         })}
       </div>
 
-      {/* Mode indicator + switch — subtle but always visible. */}
+      {/* Account: workspace + plan, or the way in. */}
       <div className="mt-6 border-t border-edge pt-4">
+        {session ? (
+          <Link
+            href="/billing"
+            className={`focus-ring flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-raised/60 ${
+              pathname.startsWith("/billing") ? "bg-raised" : ""
+            }`}
+          >
+            <span className="min-w-0">
+              <span className="block truncate text-[13px] text-ink">{session.name}</span>
+              <span className="block text-[11px] text-mut">Billing &amp; usage</span>
+            </span>
+            <span className="shrink-0 rounded border border-edge px-1.5 py-0.5 font-mono text-[9px] tracking-[0.12em] text-sub">
+              {planById(session.plan).name.toUpperCase()}
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href="/signup"
+            className="focus-ring flex items-center justify-between rounded-lg px-2 py-2 text-[13px] text-sub transition-colors hover:bg-raised/60 hover:text-ink"
+          >
+            <span>Create workspace</span>
+            <span className="font-mono text-[9px] tracking-[0.12em] text-accent">250 FREE</span>
+          </Link>
+        )}
+      </div>
+
+      {/* Mode indicator + switch — subtle but always visible. */}
+      <div className="mt-3 border-t border-edge pt-4">
         <button
           onClick={() => setMode(mode === "demo" ? "live" : "demo")}
           className="focus-ring group flex w-full items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-raised/60 cursor-pointer"
