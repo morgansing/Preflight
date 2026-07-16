@@ -90,6 +90,9 @@ export interface AgentUnderTest {
     critical: number;
     agoLabel: string;
   };
+  /** One-line summary of where the agent stands — shown faint under the
+   * connection/pass line on the dashboard. */
+  note?: string;
 }
 
 export function verdictFor(score: number): string {

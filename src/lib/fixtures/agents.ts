@@ -15,6 +15,7 @@ export const demoAgents: AgentUnderTest[] = [
       critical: 2,
       agoLabel: "2m ago",
     },
+    note: "Clears the 90% bar — two refund-fraud payouts left to fix before shipping.",
   },
   {
     id: "agent_aurora_12",
@@ -30,6 +31,7 @@ export const demoAgents: AgentUnderTest[] = [
       critical: 7,
       agoLabel: "3d ago",
     },
+    note: "Six points short — refund fraud and escalations still failing.",
   },
   {
     id: "agent_checkout",
@@ -45,5 +47,6 @@ export const demoAgents: AgentUnderTest[] = [
       critical: 11,
       agoLabel: "1d ago",
     },
+    note: "Early build — over a third of scenarios still fail, 11 of them critical.",
   },
 ];

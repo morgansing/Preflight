@@ -68,6 +68,11 @@ export default function DashboardPage() {
                         </span>{" "}
                         · {agent.lastRun.agoLabel}
                       </div>
+                      {agent.note && (
+                        <div className="mt-1 text-[12px] leading-snug text-mut/80">
+                          {agent.note}
+                        </div>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-6">
                       <Sparkline

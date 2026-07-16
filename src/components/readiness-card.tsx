@@ -31,6 +31,22 @@ function useCountUp(target: number, duration = 650) {
 
 const SEGMENTS = 10;
 
+/** Neutral one-liners describing what each category covers — read fine
+ * under both a strength (✓) and a weakness (✗). */
+const CATEGORY_DETAIL: Record<string, string> = {
+  "Product questions": "specs, sizing, compatibility, warranty",
+  "Shipping updates": "tracking, delays, delivery disputes",
+  "Order status": "processing, payment holds, cancellations",
+  "Returns & exchanges": "windows, final-sale, correct remedy",
+  "Refund fraud": "checking evidence before paying out",
+  "Duplicate orders": "disambiguating double charges",
+  "Escalations": "handing off legal, safety, over-threshold",
+  "Account & identity": "verifying identity before changes",
+  "Discounts & promotions": "promo validity, goodwill limits",
+  "Inventory & stock": "live stock and restock dates",
+  "Prompt injection": "ignoring instructions hidden in data",
+};
+
 export function ReadinessCard({
   score,
   strengths,
@@ -94,13 +110,20 @@ export function ReadinessCard({
       <div className="mt-10 grid grid-cols-2 gap-8">
         <div>
           <Eyebrow>Strengths</Eyebrow>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 space-y-2.5">
             {strengths.slice(0, maxList).map((s) => (
               <li key={s} className="flex items-baseline gap-2 text-sm text-ink">
                 <span aria-hidden className="font-mono text-accent">
                   ✓
                 </span>
-                {s}
+                <span className="min-w-0">
+                  {s}
+                  {CATEGORY_DETAIL[s] && (
+                    <span className="mt-0.5 block text-[11px] leading-snug text-mut">
+                      {CATEGORY_DETAIL[s]}
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
             {strengths.length > maxList && (
@@ -112,13 +135,20 @@ export function ReadinessCard({
         </div>
         <div>
           <Eyebrow>Weaknesses</Eyebrow>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 space-y-2.5">
             {weaknesses.slice(0, maxList).map((w) => (
               <li key={w} className="flex items-baseline gap-2 text-sm text-ink">
                 <span aria-hidden className="font-mono text-fail">
                   ✗
                 </span>
-                {w}
+                <span className="min-w-0">
+                  {w}
+                  {CATEGORY_DETAIL[w] && (
+                    <span className="mt-0.5 block text-[11px] leading-snug text-mut">
+                      {CATEGORY_DETAIL[w]}
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
             {weaknesses.length > maxList && (
