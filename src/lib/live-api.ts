@@ -5,6 +5,7 @@ import type {
   LiveReplayPayload,
   LiveRunListItem,
   LiveRunSummary,
+  RegressionReport,
 } from "./live-types";
 
 export async function fetchProviderStatus(): Promise<"anthropic" | "mock" | null> {
@@ -44,6 +45,26 @@ export async function startRun(body: {
   });
   const json = await res.json();
   return res.ok ? json : { error: json.error ?? `HTTP ${res.status}` };
+}
+
+export async function fetchRegression(runId: string): Promise<{
+  isBaseline: boolean;
+  report: RegressionReport | null;
+  reason?: string;
+} | null> {
+  const res = await fetch(`/api/live/runs/${runId}/regression`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+/** Pin a completed run as the baseline for its agent + suite. */
+export async function pinBaseline(runId: string): Promise<boolean> {
+  const res = await fetch("/api/live/baseline", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ runId }),
+  });
+  return res.ok;
 }
 
 export async function fetchLiveReplay(

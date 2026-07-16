@@ -137,6 +137,18 @@ model PolicyRule {
   createdAt DateTime @default(now())
 }
 
+// Pinned regression baseline: the run every later run of the same
+// agent + suite is compared against. One pin per (agentName, suite);
+// with no pin, comparisons fall back to the previous completed run.
+model RunBaseline {
+  agentName String
+  suite     String
+  runId     String
+  createdAt DateTime @default(now())
+
+  @@id([agentName, suite])
+}
+
 model LiveRun {
   id            String       @id
   agentName     String

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ReadinessCard } from "./readiness-card";
+import { RegressionPanel } from "./regression-panel";
 import { Button, Eyebrow, EmptyState, ButtonLink } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
@@ -132,6 +133,8 @@ export function LiveReport() {
           meta={`${run.results.length} scenarios · ${counts.pass} passed · ${counts.fail} failed · ${counts.partial} partial${report.errors.length ? ` · ${report.errors.length} run error` : ""} · ${report.tokens.toLocaleString()} tok · $${report.cost.toFixed(2)}`}
         />
       </div>
+
+      <RegressionPanel runId={run.id} />
 
       {report.taxonomy.length > 0 && (
         <section className="mt-16">

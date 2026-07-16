@@ -86,6 +86,44 @@ export interface LiveReplayPayload {
   snapshot?: ScenarioSnapshot;
 }
 
+/** One scenario whose outcome changed between the baseline and this run. */
+export interface ScenarioDelta {
+  scenarioId: string;
+  name?: string;
+  category?: string;
+  severity: Severity;
+  from: LiveOutcome;
+  to: LiveOutcome;
+  /** The candidate run's failure reason, when it failed. */
+  failureReason?: string;
+}
+
+/**
+ * A run compared against its baseline. Run errors (infra) are excluded
+ * from the comparison on either side — an endpoint timeout is never a
+ * regression, matching the amber-not-red rule everywhere else.
+ */
+export interface RegressionReport {
+  baselineRunId: string;
+  baselineStartedAt: string;
+  /** true = explicitly pinned; false = previous run of same agent+suite. */
+  baselinePinned: boolean;
+  candidateRunId: string;
+  baselineScore: number;
+  candidateScore: number;
+  /** Outcome got worse: pass→partial, pass→fail, partial→fail. */
+  regressions: ScenarioDelta[];
+  /** Outcome got better. */
+  improvements: ScenarioDelta[];
+  stillFailing: number;
+  stillPassing: number;
+  /** Scenario pairs excluded because either side was a run error. */
+  excludedErrors: number;
+  /** Scenarios present in only one run (suite drifted between runs). */
+  onlyInBaseline: number;
+  onlyInCandidate: number;
+}
+
 export function scoreOf(results: LiveCellResult[]): number {
   const scored = results.filter((r) => r.outcome !== "error");
   if (scored.length === 0) return 0;

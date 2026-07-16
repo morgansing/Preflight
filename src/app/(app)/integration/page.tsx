@@ -110,6 +110,55 @@ app.post("/preflight", async (req, res) => {
 
 app.listen(8080);`;
 
+const GATE_CLI = `node scripts/preflight-gate.mjs \\
+  --url https://preflight.yourco.com \\
+  --agent-name "Aurora Support" \\
+  --agent-kind openai \\
+  --endpoint https://api.yourco.com/v1 \\
+  --model gpt-4o \\
+  --suite standard \\
+  --min-score 85 \\
+  --max-regressions 0
+# Launches the run, polls until it finishes, prints each check,
+# exits 1 if the agent isn't ready. Node 18+, zero dependencies.`;
+
+const GATE_WORKFLOW = `name: Preflight gate
+on: [pull_request]
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the agent against the store
+        env:
+          PREFLIGHT_AGENT_TOKEN: \${{ secrets.AGENT_API_KEY }}
+        run: |
+          node scripts/preflight-gate.mjs \\
+            --url \${{ vars.PREFLIGHT_URL }} \\
+            --agent-name "Aurora Support" \\
+            --agent-kind openai \\
+            --endpoint \${{ vars.AGENT_ENDPOINT }} \\
+            --suite standard \\
+            --min-score 85 --max-regressions 0
+
+  # On main, the passing run becomes the new baseline PRs are diffed against.
+  pin-baseline:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          PREFLIGHT_AGENT_TOKEN: \${{ secrets.AGENT_API_KEY }}
+        run: |
+          node scripts/preflight-gate.mjs \\
+            --url \${{ vars.PREFLIGHT_URL }} \\
+            --agent-name "Aurora Support" \\
+            --agent-kind openai \\
+            --endpoint \${{ vars.AGENT_ENDPOINT }} \\
+            --suite standard \\
+            --min-score 85 --set-baseline`;
+
 const FASTAPI = `from fastapi import FastAPI, Request
 
 app = FastAPI()
@@ -220,6 +269,34 @@ export default function IntegrationPage() {
             </div>
           ))}
         </Card>
+      </section>
+
+      {/* CI gate */}
+      <section className="mt-14">
+        <h2 className="font-display text-xl text-ink">3 · Gate your CI on readiness</h2>
+        <p className="mt-3 text-sm leading-relaxed text-sub">
+          A run you have to remember to start is an audit; a run your pipeline requires is a
+          safety net. The gate CLI launches a run, waits for the verdict, and fails the build if
+          the score drops below your bar — or if <em>any</em> scenario that passed on the
+          baseline now fails. Baselines are pinned per agent + suite: your main-branch job pins
+          its passing run (<code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">--set-baseline</code>),
+          and every PR is diffed against it.
+        </p>
+        <div className="mt-4">
+          <CodeBlock code={GATE_CLI} lang="bash" />
+        </div>
+        <div className="mt-5 space-y-1.5">
+          <Eyebrow>GitHub Actions</Eyebrow>
+        </div>
+        <div className="mt-2">
+          <CodeBlock code={GATE_WORKFLOW} lang="yaml" />
+        </div>
+        <p className="mt-3 text-[13px] leading-relaxed text-mut">
+          Run errors (endpoint timeouts, provider hiccups) never fail the gate by default — infra
+          is amber, not red. Add{" "}
+          <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">--max-run-errors 0</code>{" "}
+          if a flaky endpoint should block the build too.
+        </p>
       </section>
 
       {/* Auth + judge notes */}
