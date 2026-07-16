@@ -44,16 +44,25 @@ export interface LaunchOptions {
   systemPrompt?: string;
   /** Suite tier id, or "custom:<version>" for a generated suite. */
   suite: string;
+  /** Sandbox run: use the deterministic mock provider regardless of any
+   * configured key — offline, no cost, not a real evaluation. Lets a
+   * first-time visitor watch a real run without any setup. */
+  sandbox?: boolean;
 }
 
 export async function launchRun(
   opts: LaunchOptions,
 ): Promise<{ runId: string; scenarioIds: string[] } | { error: string; status: number }> {
-  const provider = await getProvider();
+  // Sandbox runs force the deterministic mock provider — no key, no
+  // network, no cost — so a first run works with zero setup. Real
+  // evaluations still require a configured provider.
+  const provider = opts.sandbox
+    ? (await import("./mock-provider")).mockProvider
+    : await getProvider();
   if (!provider) {
     return {
       error:
-        "No LLM provider configured. Set PREFLIGHT_LLM_KEY (or ANTHROPIC_API_KEY) on the server.",
+        "No LLM provider configured. Set PREFLIGHT_LLM_KEY (or ANTHROPIC_API_KEY) on the server — or start a sandbox run.",
       status: 409,
     };
   }

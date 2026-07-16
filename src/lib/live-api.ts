@@ -42,6 +42,8 @@ export async function startRun(body: {
   plan?: string;
   /** Workspace identity for free-grant enforcement. */
   identity?: { email?: string; fingerprint?: string };
+  /** Sandbox run — deterministic mock provider, no key, no cost. */
+  sandbox?: boolean;
 }): Promise<{ runId: string } | { error: string; freeGrantBlocked?: boolean }> {
   const res = await fetch("/api/live/runs", {
     method: "POST",

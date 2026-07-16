@@ -64,15 +64,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "agentKind must be reference | http | openai | mcp" }, { status: 400 });
   }
   const suite = String(body.suite ?? "smoke");
+  const sandbox = body.sandbox === true;
 
   // Free-grant enforcement. The free tier's 250 simulations are metered
   // server-side against a normalized email + device fingerprint, so
   // cycling accounts can't farm fresh grants. Paid plans are unmetered.
+  // Sandbox runs (mock, offline) never touch the grant.
   const plan = typeof body.plan === "string" ? body.plan : undefined;
   const identity = (body.identity ?? undefined) as WorkspaceIdentity | undefined;
   const identified = !!identity && (!!identity.email || !!identity.fingerprint);
   const sims = await plannedSimCount(suite);
-  if (plan === "free" && identified) {
+  if (!sandbox && plan === "free" && identified) {
     const allow = await checkFreeAllowance(prisma, identity!);
     if (allow.blocked || sims > allow.remaining) {
       return NextResponse.json(
@@ -97,12 +99,14 @@ export async function POST(request: NextRequest) {
     authToken: body.authToken ? String(body.authToken) : undefined,
     systemPrompt: body.systemPrompt ? String(body.systemPrompt) : undefined,
     suite,
+    sandbox,
   });
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  // Charge the free grant once the run is actually launched.
-  if (plan === "free" && identified) {
+  // Charge the free grant once the run is actually launched (never for
+  // sandbox — those are free and offline).
+  if (!sandbox && plan === "free" && identified) {
     await recordFreeUsage(prisma, identity!, sims);
   }
   return NextResponse.json(result, { status: 201 });

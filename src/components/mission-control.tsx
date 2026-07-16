@@ -205,8 +205,8 @@ export function MissionControl() {
       <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-accent/20 bg-accent/5 px-8 py-3">
         <p className="text-[13px] text-sub">
           <span className="font-medium text-ink">This is a demo run</span> — a pre-baked
-          200-scenario benchmark. To connect your own agent and choose the suite size, switch to
-          Live mode.
+          200-scenario benchmark. Want to run one yourself? Switch to Live mode and start a
+          sandbox run — no agent, no key, no cost.
         </p>
         <Button
           size="sm"
@@ -215,7 +215,7 @@ export function MissionControl() {
             router.push("/runs");
           }}
         >
-          Configure a live run →
+          Run one yourself →
         </Button>
       </div>
       {/* Floating header bar — a raised surface, no glass. */}

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, Eyebrow } from "./ui";
-import { LiveEmpty } from "./live-empty";
 import { useLiveAgents } from "@/lib/live";
 import {
   fetchProviderStatus,
@@ -251,6 +250,7 @@ export function LiveMissionControl() {
       suite,
       plan: session?.plan ?? "free",
       identity: { email: session?.email, fingerprint: computeFingerprint() },
+      sandbox: provider === null,
     });
     setLaunching(false);
     if ("error" in response) {
@@ -277,27 +277,26 @@ export function LiveMissionControl() {
   }, [results]);
 
   if (provider === undefined) return null;
-  if (provider === null) {
-    return (
-      <div className="mx-auto max-w-2xl px-8 py-24">
-        <LiveEmpty surface="Mission Control" />
-        <p className="mt-6 text-center font-mono text-[12px] leading-relaxed text-mut">
-          Live runs also need an LLM provider on the server:
-          <br />
-          set <span className="text-sub">PREFLIGHT_LLM_KEY</span> (or{" "}
-          <span className="text-sub">ANTHROPIC_API_KEY</span>) and restart.
-        </p>
-      </div>
-    );
-  }
+  // No evaluation provider configured → sandbox mode. Instead of a
+  // dead-end, the launcher runs the built-in reference agent against the
+  // real store with the deterministic mock judge — offline, no cost, no
+  // setup. Real evaluations still need a provider key.
+  const sandbox = provider === null;
 
   // ------------------------------------------------- Launcher
   if (!run) {
     return (
       <div className="mx-auto max-w-2xl px-8 py-16">
         <div className="flex items-center justify-between">
-          <Eyebrow>Live run</Eyebrow>
-          {provider === "mock" ? (
+          <Eyebrow>{sandbox ? "Sandbox run" : "Live run"}</Eyebrow>
+          {sandbox ? (
+            <span
+              title="No evaluation provider configured — this runs the built-in reference agent with a deterministic mock judge. Offline, no cost, not a real evaluation."
+              className="inline-flex h-6 items-center rounded-md border border-accent/40 bg-accent/10 px-2 font-mono text-[10px] tracking-[0.14em] text-accent"
+            >
+              SANDBOX
+            </span>
+          ) : provider === "mock" ? (
             <MockBadge />
           ) : (
             <span className="font-mono text-[11px] text-mut">claude-opus-4-8</span>
@@ -307,9 +306,20 @@ export function LiveMissionControl() {
           Run an agent against the store
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-sub">
-          The harness resets and reseeds the simulated store, then runs each
-          scenario as a real multi-turn conversation — an LLM customer persona
-          against your agent, with a judge scoring every transcript.
+          {sandbox ? (
+            <>
+              A real run with zero setup: the built-in reference agent works the
+              simulated store while a deterministic judge scores every transcript.
+              It&apos;s offline and free — a sandbox, not a real evaluation. To grade
+              your own agent, set an LLM provider key on the server.
+            </>
+          ) : (
+            <>
+              The harness resets and reseeds the simulated store, then runs each
+              scenario as a real multi-turn conversation — an LLM customer persona
+              against your agent, with a judge scoring every transcript.
+            </>
+          )}
         </p>
 
         <Card className="mt-8 space-y-6">
@@ -442,18 +452,24 @@ export function LiveMissionControl() {
           )}
 
           <Button className="w-full" onClick={launch} disabled={launching}>
-            {launching ? "Seeding store…" : "Start run"}
+            {launching ? "Seeding store…" : sandbox ? "Start sandbox run" : "Start run"}
           </Button>
 
-          <CreditsLine
-            simsNeeded={
-              suite === "security"
-                ? SECURITY_SUITE_SIZE
-                : suite === `custom:${customSuite?.version}`
-                  ? (customSuite?.scenarioCount ?? 0)
-                  : (tierById(suite)?.size ?? 0)
-            }
-          />
+          {sandbox ? (
+            <p className="text-center text-[12px] text-mut">
+              Sandbox runs are free and offline — nothing is charged and no key is needed.
+            </p>
+          ) : (
+            <CreditsLine
+              simsNeeded={
+                suite === "security"
+                  ? SECURITY_SUITE_SIZE
+                  : suite === `custom:${customSuite?.version}`
+                    ? (customSuite?.scenarioCount ?? 0)
+                    : (tierById(suite)?.size ?? 0)
+              }
+            />
+          )}
         </Card>
 
         <p className="mt-4 text-center text-[12px] text-mut">
