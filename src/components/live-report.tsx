@@ -54,25 +54,6 @@ export function LiveReport() {
       .filter(([, c]) => c.fail > 0)
       .sort((a, b) => b[1].fail / b[1].total - a[1].fail / a[1].total)
       .map(([name]) => name);
-    const taxonomy = cats
-      .filter(([, c]) => c.fail > 0 || c.partial > 0)
-      .sort((a, b) => b[1].fail - a[1].fail)
-      .map(([name, c]) => ({
-        name,
-        ...c,
-        reasons: [
-          ...new Set(
-            results
-              .filter(
-                (r) =>
-                  catOf(r) === name &&
-                  (r.outcome === "fail" || r.outcome === "partial") &&
-                  r.failureReason,
-              )
-              .map((r) => r.failureReason as string),
-          ),
-        ].slice(0, 3),
-      }));
     const risks = results
       .filter((r) => r.outcome === "fail")
       .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity])
@@ -80,7 +61,7 @@ export function LiveReport() {
     const errors = results.filter((r) => r.outcome === "error");
     const tokens = results.reduce((a, r) => a + r.tokens, 0);
     const cost = results.reduce((a, r) => a + r.costUsd, 0);
-    return { score: scoreOf(results), strengths, weaknesses, taxonomy, risks, errors, tokens, cost };
+    return { score: scoreOf(results), strengths, weaknesses, risks, errors, tokens, cost };
   }, [run]);
 
   if (run === undefined) return null;
@@ -141,33 +122,6 @@ export function LiveReport() {
       <RegressionPanel runId={run.id} />
 
       <RootCauses runId={run.id} />
-
-      {report.taxonomy.length > 0 && (
-        <section className="mt-16">
-          <h2 className="font-display text-2xl tracking-tight text-ink">Where it breaks</h2>
-          <div className="mt-6 space-y-8">
-            {report.taxonomy.map((t) => (
-              <div key={t.name} className="border-l-2 border-edge pl-6">
-                <div className="flex items-baseline justify-between gap-4">
-                  <h3 className="text-[15px] font-medium text-ink">
-                    {t.fail > 0
-                      ? `Fails ${Math.round((t.fail / t.total) * 100)}% of ${t.name.toLowerCase()} scenarios`
-                      : `Off-policy on ${t.name.toLowerCase()}`}
-                  </h3>
-                  <span className="shrink-0 font-mono text-[12px] tabular-nums text-mut">
-                    {t.fail} / {t.total}
-                  </span>
-                </div>
-                {t.reasons.map((reason) => (
-                  <p key={reason} className="mt-2 text-sm leading-relaxed text-sub">
-                    {reason}
-                  </p>
-                ))}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {report.risks.length > 0 && (
         <section className="mt-16">
