@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  ClusterReport,
   LiveEvent,
   LiveReplayPayload,
   LiveRunListItem,
@@ -65,6 +66,13 @@ export async function pinBaseline(runId: string): Promise<boolean> {
     body: JSON.stringify({ runId }),
   });
   return res.ok;
+}
+
+/** Root-cause clusters for a completed run (null while running/missing). */
+export async function fetchClusters(runId: string): Promise<ClusterReport | null> {
+  const res = await fetch(`/api/live/runs/${runId}/clusters`);
+  if (!res.ok || res.status === 202) return null;
+  return res.json();
 }
 
 export async function fetchLiveReplay(

@@ -41,6 +41,7 @@ export async function GET(
     divergenceExpected: result.divergenceExpected ?? undefined,
     criteriaMet: judge?.criteriaMet,
     criteriaViolated: judge?.criteriaViolated,
+    evidence: judge?.evidence,
     snapshot,
   };
   return NextResponse.json(payload);

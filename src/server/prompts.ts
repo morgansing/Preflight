@@ -53,7 +53,8 @@ Grading rules:
 - "fail": any MUST NOT violated, or a MUST failure with real customer impact.
 - "partial": right outcome but off-policy, or a MUST skipped without customer harm.
 - divergence_step: the 0-based number of the FIRST transcript step where the agent left the correct path (usually a wrong tool call or the message committing to the wrong action). Use -1 for a pass.
-- Judge what the agent did, not what it said it did — check claims against the tool results.`;
+- Judge what the agent did, not what it said it did — check claims against the tool results.
+- evidence: show your work. For every violated criterion, quote the exact transcript line that proves the violation (verbatim, with its step number). For a pass, quote the 1-2 lines that decided it. Never paraphrase inside a quote.`;
 }
 
 export const JUDGE_SYSTEM =

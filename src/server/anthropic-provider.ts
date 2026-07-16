@@ -11,6 +11,8 @@ import {
   transcriptText,
   type AgentTurnCtx,
   type AgentTurnResult,
+  type ClusterDraft,
+  type ClusterNaming,
   type ConversationMessage,
   type JudgeResult,
   type PersonaResult,
@@ -64,6 +66,21 @@ const GRADE_TOOL: Anthropic.Tool = {
         description: "0-based transcript step where the agent left the correct path; -1 for a pass.",
       },
       severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+      evidence: {
+        type: "array",
+        description:
+          "Show your work: for EVERY violated criterion — and for the 1-2 decisive met criteria on a pass — the verbatim transcript quote that proves it, with the 0-based step number it came from.",
+        items: {
+          type: "object",
+          properties: {
+            criterion: { type: "string" },
+            quote: { type: "string", description: "Verbatim from the transcript step." },
+            step: { type: "integer" },
+          },
+          required: ["criterion", "quote", "step"],
+          additionalProperties: false,
+        },
+      },
     },
     required: [
       "outcome",
@@ -72,6 +89,7 @@ const GRADE_TOOL: Anthropic.Tool = {
       "criteria_violated",
       "divergence_step",
       "severity",
+      "evidence",
     ],
     additionalProperties: false,
   },
@@ -207,6 +225,7 @@ async function judge(scenario: Scenario, steps: ReplayStep[]): Promise<JudgeResu
     criteria_violated: string[];
     divergence_step: number;
     severity: Severity;
+    evidence: Array<{ criterion: string; quote: string; step: number }>;
   };
   return {
     verdict: {
@@ -216,9 +235,93 @@ async function judge(scenario: Scenario, steps: ReplayStep[]): Promise<JudgeResu
       criteriaViolated: g.criteria_violated,
       divergenceStep: g.divergence_step,
       severity: g.severity,
+      evidence: g.evidence ?? [],
     },
     ...usageOf(response.usage),
   };
+}
+
+const CLUSTERS_TOOL: Anthropic.Tool = {
+  name: "submit_cluster_names",
+  description: "Submit the diagnosis for every failure group.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    properties: {
+      clusters: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            index: { type: "integer", description: "The group's index from the input." },
+            title: {
+              type: "string",
+              description:
+                "The behaviour, as a diagnosis. E.g. \"Refunds under emotional pressure despite contradicting evidence\" — never \"Group 1\".",
+            },
+            root_cause: {
+              type: "string",
+              description: "2-3 sentences: what the agent keeps doing wrong and why it matters.",
+            },
+            fix: {
+              type: "string",
+              description: "1-2 sentences: the most direct prompt/logic change to try.",
+            },
+            merge_into: {
+              type: "integer",
+              description:
+                "If this group is the SAME underlying behaviour as another group, that group's index; else -1.",
+            },
+          },
+          required: ["index", "title", "root_cause", "fix", "merge_into"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["clusters"],
+    additionalProperties: false,
+  },
+} as Anthropic.Tool;
+
+/** Name and merge failure groups — the "3 problems, not 55 failures" step. */
+async function nameClusters(drafts: ClusterDraft[]): Promise<ClusterNaming[]> {
+  const response = await getClient().messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    system:
+      "You are a QA lead writing the diagnosis section of an AI-agent readiness report. You turn grouped scenario failures into named root causes an engineer can act on. Always answer via the tool.",
+    tools: [CLUSTERS_TOOL],
+    tool_choice: { type: "tool", name: "submit_cluster_names" },
+    messages: [
+      {
+        role: "user",
+        content:
+          `These failure groups came out of one evaluation run (grouped by violated rubric criterion). Name each as a root-cause diagnosis, and merge groups that are the same underlying behaviour:\n\n` +
+          drafts
+            .map(
+              (d) =>
+                `GROUP ${d.index} — ${d.count} scenario(s) across [${d.categories.join(", ")}]\n` +
+                `  sample failures: ${d.sampleReasons.join(" | ")}\n` +
+                `  sample scenarios: ${d.sampleScenarios.join("; ")}`,
+            )
+            .join("\n\n"),
+      },
+    ],
+  });
+  const call = response.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === "submit_cluster_names",
+  );
+  if (!call) throw new Error("Cluster naming returned no tool call");
+  const input = call.input as {
+    clusters: Array<{ index: number; title: string; root_cause: string; fix: string; merge_into: number }>;
+  };
+  return input.clusters.map((c) => ({
+    index: c.index,
+    title: c.title,
+    rootCause: c.root_cause,
+    fix: c.fix,
+    mergeInto: c.merge_into,
+  }));
 }
 
 export const anthropicProvider: Provider = {
@@ -226,4 +329,5 @@ export const anthropicProvider: Provider = {
   agentTurn,
   personaTurn,
   judge,
+  nameClusters,
 };

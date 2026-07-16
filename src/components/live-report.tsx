@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ReadinessCard } from "./readiness-card";
 import { RegressionPanel } from "./regression-panel";
+import { RootCauses } from "./root-causes";
 import { UpgradeNudge } from "./upgrade-nudge";
 import { Button, Eyebrow, EmptyState, ButtonLink } from "./ui";
 import { MockBadge } from "./live-mission-control";
@@ -138,6 +139,8 @@ export function LiveReport() {
       <UpgradeNudge simsThisRun={run.results.length} />
 
       <RegressionPanel runId={run.id} />
+
+      <RootCauses runId={run.id} />
 
       {report.taxonomy.length > 0 && (
         <section className="mt-16">

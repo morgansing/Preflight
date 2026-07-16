@@ -159,6 +159,9 @@ model LiveRun {
   scenariosJson String // ordered scenario ids in this run
   status        String // running | complete | error
   error         String?
+  // Cached root-cause clustering (ClusterReport JSON) — failures don't
+  // change after completion, so this is computed once on first request.
+  clustersJson  String?
   startedAt     DateTime     @default(now())
   finishedAt    DateTime?
   results       LiveResult[]

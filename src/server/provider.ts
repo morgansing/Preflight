@@ -47,6 +47,15 @@ export interface PersonaResult extends Usage {
   done: boolean;
 }
 
+/** A quoted transcript line backing one criterion of the verdict. */
+export interface JudgeEvidence {
+  criterion: string;
+  /** Verbatim quote from the transcript step. */
+  quote: string;
+  /** 0-based index into the replay steps. */
+  step: number;
+}
+
 export interface JudgeVerdict {
   outcome: "pass" | "fail" | "partial";
   failureReason: string;
@@ -54,10 +63,34 @@ export interface JudgeVerdict {
   criteriaViolated: string[];
   divergenceStep: number; // -1 = none
   severity: Severity;
+  /** The judge showing its work: quotes for every violated criterion
+   * (and the decisive met criteria on a pass). */
+  evidence?: JudgeEvidence[];
 }
 
 export interface JudgeResult extends Usage {
   verdict: JudgeVerdict;
+}
+
+/** Input to cluster naming: one canonically-grouped failure mode. */
+export interface ClusterDraft {
+  index: number;
+  count: number;
+  /** Up to 3 distinct judge failure reasons from the group. */
+  sampleReasons: string[];
+  /** Up to 5 member scenario names. */
+  sampleScenarios: string[];
+  categories: string[];
+}
+
+/** LLM naming for one draft; mergeInto folds a duplicate group into
+ * another draft's cluster (-1 = standalone). */
+export interface ClusterNaming {
+  index: number;
+  title: string;
+  rootCause: string;
+  fix: string;
+  mergeInto: number;
 }
 
 export interface Provider {
@@ -65,6 +98,9 @@ export interface Provider {
   agentTurn(ctx: AgentTurnCtx): Promise<AgentTurnResult>;
   personaTurn(scenario: Scenario, conversation: ConversationMessage[]): Promise<PersonaResult>;
   judge(scenario: Scenario, steps: ReplayStep[]): Promise<JudgeResult>;
+  /** Name/merge failure clusters. Optional — without it (or on error)
+   * clustering falls back to labeled deterministic naming. */
+  nameClusters?(drafts: ClusterDraft[]): Promise<ClusterNaming[]>;
 }
 
 export function providerKey(): string | undefined {

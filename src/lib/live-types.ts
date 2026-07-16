@@ -82,8 +82,42 @@ export interface LiveReplayPayload {
   divergenceExpected?: number;
   criteriaMet?: string[];
   criteriaViolated?: string[];
+  /** The judge's transcript quotes — its work, shown. */
+  evidence?: JudgeEvidenceItem[];
   /** Present for generated custom scenarios; base scenarios resolve via id. */
   snapshot?: ScenarioSnapshot;
+}
+
+/** A quoted transcript line backing one criterion of the judge's verdict. */
+export interface JudgeEvidenceItem {
+  criterion: string;
+  quote: string;
+  /** 0-based index into the replay steps. */
+  step: number;
+}
+
+/** One root-cause group of failures — the diagnosis, not the list. */
+export interface FailureCluster {
+  id: string;
+  /** The behaviour, e.g. "Refunds under emotional pressure despite contradicting evidence". */
+  title: string;
+  rootCause: string;
+  fix: string;
+  /** Highest severity among members. */
+  severity: Severity;
+  count: number;
+  categories: string[];
+  members: Array<{ scenarioId: string; name?: string; outcome: "fail" | "partial" }>;
+  sampleReason: string;
+}
+
+export interface ClusterReport {
+  /** "llm" = named by the provider model; "heuristic" = deterministic labels. */
+  method: "llm" | "heuristic";
+  provider: "anthropic" | "mock";
+  clusters: FailureCluster[];
+  failures: number;
+  generatedAt: string;
 }
 
 /** One scenario whose outcome changed between the baseline and this run. */

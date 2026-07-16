@@ -61,6 +61,9 @@ export function LiveReplay({ scenarioId }: { scenarioId: string }) {
           divergenceStep: payload.divergenceStep,
           divergenceExpected: payload.divergenceExpected,
           failureReason: payload.failureReason,
+          criteriaMet: payload.criteriaMet,
+          criteriaViolated: payload.criteriaViolated,
+          evidence: payload.evidence,
         },
       };
     };

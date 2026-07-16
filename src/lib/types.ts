@@ -48,6 +48,14 @@ export interface ExpectedStep {
   kind: "must" | "must_not";
 }
 
+/** A transcript quote backing one criterion of the judge's verdict. */
+export interface JudgeEvidence {
+  criterion: string;
+  quote: string;
+  /** 0-based index into steps. */
+  step: number;
+}
+
 export interface Replay {
   scenarioId: string;
   outcome: Outcome;
@@ -62,6 +70,10 @@ export interface Replay {
   /** Index into expectedPath that was violated at that moment. */
   divergenceExpected?: number;
   failureReason?: string;
+  /** Judge verdict detail — live runs only; demo replays omit these. */
+  criteriaMet?: string[];
+  criteriaViolated?: string[];
+  evidence?: JudgeEvidence[];
 }
 
 export interface AgentUnderTest {

@@ -17,6 +17,17 @@ export type ReplayLike = Omit<Replay, "outcome"> & { outcome: LiveOutcome };
 
 const STEP_MS = 1800;
 
+/** Fuzzy criterion matching — judges sometimes reword slightly. */
+function matchesCriterion(list: string[] | undefined, text: string): boolean {
+  if (!list || list.length === 0) return false;
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const t = norm(text);
+  return list.some((c) => {
+    const n = norm(c);
+    return n === t || n.includes(t.slice(0, 40)) || t.includes(n.slice(0, 40));
+  });
+}
+
 export function ReplayView({
   scenario,
   replay,
@@ -30,6 +41,11 @@ export function ReplayView({
   const total = replay.steps.length;
   const diverged =
     replay.divergenceStep !== undefined && current >= replay.divergenceStep;
+  // The verdict detail (criteria checklist, evidence) reveals once the
+  // replay reaches its end — the judge speaks after the transcript.
+  const finished = current >= total - 1;
+  const hasVerdict =
+    (replay.criteriaMet?.length ?? 0) > 0 || (replay.criteriaViolated?.length ?? 0) > 0;
 
   const step = useCallback(
     (dir: 1 | -1) =>
@@ -181,7 +197,15 @@ export function ReplayView({
           </p>
           <div className="mt-5 space-y-2">
             {replay.expectedPath.map((e, i) => {
-              const violated = diverged && i === replay.divergenceExpected;
+              const violated =
+                (diverged && i === replay.divergenceExpected) ||
+                (finished && matchesCriterion(replay.criteriaViolated, e.text));
+              const met =
+                finished &&
+                hasVerdict &&
+                !violated &&
+                e.kind === "must" &&
+                matchesCriterion(replay.criteriaMet, e.text);
               return (
                 <div
                   key={i}
@@ -219,6 +243,11 @@ export function ReplayView({
                         ✗ violated at step {String((replay.divergenceStep ?? 0) + 1).padStart(2, "0")}
                       </p>
                     )}
+                    {met && (
+                      <p className="animate-fade-up mt-1.5 font-mono text-[11px] text-accent/80">
+                        ✓ judge confirmed met
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -230,6 +259,49 @@ export function ReplayView({
               <p className="mt-2 text-[13px] leading-relaxed text-sub">
                 {replay.failureReason}
               </p>
+            </div>
+          )}
+
+          {/* The judge's work: verbatim quotes, each jumping to its step. */}
+          {(replay.evidence?.length ?? 0) > 0 && (diverged || finished) && (
+            <div className="animate-fade-up mt-5 border-t border-edge pt-4">
+              <Eyebrow>Judge&apos;s evidence</Eyebrow>
+              <div className="mt-3 space-y-3">
+                {replay.evidence!.map((ev, i) => {
+                  const bad = matchesCriterion(replay.criteriaViolated, ev.criterion);
+                  const target = Math.max(0, Math.min(total - 1, ev.step));
+                  return (
+                    <div
+                      key={i}
+                      className={`rounded-lg border p-3.5 ${
+                        bad ? "border-fail/40 bg-fail/5" : "border-accent/25 bg-accent/5"
+                      }`}
+                    >
+                      <div
+                        className={`font-mono text-[10px] tracking-wider ${
+                          bad ? "text-fail/80" : "text-accent/80"
+                        }`}
+                      >
+                        {bad ? "VIOLATED" : "MET"}
+                      </div>
+                      <p className="mt-1 text-[12px] leading-relaxed text-sub">{ev.criterion}</p>
+                      <blockquote className="mt-2 border-l-2 border-edge pl-3 text-[13px] italic leading-relaxed text-ink">
+                        “{ev.quote}”
+                      </blockquote>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlaying(false);
+                          setCurrent(target);
+                        }}
+                        className="focus-ring mt-2 cursor-pointer rounded font-mono text-[11px] text-accent hover:underline"
+                      >
+                        → jump to step {String(target + 1).padStart(2, "0")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
