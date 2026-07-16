@@ -29,7 +29,9 @@ export default function DashboardPage() {
       {mode === "live" ? (
         <LiveDashboard />
       ) : (
-        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <>
+          <DemoStats />
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-4">
             {demoAgents.map((agent, i) => {
               const score = agent.scoreHistory[agent.scoreHistory.length - 1];
@@ -94,8 +96,41 @@ export default function DashboardPage() {
             meta={readiness.meta}
             className="animate-fade-up h-fit"
           />
-        </div>
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+/** A compact metrics strip above the demo agent list. */
+function DemoStats() {
+  const scores = demoAgents.map((a) => a.scoreHistory[a.scoreHistory.length - 1]);
+  const readyToShip = demoAgents.filter(
+    (a) => a.scoreHistory[a.scoreHistory.length - 1] >= a.threshold,
+  ).length;
+  const best = Math.max(...scores);
+  const openCritical = demoAgents.reduce((sum, a) => sum + a.lastRun.critical, 0);
+  const stats: { label: string; value: string; tone?: "accent" | "fail" }[] = [
+    { label: "Agents under test", value: String(demoAgents.length) },
+    { label: "Ready to ship", value: `${readyToShip}/${demoAgents.length}`, tone: "accent" },
+    { label: "Best readiness", value: `${best}%` },
+    { label: "Open critical fails", value: String(openCritical), tone: openCritical > 0 ? "fail" : undefined },
+  ];
+  return (
+    <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {stats.map((s) => (
+        <Card key={s.label} className="animate-fade-up p-4">
+          <div className="eyebrow">{s.label}</div>
+          <div
+            className={`numeral mt-1 text-3xl ${
+              s.tone === "accent" ? "text-accent" : s.tone === "fail" ? "text-fail" : "text-ink"
+            }`}
+          >
+            {s.value}
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { demoOutcomes, scenarioById } from "./scenarios";
 
 /**
  * Pre-baked benchmark: Aurora Support v1.2 vs v1.3 on the same suite.
- * v1.3 is the demo run (91%). v1.2 scored 84% — it also failed a set of
+ * v1.3 is the demo run (97%). v1.2 scored 84% — it also failed a set of
  * scenarios that v1.3 now passes, and v1.3 newly broke two.
  */
 
@@ -50,7 +50,7 @@ function entry(id: string): BenchmarkEntry {
 export const demoBenchmark = {
   suite: "Ecommerce Support Suite v2",
   a: { label: "Aurora Support v1.2", runId: "run_0139", score: 84, date: "Jul 11, 2026" },
-  b: { label: "Aurora Support v1.3", runId: "run_0147", score: 91, date: "Jul 14, 2026" },
+  b: { label: "Aurora Support v1.3", runId: "run_0147", score: 97, date: "Jul 14, 2026" },
   newlyPassing: NEWLY_PASSING.map(entry),
   newlyBroken: NEWLY_BROKEN.map(entry),
   unchangedFails: [...demoOutcomes.entries()]

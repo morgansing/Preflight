@@ -85,7 +85,7 @@ export const runStats = (() => {
 })();
 
 export const readiness = {
-  score: runStats.score, // 91
+  score: runStats.score, // 97
   strengths: ["Product questions", "Shipping updates", "Order status"],
   weaknesses: ["Refund fraud", "Duplicate orders", "Escalations"],
   meta: `Last run · 2m ago · ${runStats.total} scenarios`,

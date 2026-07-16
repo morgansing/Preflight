@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { demoRun, DEMO_RUN_DURATION_MS } from "@/lib/fixtures/run";
 import { scenarioById } from "@/lib/fixtures/scenarios";
 import type { RunCell } from "@/lib/types";
+import { useMode } from "@/lib/mode";
 import { Button } from "./ui";
 
 /**
@@ -194,9 +195,29 @@ export function MissionControl() {
   const { elapsed, restart } = useRunClock(false);
   const stats = useWallStats(elapsed);
   const eta = Math.max(0, DEMO_RUN_DURATION_MS - elapsed);
+  const { setMode } = useMode();
+  const router = useRouter();
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* This is the fixed demo. The real launcher — pick your agent, the
+          suite size, run it — lives in Live mode. Make that reachable. */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-accent/20 bg-accent/5 px-8 py-3">
+        <p className="text-[13px] text-sub">
+          <span className="font-medium text-ink">This is a demo run</span> — a pre-baked
+          200-scenario benchmark. To connect your own agent and choose the suite size, switch to
+          Live mode.
+        </p>
+        <Button
+          size="sm"
+          onClick={() => {
+            setMode("live");
+            router.push("/runs");
+          }}
+        >
+          Configure a live run →
+        </Button>
+      </div>
       {/* Floating header bar — a raised surface, no glass. */}
       <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4 backdrop-blur-none">
         <div className="flex flex-wrap items-center justify-between gap-4">

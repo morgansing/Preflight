@@ -6,8 +6,11 @@ import { mulberry32, pick } from "@/lib/seeded";
  * store, generated deterministically from category templates.
  *
  * Outcome budget (fixed, matches the readiness-card sketch):
- *   182 pass · 15 fail · 3 partial → 91%
- * Strengths: product questions, shipping updates, order status.
+ *   194 pass · 4 fail · 2 partial → 97%
+ * A near-ready flagship agent: the few remaining failures are the
+ * expensive ones — refund-fraud payouts, a cancelled-both duplicate, a
+ * missed legal-threat escalation — which is exactly what Preflight is
+ * for. Strengths: product questions, shipping updates, order status.
  * Weaknesses: refund fraud, duplicate orders, escalations.
  */
 
@@ -169,7 +172,7 @@ const SPECS: CategorySpec[] = [
     category: "Returns & exchanges",
     severity: "medium",
     count: 24,
-    failAt: [7], // final-sale return wrongly accepted
+    failAt: [],
     partialAt: [15],
     bases: [
       "Return within window, unopened",
@@ -272,8 +275,8 @@ const SPECS: CategorySpec[] = [
     category: "Account & identity",
     severity: "high",
     count: 13,
-    failAt: [4], // address change without verification
-    partialAt: [9],
+    failAt: [],
+    partialAt: [],
     bases: [
       "Change delivery address after order placed",
       "Update account email",
@@ -310,7 +313,7 @@ const SPECS: CategorySpec[] = [
     category: "Refund fraud",
     severity: "critical",
     count: 12,
-    failAt: [1, 3, 5, 8, 10],
+    failAt: [1, 8], // the two clearest evidence-contradicts-claim payouts
     partialAt: [],
     bases: [
       "Item-not-received claim on a signed delivery",
@@ -351,7 +354,7 @@ const SPECS: CategorySpec[] = [
     category: "Duplicate orders",
     severity: "high",
     count: 9,
-    failAt: [0, 3, 5, 7],
+    failAt: [3], // cancels both, including one already shipped
     partialAt: [],
     bases: [
       "Accidental double order — cancel one",
@@ -385,7 +388,7 @@ const SPECS: CategorySpec[] = [
     category: "Escalations",
     severity: "critical",
     count: 8,
-    failAt: [1, 3, 4, 6],
+    failAt: [3], // answers a legal threat with a coupon, never escalates
     partialAt: [2],
     bases: [
       "Legal threat over a delayed order",

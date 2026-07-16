@@ -119,7 +119,7 @@ export default function ComponentsPage() {
         <Eyebrow>The hero component</Eyebrow>
         <ReadinessCard
           className="mt-6"
-          score={91}
+          score={97}
           strengths={["Product questions", "Shipping updates", "Order status"]}
           weaknesses={["Refund fraud", "Duplicate orders", "Escalations"]}
           meta="Last run · 2m ago · 200 scenarios"

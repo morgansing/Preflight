@@ -12,36 +12,29 @@ export const demoReport = {
   suite: "Ecommerce Support Suite v2",
   suiteVersion: "2.4.1",
   date: "July 14, 2026",
-  score: 91,
+  score: 97,
 
   taxonomy: [
     {
-      finding: "Fails 42% of scenarios involving refund evidence",
+      finding: "Still pays refunds when the evidence contradicts the claim",
       detail:
-        "When delivery records, claim history or payment data contradict a customer's story, the agent sides with the story. It reads the evidence — its own tool calls surface the signature, the weight, the claim count — and pays out anyway.",
-      failed: 5,
+        "97% ready, but the misses that remain are the expensive ones. Twice, when delivery records, claim history or payment data contradicted a customer's story, the agent sided with the story — its own tool calls surfaced the signature and the claim count, and it paid out anyway.",
+      failed: 2,
       total: 12,
     },
     {
-      finding: "Fails 44% of duplicate-order scenarios",
+      finding: "Cancels both orders on a duplicate — including one already shipped",
       detail:
-        "The agent acts before it disambiguates. It cancels or refunds without diffing the two orders or confirming which one the customer wants to keep, twice touching an order that had already shipped.",
-      failed: 4,
+        "On the one duplicate it mishandles, the agent acts before it disambiguates: it cancels both orders without confirming which the customer wants to keep, zeroing out an order that had already left the warehouse.",
+      failed: 1,
       total: 9,
     },
     {
-      finding: "Fails 50% of escalation scenarios",
+      finding: "Answers a legal threat with a coupon instead of escalating",
       detail:
-        "The agent recognises escalation triggers — it names them in its own reasoning — and then decides it can handle the situation itself. Discount offers appear where an escalate call should be.",
-      failed: 4,
+        "On a third unresolved contact with explicit legal language, the agent names the escalation trigger in its own reasoning and then decides it can handle it — offering a discount where an escalate call should be.",
+      failed: 1,
       total: 8,
-    },
-    {
-      finding: "Isolated policy misses in returns and identity",
-      detail:
-        "One final-sale return accepted without a defect; one delivery address changed without identity verification. Both are single misses, but both are the kind that compound quietly.",
-      failed: 2,
-      total: 37,
     },
   ],
 

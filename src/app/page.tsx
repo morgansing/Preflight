@@ -90,9 +90,9 @@ export default function Landing() {
           <Eyebrow>One run · this morning</Eyebrow>
           <div className="mt-6 space-y-5">
             {[
-              ["182", "scenarios handled correctly", "accent"],
-              ["15", "would have reached customers", "fail"],
-              ["3", "resolved, but off-policy", "warn"],
+              ["194", "scenarios handled correctly", "accent"],
+              ["4", "would have reached customers", "fail"],
+              ["2", "resolved, but off-policy", "warn"],
             ].map(([n, label, tone]) => (
               <div key={label as string} className="flex items-baseline gap-4">
                 <span
@@ -164,7 +164,7 @@ judge  ✗  refunded against signed delivery;
           </p>
         </div>
         <ReadinessCard
-          score={91}
+          score={97}
           strengths={["Product questions", "Shipping updates", "Order status"]}
           weaknesses={["Refund fraud", "Duplicate orders", "Escalations"]}
           meta="Last run · 2m ago · 200 scenarios"

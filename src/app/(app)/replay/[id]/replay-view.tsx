@@ -149,7 +149,7 @@ export function ReplayView({
       {/* Three columns */}
       <div className="grid flex-1 grid-cols-1 gap-px bg-edge lg:grid-cols-[1fr_1.3fr_1fr]">
         {/* Left — what the agent saw */}
-        <section className="bg-bg px-6 py-6">
+        <section className="min-w-0 bg-bg px-6 py-6">
           <Eyebrow>What the agent saw</Eyebrow>
           <div className="mt-5 space-y-4">
             {seen.map((s) => (
@@ -170,7 +170,7 @@ export function ReplayView({
         </section>
 
         {/* Centre — what the agent did */}
-        <section className="bg-bg px-6 py-6">
+        <section className="min-w-0 bg-bg px-6 py-6">
           <Eyebrow>What the agent did</Eyebrow>
           <div className="relative mt-5 space-y-1.5">
             {replay.steps.map((s, i) => (
@@ -190,7 +190,7 @@ export function ReplayView({
         </section>
 
         {/* Right — expected path */}
-        <section className="bg-bg px-6 py-6">
+        <section className="min-w-0 bg-bg px-6 py-6">
           <Eyebrow>Expected path</Eyebrow>
           <p className="mt-3 text-[13px] leading-relaxed text-sub">
             {scenario.rubric}
