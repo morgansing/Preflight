@@ -5,6 +5,7 @@ import { executeTool } from "./store-tools";
 import { suiteScenarioIds } from "./suite";
 import { loadSuiteScenarios } from "./generation";
 import { httpAgentTurn } from "./http-agent";
+import { openaiAgentTurn } from "./openai-agent";
 import {
   getProvider,
   type AgentTurnCtx,
@@ -32,9 +33,15 @@ const SCENARIO_TIMEOUT_MS = 240_000;
 
 export interface LaunchOptions {
   agentName: string;
-  agentKind: "reference" | "http" | "mcp";
+  agentKind: "reference" | "http" | "openai" | "mcp";
   endpoint?: string;
-  /** Suite tier id: smoke | standard | extended | scale | exhaustive | max. */
+  /** OpenAI-compatible: model to request. */
+  model?: string;
+  /** Outbound bearer token sent to the agent endpoint. */
+  authToken?: string;
+  /** OpenAI-compatible: the agent's system prompt (defines its behaviour). */
+  systemPrompt?: string;
+  /** Suite tier id, or "custom:<version>" for a generated suite. */
   suite: string;
 }
 
@@ -50,7 +57,10 @@ export async function launchRun(
     };
   }
   if (opts.agentKind === "mcp") {
-    return { error: "MCP-endpoint agents are not supported yet. Use HTTP or the reference agent.", status: 400 };
+    return { error: "MCP-endpoint agents are not supported yet. Use HTTP, OpenAI-compatible, or the reference agent.", status: 400 };
+  }
+  if ((opts.agentKind === "http" || opts.agentKind === "openai") && !opts.endpoint) {
+    return { error: `${opts.agentKind} agents need an endpoint URL.`, status: 400 };
   }
 
   const running = await prisma.liveRun.findFirst({ where: { status: "running" } });
@@ -187,10 +197,23 @@ async function runScenario(
   const runTool = (name: string, input: Record<string, unknown>) =>
     executeTool(name, input, { prisma, runId, scenarioId: scenario.id });
 
-  const agentTurn = (ctx: AgentTurnCtx): Promise<AgentTurnResult> =>
-    opts.agentKind === "http" && opts.endpoint
-      ? httpAgentTurn(opts.endpoint, ctx)
-      : provider.agentTurn(ctx);
+  const agentTurn = (ctx: AgentTurnCtx): Promise<AgentTurnResult> => {
+    if (opts.agentKind === "http" && opts.endpoint) {
+      return httpAgentTurn(opts.endpoint, ctx, opts.authToken);
+    }
+    if (opts.agentKind === "openai" && opts.endpoint) {
+      return openaiAgentTurn(
+        {
+          endpoint: opts.endpoint,
+          model: opts.model ?? "gpt-4o",
+          authToken: opts.authToken,
+          systemPrompt: opts.systemPrompt,
+        },
+        ctx,
+      );
+    }
+    return provider.agentTurn(ctx);
+  };
 
   try {
     const body = async () => {

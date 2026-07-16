@@ -29,6 +29,12 @@ export async function startRun(body: {
   agentName: string;
   agentKind: string;
   endpoint?: string;
+  /** OpenAI-compatible: model to request. */
+  model?: string;
+  /** Outbound bearer token sent to the agent endpoint. */
+  authToken?: string;
+  /** OpenAI-compatible: the agent's system prompt. */
+  systemPrompt?: string;
   suite: string; // tier id, e.g. smoke | standard | extended | scale | exhaustive | max
 }): Promise<{ runId: string } | { error: string }> {
   const res = await fetch("/api/live/runs", {

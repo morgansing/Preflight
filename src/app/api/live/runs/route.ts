@@ -45,13 +45,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const agentKind = body.agentKind as string;
-  if (!["reference", "http", "mcp"].includes(agentKind)) {
-    return NextResponse.json({ error: "agentKind must be reference | http | mcp" }, { status: 400 });
+  if (!["reference", "http", "openai", "mcp"].includes(agentKind)) {
+    return NextResponse.json({ error: "agentKind must be reference | http | openai | mcp" }, { status: 400 });
   }
   const result = await launchRun({
     agentName: String(body.agentName ?? "Reference agent"),
-    agentKind: agentKind as "reference" | "http" | "mcp",
+    agentKind: agentKind as "reference" | "http" | "openai" | "mcp",
     endpoint: body.endpoint ? String(body.endpoint) : undefined,
+    model: body.model ? String(body.model) : undefined,
+    authToken: body.authToken ? String(body.authToken) : undefined,
+    systemPrompt: body.systemPrompt ? String(body.systemPrompt) : undefined,
     suite: String(body.suite ?? "smoke"),
   });
   if ("error" in result) {

@@ -3,10 +3,11 @@
 import { ButtonLink, Card, EmptyState, Eyebrow } from "@/components/ui";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
-import { useLiveAgents } from "@/lib/live";
+import { useLiveAgents, type ConnectionKind } from "@/lib/live";
 import { useMode } from "@/lib/mode";
 
-const kindLabels = {
+const kindLabels: Record<ConnectionKind, string> = {
+  openai: "OpenAI-compatible endpoint",
   http: "HTTP endpoint",
   mcp: "MCP endpoint",
   reference: "Reference agent",

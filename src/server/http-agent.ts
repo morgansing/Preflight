@@ -19,6 +19,7 @@ import type { AgentTurnCtx, AgentTurnResult } from "./provider";
 export async function httpAgentTurn(
   endpoint: string,
   ctx: AgentTurnCtx,
+  authToken?: string,
 ): Promise<AgentTurnResult> {
   const steps: ReplayStep[] = [];
   const actions: Array<{ tool: string; input: unknown; result: unknown }> = [];
@@ -27,7 +28,11 @@ export async function httpAgentTurn(
   for (let i = 0; i < 8; i++) {
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        // Outbound auth so vendors can safely expose their endpoint.
+        ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+      },
       body: JSON.stringify({
         conversation: ctx.conversation,
         actions_so_far: actions,

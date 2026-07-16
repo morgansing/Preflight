@@ -212,6 +212,9 @@ export function LiveMissionControl() {
       agentName: chosen?.name ?? "Reference agent",
       agentKind: chosen?.kind ?? "reference",
       endpoint: chosen?.endpoint,
+      model: chosen?.model,
+      authToken: chosen?.authToken,
+      systemPrompt: chosen?.systemPrompt,
       suite,
     });
     setLaunching(false);

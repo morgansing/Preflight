@@ -9,13 +9,21 @@ import { useCallback, useSyncExternalStore } from "react";
  * falls back to scripted data — with no runs, surfaces stay empty.
  */
 
-export type ConnectionKind = "http" | "mcp" | "reference";
+export type ConnectionKind = "http" | "openai" | "mcp" | "reference";
 
 export interface RegisteredAgent {
   id: string;
   name: string;
   kind: ConnectionKind;
   endpoint?: string;
+  /** OpenAI-compatible: model name to request. */
+  model?: string;
+  /** Outbound bearer token sent to the agent endpoint.
+   * V0 note: stored in this browser's localStorage; in production this
+   * moves to server-side encrypted secrets. */
+  authToken?: string;
+  /** OpenAI-compatible: the agent's system prompt. */
+  systemPrompt?: string;
   createdAt: string;
 }
 
