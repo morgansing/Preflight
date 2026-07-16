@@ -93,6 +93,8 @@ export interface AgentUnderTest {
   /** One-line summary of where the agent stands — shown faint under the
    * connection/pass line on the dashboard. */
   note?: string;
+  /** Per-category pass/total for the agent detail page. */
+  breakdown?: { category: string; pass: number; total: number }[];
 }
 
 export function verdictFor(score: number): string {

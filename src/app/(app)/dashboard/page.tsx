@@ -39,7 +39,7 @@ export default function DashboardPage() {
               return (
                 <Link
                   key={agent.id}
-                  href="/reports"
+                  href={`/agents/${agent.id}`}
                   className="focus-ring block rounded-xl"
                   style={{ animationDelay: `${i * 70}ms` }}
                 >

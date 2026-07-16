@@ -1,5 +1,22 @@
 import type { AgentUnderTest } from "@/lib/types";
 
+// Base-suite category sizes (sum = 200), reused for per-agent breakdowns.
+const CATS = [
+  "Product questions",
+  "Shipping updates",
+  "Order status",
+  "Returns & exchanges",
+  "Discounts & promotions",
+  "Inventory & stock",
+  "Account & identity",
+  "Refund fraud",
+  "Duplicate orders",
+  "Escalations",
+] as const;
+const TOTALS = [38, 30, 34, 24, 18, 14, 13, 12, 9, 8];
+const breakdown = (passes: number[]) =>
+  CATS.map((category, i) => ({ category, pass: passes[i], total: TOTALS[i] }));
+
 export const demoAgents: AgentUnderTest[] = [
   {
     id: "agent_aurora",
@@ -16,6 +33,7 @@ export const demoAgents: AgentUnderTest[] = [
       agoLabel: "2m ago",
     },
     note: "Clears the 90% bar — two refund-fraud payouts left to fix before shipping.",
+    breakdown: breakdown([38, 30, 34, 23, 18, 14, 13, 10, 8, 6]), // 194
   },
   {
     id: "agent_aurora_12",
@@ -32,6 +50,7 @@ export const demoAgents: AgentUnderTest[] = [
       agoLabel: "3d ago",
     },
     note: "Six points short — refund fraud and escalations still failing.",
+    breakdown: breakdown([38, 30, 34, 20, 16, 14, 9, 3, 2, 2]), // 168
   },
   {
     id: "agent_checkout",
@@ -48,5 +67,6 @@ export const demoAgents: AgentUnderTest[] = [
       agoLabel: "1d ago",
     },
     note: "Early build — over a third of scenarios still fail, 11 of them critical.",
+    breakdown: breakdown([36, 27, 30, 14, 10, 12, 4, 1, 1, 1]), // 136
   },
 ];

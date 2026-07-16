@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ButtonLink, Card, EmptyState, Eyebrow } from "@/components/ui";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
@@ -34,26 +35,31 @@ export default function AgentsPage() {
       <div className="mt-10 space-y-4">
         {mode === "demo" ? (
           demoAgents.map((a) => (
-            <Card key={a.id} className="flex items-center justify-between gap-6">
-              <div>
-                <div className="text-[15px] font-medium text-ink">
-                  {a.name} <span className="text-sub">{a.version}</span>
+            <Link key={a.id} href={`/agents/${a.id}`} className="focus-ring block rounded-xl">
+              <Card className="flex items-center justify-between gap-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-mut">
+                <div>
+                  <div className="text-[15px] font-medium text-ink">
+                    {a.name} <span className="text-sub">{a.version}</span>
+                  </div>
+                  <div className="mt-1.5 font-mono text-[12px] text-mut">
+                    {a.connection} · threshold {a.threshold}% · last run{" "}
+                    {a.lastRun.agoLabel}
+                  </div>
+                  {a.note && (
+                    <div className="mt-1.5 text-[12px] leading-snug text-mut/80">{a.note}</div>
+                  )}
                 </div>
-                <div className="mt-1.5 font-mono text-[12px] text-mut">
-                  {a.connection} · threshold {a.threshold}% · last run{" "}
-                  {a.lastRun.agoLabel}
+                <div className="flex items-center gap-6">
+                  <Sparkline values={a.scoreHistory} threshold={a.threshold} />
+                  <div className="w-16 text-right">
+                    <span className="numeral text-3xl text-ink">
+                      {a.scoreHistory[a.scoreHistory.length - 1]}
+                    </span>
+                    <span className="text-base text-mut">%</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <Sparkline values={a.scoreHistory} threshold={a.threshold} />
-                <div className="w-16 text-right">
-                  <span className="numeral text-3xl text-ink">
-                    {a.scoreHistory[a.scoreHistory.length - 1]}
-                  </span>
-                  <span className="text-base text-mut">%</span>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </Link>
           ))
         ) : live.agents.length === 0 ? (
           <EmptyState
