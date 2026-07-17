@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { routeError } from "@/server/log";
 import { launchRun } from "@/server/harness";
 import { suiteScenarioIds } from "@/server/suite";
 import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
@@ -21,6 +22,7 @@ async function plannedSimCount(suite: string): Promise<number> {
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  try {
   const runs = await prisma.liveRun.findMany({
     orderBy: { startedAt: "desc" },
     take: 20,
@@ -55,9 +57,13 @@ export async function GET() {
     };
   });
   return NextResponse.json(items);
+  } catch (err) {
+    return NextResponse.json(routeError("live.runs", err), { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const body = await request.json().catch(() => ({}));
   const agentKind = body.agentKind as string;
   if (!["reference", "http", "openai", "mcp"].includes(agentKind)) {
@@ -110,4 +116,7 @@ export async function POST(request: NextRequest) {
     await recordFreeUsage(prisma, identity!, sims);
   }
   return NextResponse.json(result, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(routeError("live.runs", err), { status: 500 });
+  }
 }

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { config } from "./config";
 import type { DraftRule, RuleSource } from "@/lib/rulebook-types";
 import { RULE_CATEGORIES } from "@/lib/rulebook-types";
+import { assertFetchableUrl } from "./net-guard";
 import { providerKey } from "./provider";
 
 /**
@@ -26,10 +27,7 @@ export async function extractRules(
 
 /** Fetch a public policy/help-centre page and reduce it to plain text. */
 export async function fetchPolicyPage(url: string): Promise<string> {
-  const parsed = new URL(url);
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    throw new Error("Only http(s) URLs are supported.");
-  }
+  const parsed = assertFetchableUrl(url);
   const res = await fetch(parsed.toString(), {
     signal: AbortSignal.timeout(20_000),
     headers: { "user-agent": "PreflightBot/0.1 (+policy rule extraction)" },

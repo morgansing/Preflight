@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { routeError } from "@/server/log";
 import type { LiveRunSummary } from "@/lib/live-types";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +9,26 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const { id } = await params;
   const run = await prisma.liveRun.findUnique({
     where: { id },
-    include: { results: true },
+    // Cheap columns only — transcript/judge JSON stays on the replay route.
+    include: {
+      results: {
+    select: {
+      scenarioId: true,
+      scenarioName: true,
+      scenarioCategory: true,
+      outcome: true,
+      failureReason: true,
+      severity: true,
+      tokens: true,
+      costUsd: true,
+      latencyMs: true,
+    },
+      },
+    },
   });
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
 
@@ -39,4 +56,7 @@ export async function GET(
     })),
   };
   return NextResponse.json(summary);
+  } catch (err) {
+    return NextResponse.json(routeError("live.run", err), { status: 500 });
+  }
 }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { routeError } from "@/server/log";
 import { getClusterReport } from "@/server/clustering";
 import { getProvider } from "@/server/provider";
 import type { ClusterReport } from "@/lib/live-types";
@@ -15,6 +16,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const { id } = await params;
   const run = await prisma.liveRun.findUnique({ where: { id } });
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
@@ -32,4 +34,7 @@ export async function GET(
     data: { clustersJson: JSON.stringify(report) },
   });
   return NextResponse.json(report);
+  } catch (err) {
+    return NextResponse.json(routeError("live.clusters", err), { status: 500 });
+  }
 }

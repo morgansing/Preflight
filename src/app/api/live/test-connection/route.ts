@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { STORE_TOOLS } from "@/server/store-tools";
 import { chatCompletionsUrl, openAiTools } from "@/server/openai-agent";
+import { assertFetchableUrl } from "@/server/net-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,14 @@ export async function POST(request: NextRequest) {
   if (!body?.endpoint || !["http", "openai"].includes(body.agentKind)) {
     return NextResponse.json(
       { error: "Expected { agentKind: http|openai, endpoint, … }" },
+      { status: 400 },
+    );
+  }
+  try {
+    assertFetchableUrl(body.endpoint);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
       { status: 400 },
     );
   }

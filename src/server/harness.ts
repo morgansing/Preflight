@@ -1,5 +1,7 @@
 import { prisma } from "./db";
 import { config } from "./config";
+import { log } from "./log";
+import { assertFetchableUrl } from "./net-guard";
 import { emit } from "./bus";
 import { resetAndSeed, resetAndSeedCustom, resetAndSeedSecurity } from "./seed";
 import { executeTool } from "./store-tools";
@@ -29,6 +31,8 @@ import type { LiveCellResult } from "@/lib/live-types";
 const CONCURRENCY = config.concurrency;
 const MAX_CUSTOMER_TURNS = 4;
 const SCENARIO_TIMEOUT_MS = 240_000;
+/** A "running" run with no result writes for this long is abandoned. */
+const STALE_RUN_MS = 10 * 60_000;
 
 export interface LaunchOptions {
   agentName: string;
@@ -67,13 +71,43 @@ export async function launchRun(
   if (opts.agentKind === "mcp") {
     return { error: "MCP-endpoint agents are not supported yet. Use HTTP, OpenAI-compatible, or the reference agent.", status: 400 };
   }
-  if ((opts.agentKind === "http" || opts.agentKind === "openai") && !opts.endpoint) {
-    return { error: `${opts.agentKind} agents need an endpoint URL.`, status: 400 };
+  if (opts.agentKind === "http" || opts.agentKind === "openai") {
+    if (!opts.endpoint) {
+      return { error: `${opts.agentKind} agents need an endpoint URL.`, status: 400 };
+    }
+    // The harness fetches this URL server-side — screen it before any run.
+    try {
+      assertFetchableUrl(opts.endpoint);
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : String(err), status: 400 };
+    }
   }
 
+  // One run at a time (the store is shared). A crashed or restarted
+  // process must not deadlock this forever: a "running" run with no
+  // recent progress is declared abandoned and closed out here.
+  const staleBefore = new Date(Date.now() - STALE_RUN_MS);
   const running = await prisma.liveRun.findFirst({ where: { status: "running" } });
   if (running) {
-    return { error: `Run ${running.id} is still executing — the store is shared, one run at a time.`, status: 409 };
+    const lastResult = await prisma.liveResult.findFirst({
+      where: { runId: running.id },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const lastProgress = lastResult?.createdAt ?? running.startedAt;
+    if (lastProgress < staleBefore) {
+      log.warn("harness", "recovering abandoned run", { runId: running.id });
+      await prisma.liveRun.update({
+        where: { id: running.id },
+        data: {
+          status: "error",
+          error: "Run abandoned — the server restarted or the process crashed. Auto-recovered.",
+          finishedAt: new Date(),
+        },
+      });
+    } else {
+      return { error: `Run ${running.id} is still executing — the store is shared, one run at a time.`, status: 409 };
+    }
   }
 
   // A generated custom suite is addressed as "custom:<version>". Everything
@@ -108,22 +142,39 @@ export async function launchRun(
   }
 
   const runId = `lrun_${Date.now().toString(36)}`;
-  await prisma.liveRun.create({
-    data: {
-      id: runId,
-      agentName: opts.agentName,
-      agentKind: opts.agentKind,
-      endpoint: opts.endpoint ?? null,
-      provider: provider.name,
-      suite: opts.suite,
-      scenariosJson: JSON.stringify(scenarioIds),
-      status: "running",
-    },
-  });
+  // Re-check + create atomically: seeding above takes seconds, and two
+  // concurrent launches must not both pass the earlier guard.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const race = await tx.liveRun.findFirst({ where: { status: "running" } });
+      if (race) throw new Error(`RACE:${race.id}`);
+      await tx.liveRun.create({
+        data: {
+          id: runId,
+          agentName: opts.agentName,
+          agentKind: opts.agentKind,
+          endpoint: opts.endpoint ?? null,
+          provider: provider.name,
+          suite: opts.suite,
+          scenariosJson: JSON.stringify(scenarioIds),
+          status: "running",
+        },
+      });
+    });
+  } catch (err) {
+    const race = err instanceof Error && err.message.startsWith("RACE:");
+    if (race) {
+      return {
+        error: `Run ${err.message.slice(5)} just started — the store is shared, one run at a time.`,
+        status: 409,
+      };
+    }
+    throw err;
+  }
 
   // Fire and return — Mission Control follows via SSE + DB catch-up.
   void executeRun(runId, provider, opts, scenarioIds, scenarioMap).catch(async (err) => {
-    console.error(`[preflight] run ${runId} crashed:`, err);
+    log.error("harness", `run ${runId} crashed`, err);
     await prisma.liveRun.update({
       where: { id: runId },
       data: { status: "error", error: String(err), finishedAt: new Date() },

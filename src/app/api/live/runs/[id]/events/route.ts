@@ -17,7 +17,22 @@ export async function GET(
   const { id } = await params;
   const run = await prisma.liveRun.findUnique({
     where: { id },
-    include: { results: true },
+    // Cheap columns only — transcript/judge JSON stays on the replay route.
+    include: {
+      results: {
+    select: {
+      scenarioId: true,
+      scenarioName: true,
+      scenarioCategory: true,
+      outcome: true,
+      failureReason: true,
+      severity: true,
+      tokens: true,
+      costUsd: true,
+      latencyMs: true,
+    },
+      },
+    },
   });
   if (!run) return new Response("run not found", { status: 404 });
 
