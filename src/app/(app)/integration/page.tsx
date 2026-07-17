@@ -123,41 +123,45 @@ const GATE_CLI = `node scripts/preflight-gate.mjs \\
 # exits 1 if the agent isn't ready. Node 18+, zero dependencies.`;
 
 const GATE_WORKFLOW = `name: Preflight gate
-on: [pull_request]
+on: [pull_request, push]
+
+permissions:
+  pull-requests: write   # the sticky verdict comment
 
 jobs:
   readiness:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Run the agent against the store
-        env:
-          PREFLIGHT_AGENT_TOKEN: \${{ secrets.AGENT_API_KEY }}
-        run: |
-          node scripts/preflight-gate.mjs \\
-            --url \${{ vars.PREFLIGHT_URL }} \\
-            --agent-name "Aurora Support" \\
-            --agent-kind openai \\
-            --endpoint \${{ vars.AGENT_ENDPOINT }} \\
-            --suite standard \\
-            --min-score 85 --max-regressions 0
+      - uses: your-org/preflight@main
+        with:
+          url: \${{ vars.PREFLIGHT_URL }}
+          agent-name: "Aurora Support"
+          agent-kind: openai
+          endpoint: \${{ vars.AGENT_ENDPOINT }}
+          auth-token: \${{ secrets.AGENT_API_KEY }}
+          suite: standard
+          min-score: 85
+          max-regressions: 0
+        # Posts one sticky comment per agent + suite on the PR: the
+        # score, every gate check, and each newly-broken scenario with
+        # a link to its replay. Updates in place on every push.
 
   # On main, the passing run becomes the new baseline PRs are diffed against.
   pin-baseline:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - env:
-          PREFLIGHT_AGENT_TOKEN: \${{ secrets.AGENT_API_KEY }}
-        run: |
-          node scripts/preflight-gate.mjs \\
-            --url \${{ vars.PREFLIGHT_URL }} \\
-            --agent-name "Aurora Support" \\
-            --agent-kind openai \\
-            --endpoint \${{ vars.AGENT_ENDPOINT }} \\
-            --suite standard \\
-            --min-score 85 --set-baseline`;
+      - uses: your-org/preflight@main
+        with:
+          url: \${{ vars.PREFLIGHT_URL }}
+          agent-name: "Aurora Support"
+          agent-kind: openai
+          endpoint: \${{ vars.AGENT_ENDPOINT }}
+          auth-token: \${{ secrets.AGENT_API_KEY }}
+          suite: standard
+          min-score: 85
+          set-baseline: true`;
 
 const FASTAPI = `from fastapi import FastAPI, Request
 
@@ -286,16 +290,28 @@ export default function IntegrationPage() {
           <CodeBlock code={GATE_CLI} lang="bash" />
         </div>
         <div className="mt-5 space-y-1.5">
-          <Eyebrow>GitHub Actions</Eyebrow>
+          <Eyebrow>GitHub Action</Eyebrow>
+          <p className="text-sm leading-relaxed text-sub">
+            The repo ships a composite action (<code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">action.yml</code>)
+            that wraps the CLI: it runs the gate, writes the job summary, exposes{" "}
+            <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">pass</code> /{" "}
+            <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">score</code> /{" "}
+            <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">report-url</code>{" "}
+            outputs, and keeps one sticky comment on the PR — verdict, every check, and each
+            newly-broken scenario linking straight to its replay.
+          </p>
         </div>
-        <div className="mt-2">
+        <div className="mt-3">
           <CodeBlock code={GATE_WORKFLOW} lang="yaml" />
         </div>
         <p className="mt-3 text-[13px] leading-relaxed text-mut">
           Run errors (endpoint timeouts, provider hiccups) never fail the gate by default — infra
           is amber, not red. Add{" "}
-          <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">--max-run-errors 0</code>{" "}
-          if a flaky endpoint should block the build too.
+          <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">max-run-errors: 0</code>{" "}
+          if a flaky endpoint should block the build too. To verify the wiring before your agent
+          is even connected, run once with{" "}
+          <code className="rounded bg-raised px-1 py-0.5 font-mono text-[0.85em] text-sub">sandbox: true</code>{" "}
+          — a deterministic offline run that needs no provider key.
         </p>
       </section>
 
