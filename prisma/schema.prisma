@@ -230,3 +230,45 @@ model LiveResult {
 
   @@unique([runId, scenarioId])
 }
+
+// ── Billing ──────────────────────────────────────────────────────────
+// Single-workspace V0: one account row ("default"). Multi-tenancy later
+// adds a workspace FK. Dormant until Stripe keys exist; the ledger is
+// real in both modes so preview numbers match production math.
+
+model BillingAccount {
+  id                   String    @id @default("default")
+  planId               String    @default("free")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  subscriptionStatus   String? // active | past_due | canceled | …
+  currentPeriodEnd     DateTime?
+  autoTopUp            Boolean   @default(false)
+  autoTopUpPackId      String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+// Signed token (simulation-credit) movements. Balance is always
+// recomputed from entries — no counter to drift. See credit-math.ts.
+model CreditLedgerEntry {
+  id        Int      @id @default(autoincrement())
+  accountId String   @default("default")
+  delta     Int // + credit, − debit
+  kind      String // allowance_grant | pack_purchase | auto_topup | run_debit | adjustment
+  periodKey String? // billing period for grants/debits
+  runId     String?
+  stripeRef String? // session / payment-intent / event id
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([accountId, kind, periodKey])
+}
+
+// Processed Stripe webhook events — the PK is the idempotency check.
+model StripeEvent {
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
+}

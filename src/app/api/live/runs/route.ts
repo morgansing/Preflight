@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
+import { config } from "@/server/config";
+import { debitRun, getAccount, precheckRun } from "@/server/billing";
 import { launchRun } from "@/server/harness";
 import { suiteScenarioIds } from "@/server/suite";
 import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
@@ -72,15 +74,25 @@ export async function POST(request: NextRequest) {
   const suite = String(body.suite ?? "smoke");
   const sandbox = body.sandbox === true;
 
-  // Free-grant enforcement. The free tier's 250 simulations are metered
-  // server-side against a normalized email + device fingerprint, so
-  // cycling accounts can't farm fresh grants. Paid plans are unmetered.
-  // Sandbox runs (mock, offline) never touch the grant.
+  // Token metering. With billing connected and a paid subscription
+  // active, the credit ledger is authoritative (allowance first, then
+  // purchased tokens, with optional auto top-up). Otherwise the free
+  // tier's identity-keyed grant applies. Sandbox runs (mock, offline)
+  // never touch either.
   const plan = typeof body.plan === "string" ? body.plan : undefined;
   const identity = (body.identity ?? undefined) as WorkspaceIdentity | undefined;
   const identified = !!identity && (!!identity.email || !!identity.fingerprint);
   const sims = await plannedSimCount(suite);
-  if (!sandbox && plan === "free" && identified) {
+  const account = !sandbox ? await getAccount() : null;
+  const ledgerMetered =
+    !!account && config.billing.enabled && account.subscriptionStatus === "active";
+  if (ledgerMetered) {
+    const pre = await precheckRun(sims);
+    if (!pre.ok) {
+      return NextResponse.json({ error: pre.reason, freeGrantBlocked: true }, { status: 402 });
+    }
+  }
+  if (!sandbox && !ledgerMetered && plan === "free" && identified) {
     const allow = await checkFreeAllowance(prisma, identity!);
     if (allow.blocked || sims > allow.remaining) {
       return NextResponse.json(
@@ -110,9 +122,10 @@ export async function POST(request: NextRequest) {
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  // Charge the free grant once the run is actually launched (never for
-  // sandbox — those are free and offline).
-  if (!sandbox && plan === "free" && identified) {
+  // Charge once the run is actually launched (never for sandbox).
+  if (ledgerMetered) {
+    await debitRun(sims, result.runId);
+  } else if (!sandbox && plan === "free" && identified) {
     await recordFreeUsage(prisma, identity!, sims);
   }
   return NextResponse.json(result, { status: 201 });
