@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { Card, Eyebrow, SeverityLabel } from "@/components/ui";
 import { LiveBenchmark } from "@/components/live-benchmark";
-import { demoBenchmark, type BenchmarkEntry } from "@/lib/fixtures/benchmark";
+import {
+  categoryComparison,
+  demoBenchmark,
+  type BenchmarkEntry,
+  type CategoryComparison,
+} from "@/lib/fixtures/benchmark";
 import { useMode } from "@/lib/mode";
 import type { Severity } from "@/lib/types";
 
@@ -27,7 +32,7 @@ export default function BenchmarkPage() {
 
       {/* Score delta */}
       <Card className="mt-10 flex flex-wrap items-center justify-between gap-8 p-8">
-        <RunColumn label={b.a.label} score={b.a.score} date={b.a.date} />
+        <RunColumn label={b.a.label} score={b.a.score} date={b.a.date} runId={b.a.runId} />
         <div className="text-center">
           <div className="numeral text-6xl text-accent">
             {delta >= 0 ? "+" : ""}
@@ -35,7 +40,13 @@ export default function BenchmarkPage() {
           </div>
           <Eyebrow className="mt-2">points</Eyebrow>
         </div>
-        <RunColumn label={b.b.label} score={b.b.score} date={b.b.date} align="right" />
+        <RunColumn
+          label={b.b.label}
+          score={b.b.score}
+          date={b.b.date}
+          runId={b.b.runId}
+          align="right"
+        />
       </Card>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
@@ -84,6 +95,28 @@ export default function BenchmarkPage() {
         </section>
       </div>
 
+      {/* Per-category deep-dive: where the points moved, and which net
+          gains hide a regression inside them. */}
+      <section className="mt-12">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[15px] font-medium text-ink">Category deep-dive</h2>
+          <span className="font-mono text-[11px] text-mut">
+            upper bar {b.a.label.split(" ").pop()} · lower bar {b.b.label.split(" ").pop()}
+          </span>
+        </div>
+        <p className="mt-1.5 text-[13px] text-sub">
+          The {delta >= 0 ? `+${delta}` : delta}-point move, unpacked. A category can gain
+          overall and still break scenarios it used to pass — those regressions are flagged.
+        </p>
+        <Card className="mt-4 divide-y divide-edge p-0">
+          {[...categoryComparison]
+            .sort((x, y) => (y.bPass - y.aPass) - (x.bPass - x.aPass))
+            .map((c) => (
+              <CategoryRow key={c.category} c={c} />
+            ))}
+        </Card>
+      </section>
+
       <section className="mt-12 border-t border-edge pt-6">
         <Eyebrow>Still failing in both · {b.unchangedFails.length}</Eyebrow>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -106,11 +139,13 @@ function RunColumn({
   label,
   score,
   date,
+  runId,
   align = "left",
 }: {
   label: string;
   score: number;
   date: string;
+  runId?: string;
   align?: "left" | "right";
 }) {
   return (
@@ -121,6 +156,54 @@ function RunColumn({
         <span className="text-2xl text-mut">%</span>
       </div>
       <div className="mt-1 text-[12px] text-mut">{date}</div>
+      {runId && (
+        <Link
+          href={`/runs/${runId}`}
+          className="focus-ring mt-1.5 inline-block rounded font-mono text-[11px] text-accent hover:underline"
+        >
+          {runId} →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function CategoryRow({ c }: { c: CategoryComparison }) {
+  const deltaPass = c.bPass - c.aPass;
+  const bPct = Math.round((c.bPass / c.total) * 100);
+  const tint = bPct === 100 ? "bg-accent" : bPct >= 70 ? "bg-warn" : "bg-fail";
+  return (
+    <div className="flex items-center gap-4 px-5 py-3">
+      <span className="w-44 shrink-0 text-[13px] text-ink">{c.category}</span>
+      <div className="flex flex-1 flex-col gap-[3px]" aria-hidden>
+        <div className="h-1 overflow-hidden rounded-full bg-raised">
+          <div
+            className="h-full rounded-full bg-mut/50"
+            style={{ width: `${Math.round((c.aPass / c.total) * 100)}%` }}
+          />
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-raised">
+          <div className={`h-full rounded-full ${tint}`} style={{ width: `${bPct}%` }} />
+        </div>
+      </div>
+      <span className="w-28 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
+        {c.aPass} → {c.bPass}
+        <span className="text-mut">/{c.total}</span>
+      </span>
+      <span
+        className={`w-10 shrink-0 text-right font-mono text-[11px] tabular-nums ${
+          deltaPass > 0 ? "text-accent" : deltaPass < 0 ? "text-fail" : "text-mut"
+        }`}
+      >
+        {deltaPass > 0 ? `+${deltaPass}` : deltaPass === 0 ? "—" : deltaPass}
+      </span>
+      {c.regressions > 0 ? (
+        <span className="w-28 shrink-0 text-right font-mono text-[11px] text-fail">
+          {c.regressions} newly broken
+        </span>
+      ) : (
+        <span aria-hidden className="w-28 shrink-0" />
+      )}
     </div>
   );
 }

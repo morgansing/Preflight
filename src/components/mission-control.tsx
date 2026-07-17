@@ -6,7 +6,7 @@ import { demoRun, DEMO_RUN_DURATION_MS } from "@/lib/fixtures/run";
 import { scenarioById } from "@/lib/fixtures/scenarios";
 import type { RunCell } from "@/lib/types";
 import { useMode } from "@/lib/mode";
-import { Button } from "./ui";
+import { Button, ButtonLink } from "./ui";
 
 /**
  * Mission Control — the signature screen. A full-bleed wall of scenario
@@ -245,6 +245,9 @@ export function MissionControl() {
               }
             />
             <Stat label="Cost" value={`$${stats.costUsd.toFixed(2)}`} />
+            <ButtonLink variant="ghost" size="sm" href="/runs/history">
+              Run history
+            </ButtonLink>
             <Button variant="secondary" size="sm" onClick={restart}>
               Replay demo run
             </Button>

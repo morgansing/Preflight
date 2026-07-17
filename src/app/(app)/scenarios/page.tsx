@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Button, Eyebrow, SeverityLabel } from "@/components/ui";
+import { Button, Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
+import { demoAgents } from "@/lib/fixtures/agents";
+import { latestRunOutcomes } from "@/lib/fixtures/runs";
 import { demoOutcomes, getSuite } from "@/lib/fixtures/scenarios";
 import { LIBRARY_SIZES } from "@/lib/suite-tiers";
 import { useLibrarySize } from "@/lib/library-size";
@@ -307,6 +310,38 @@ function ScenarioDetail({
             </li>
           ))}
         </ul>
+      </Field>
+      {/* Pivot from the test to the agents: how each agent's latest run
+          handled this exact scenario. */}
+      <Field label="Agents on this scenario">
+        <div className="space-y-2">
+          {demoAgents.map((a) => {
+            const result = latestRunOutcomes(a.id)?.get(scenario.id);
+            return (
+              <Link
+                key={a.id}
+                href={`/agents/${a.id}`}
+                className="focus-ring flex items-center justify-between gap-3 rounded-lg border border-edge bg-surface px-3.5 py-2.5 transition-colors hover:border-mut"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] text-ink">
+                    {a.name} <span className="text-sub">{a.version}</span>
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[11px] text-mut">
+                    last run {a.lastRun.agoLabel}
+                  </span>
+                </span>
+                {result ? (
+                  <OutcomeChip outcome={result} />
+                ) : (
+                  <span className="shrink-0 font-mono text-[11px] text-mut">
+                    not in last run
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </Field>
     </div>
   );

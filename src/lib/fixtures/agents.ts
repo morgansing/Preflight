@@ -50,7 +50,11 @@ export const demoAgents: AgentUnderTest[] = [
       agoLabel: "3d ago",
     },
     note: "Six points short — refund fraud and escalations still failing.",
-    breakdown: breakdown([38, 30, 34, 20, 16, 14, 9, 3, 2, 2]), // 168
+    // Must leave room for every v1.2 failure on the benchmark's
+    // newly-passing list (2 shipping, 2 order status, 2 returns,
+    // 1 discount, 1 inventory, 1 identity, 2 refund fraud, 1 duplicate,
+    // 2 escalations) plus the three unchanged fails.
+    breakdown: breakdown([38, 28, 32, 20, 16, 13, 9, 3, 5, 4]), // 168
   },
   {
     id: "agent_checkout",

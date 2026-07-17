@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { use } from "react";
 import { ButtonLink, Card, Eyebrow } from "@/components/ui";
+import { LiveEmpty } from "@/components/live-empty";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
-import { getSuite } from "@/lib/fixtures/scenarios";
+import { runsByAgent } from "@/lib/fixtures/runs";
+import { demoOutcomes, scenarios } from "@/lib/fixtures/scenarios";
+import { useMode } from "@/lib/mode";
 import { verdictFor } from "@/lib/types";
 
 /**
@@ -15,7 +18,10 @@ import { verdictFor } from "@/lib/types";
  */
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { mode } = useMode();
   const agent = demoAgents.find((a) => a.id === id);
+
+  if (mode === "live") return <LiveEmpty surface="each agent's detail page" />;
 
   if (!agent) {
     return (
@@ -38,18 +44,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const worst = [...breakdown].filter((b) => b.pass < b.total).sort(
     (a, b) => a.pass / a.total - b.pass / b.total,
   );
-  const repScenario = (category: string) =>
-    getSuite(200).find((s) => s.category === category)?.id;
+  // A replay link should show the failure it advertises: prefer a
+  // scenario the demo run outright fails, then a partial. Categories
+  // with no failing replay on file get no link.
+  const repScenario = (category: string) => {
+    const inCategory = scenarios.filter((s) => s.category === category);
+    return (
+      inCategory.find((s) => demoOutcomes.get(s.id) === "fail") ??
+      inCategory.find((s) => demoOutcomes.get(s.id) === "partial")
+    )?.id;
+  };
 
-  // Synthesize a run history from the score trend (newest first).
-  const history = agent.scoreHistory
-    .map((s, i) => ({ score: s, i }))
-    .reverse()
-    .map((r, idx) => ({
-      ...r,
-      label: idx === 0 ? agent.lastRun.agoLabel : `${idx * 3 + 2}d ago`,
-      delta: r.i > 0 ? r.score - agent.scoreHistory[r.i - 1] : 0,
-    }));
+  const history = runsByAgent.get(agent.id) ?? [];
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-10">
@@ -135,9 +141,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       replay →
                     </span>
                   ) : (
-                    <span className="w-24 shrink-0 text-right font-mono text-[11px] text-accent/0">
-                      ok
-                    </span>
+                    <span aria-hidden className="w-24 shrink-0" />
                   )}
                 </div>
               );
@@ -190,30 +194,44 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Run history */}
       <section className="mt-12">
-        <h2 className="font-display text-xl text-ink">Run history</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-xl text-ink">Run history</h2>
+          <Link
+            href="/runs/history"
+            className="focus-ring rounded font-mono text-[11px] text-accent hover:underline"
+          >
+            all runs →
+          </Link>
+        </div>
         <Card className="mt-4 divide-y divide-edge p-0">
-          {history.map((r, idx) => {
+          {history.map((r) => {
             const above = r.score >= agent.threshold;
             return (
-              <div key={r.i} className="flex items-center gap-4 px-5 py-3">
+              <Link
+                key={r.id}
+                href={`/runs/${r.id}`}
+                className="focus-ring flex items-center gap-4 px-5 py-3 transition-colors hover:bg-surface"
+              >
                 <span className="w-24 shrink-0 font-mono text-[12px] text-mut">{r.label}</span>
                 <span className="numeral w-14 shrink-0 text-lg text-ink">{r.score}%</span>
                 <span
                   className={`w-16 shrink-0 font-mono text-[11px] tabular-nums ${
-                    r.delta > 0 ? "text-accent" : r.delta < 0 ? "text-fail" : "text-mut"
+                    r.delta !== undefined && r.delta > 0
+                      ? "text-accent"
+                      : r.delta !== undefined && r.delta < 0
+                        ? "text-fail"
+                        : "text-mut"
                   }`}
                 >
-                  {r.delta > 0 ? `+${r.delta}` : r.delta < 0 ? r.delta : "—"}
+                  {r.delta === undefined || r.delta === 0 ? "—" : r.delta > 0 ? `+${r.delta}` : r.delta}
                 </span>
                 <span className={`flex-1 text-[12px] ${above ? "text-sub" : "text-mut"}`}>
                   {above ? "cleared the bar" : "below threshold"}
                 </span>
-                {idx === 0 && (
-                  <Link href="/reports" className="focus-ring shrink-0 font-mono text-[11px] text-accent hover:underline">
-                    report →
-                  </Link>
-                )}
-              </div>
+                <span className="shrink-0 font-mono text-[11px] text-accent">
+                  {r.id} →
+                </span>
+              </Link>
             );
           })}
         </Card>
