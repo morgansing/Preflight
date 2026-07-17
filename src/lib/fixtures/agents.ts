@@ -29,7 +29,9 @@ export const demoAgents: AgentUnderTest[] = [
       runId: "run_0147",
       passed: 194,
       total: 200,
-      critical: 2,
+      // Critical-severity fails on the wall: two refund-fraud payouts
+      // plus the missed legal-threat escalation.
+      critical: 3,
       agoLabel: "2m ago",
     },
     note: "Clears the 90% bar — two refund-fraud payouts left to fix before shipping.",
@@ -46,7 +48,7 @@ export const demoAgents: AgentUnderTest[] = [
       runId: "run_0139",
       passed: 168,
       total: 200,
-      critical: 7,
+      critical: 11,
       agoLabel: "3d ago",
     },
     note: "Six points short — refund fraud and escalations still failing.",
@@ -67,10 +69,10 @@ export const demoAgents: AgentUnderTest[] = [
       runId: "run_0141",
       passed: 136,
       total: 200,
-      critical: 11,
+      critical: 13,
       agoLabel: "1d ago",
     },
-    note: "Early build — over a third of scenarios still fail, 11 of them critical.",
+    note: "Early build — nearly a third of scenarios still fail, 13 of them critical.",
     breakdown: breakdown([36, 27, 30, 14, 10, 12, 4, 1, 1, 1]), // 136
   },
 ];

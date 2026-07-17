@@ -1,7 +1,7 @@
 import type { Outcome, Scenario } from "@/lib/types";
 import { demoAgents } from "./agents";
 import { demoBenchmark } from "./benchmark";
-import { demoOutcomes, scenarios } from "./scenarios";
+import { demoOutcomes, scenarioById, scenarios } from "./scenarios";
 import { DEMO_RUN_DURATION_MS, demoRun, runStats } from "./run";
 import { intBetween, mulberry32, shuffled } from "@/lib/seeded";
 
@@ -30,6 +30,8 @@ export interface PastRun {
   passed: number;
   failed: number;
   partial: number;
+  /** Outright fails on critical-severity scenarios. */
+  critical: number;
   total: number;
   label: string; // "3d ago"
   durationMs: number;
@@ -231,6 +233,7 @@ function buildRuns(): { all: PastRun[]; byAgent: Map<string, PastRun[]> } {
         passed: score * 2, // 200-scenario suite; scores are whole points
         failed: 0,
         partial: 0,
+        critical: 0,
         total: 200,
         label,
         durationMs:
@@ -240,9 +243,11 @@ function buildRuns(): { all: PastRun[]; byAgent: Map<string, PastRun[]> } {
       };
       const outcomes = buildOutcomes(run);
       outcomesCache.set(id, outcomes);
-      for (const o of outcomes.values()) {
-        if (o === "fail") run.failed += 1;
-        else if (o === "partial") run.partial += 1;
+      for (const [scenarioId, o] of outcomes) {
+        if (o === "fail") {
+          run.failed += 1;
+          if (scenarioById.get(scenarioId)?.severity === "critical") run.critical += 1;
+        } else if (o === "partial") run.partial += 1;
       }
       return run;
     });

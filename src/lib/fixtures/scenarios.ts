@@ -481,6 +481,17 @@ export const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
 
 export const categories = SPECS.map((s) => s.category);
 
+/** A replay that shows this category failing in the demo run: prefer an
+ * outright fail, then a partial. Undefined when the category is clean —
+ * a link built from this never lands on a passing transcript. */
+export function failingReplayId(category: string): string | undefined {
+  const inCategory = scenarios.filter((s) => s.category === category);
+  return (
+    inCategory.find((s) => demoOutcomes.get(s.id) === "fail") ??
+    inCategory.find((s) => demoOutcomes.get(s.id) === "partial")
+  )?.id;
+}
+
 /* ------------------------------------------------------------------ */
 /* Extended suites — the library scales past the base 200, up to      */
 /* 10,000 scenarios. The base 200 are never regenerated (the demo     */

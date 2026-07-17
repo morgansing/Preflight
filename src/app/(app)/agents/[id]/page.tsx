@@ -7,7 +7,7 @@ import { LiveEmpty } from "@/components/live-empty";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { runsByAgent } from "@/lib/fixtures/runs";
-import { demoOutcomes, scenarios } from "@/lib/fixtures/scenarios";
+import { failingReplayId } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
 import { verdictFor } from "@/lib/types";
 
@@ -44,16 +44,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const worst = [...breakdown].filter((b) => b.pass < b.total).sort(
     (a, b) => a.pass / a.total - b.pass / b.total,
   );
-  // A replay link should show the failure it advertises: prefer a
-  // scenario the demo run outright fails, then a partial. Categories
+  // A replay link should show the failure it advertises; categories
   // with no failing replay on file get no link.
-  const repScenario = (category: string) => {
-    const inCategory = scenarios.filter((s) => s.category === category);
-    return (
-      inCategory.find((s) => demoOutcomes.get(s.id) === "fail") ??
-      inCategory.find((s) => demoOutcomes.get(s.id) === "partial")
-    )?.id;
-  };
+  const repScenario = failingReplayId;
 
   const history = runsByAgent.get(agent.id) ?? [];
 

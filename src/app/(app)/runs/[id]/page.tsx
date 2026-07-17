@@ -119,9 +119,10 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       </div>
 
       {/* Result strip */}
-      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Passed" value={`${run.passed}/${run.total}`} tone="accent" />
         <StatCard label="Failed" value={String(run.failed)} tone={run.failed > 0 ? "fail" : undefined} />
+        <StatCard label="Critical fails" value={String(run.critical)} tone={run.critical > 0 ? "fail" : undefined} />
         <StatCard label="Partial" value={String(run.partial)} />
         <StatCard label="Duration" value={fmtClock(run.durationMs)} />
       </div>

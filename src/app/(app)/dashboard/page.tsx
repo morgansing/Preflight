@@ -7,7 +7,16 @@ import { ButtonLink, Card, Eyebrow } from "@/components/ui";
 import { LiveDashboard } from "@/components/live-dashboard";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { readiness } from "@/lib/fixtures/run";
+import { failingReplayId } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
+
+/** Weakness → its failing replay, so the readiness card clicks through. */
+const weaknessHrefs = Object.fromEntries(
+  readiness.weaknesses.map((w) => {
+    const id = failingReplayId(w);
+    return [w, id && `/replay/${id}`];
+  }),
+);
 
 export default function DashboardPage() {
   const { mode } = useMode();
@@ -99,6 +108,8 @@ export default function DashboardPage() {
             strengths={readiness.strengths}
             weaknesses={readiness.weaknesses}
             meta={readiness.meta}
+            hrefs={weaknessHrefs}
+            reportHref="/reports"
             className="animate-fade-up h-fit"
           />
           </div>

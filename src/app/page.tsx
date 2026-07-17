@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ButtonLink, Eyebrow } from "@/components/ui";
 import { ReadinessCard } from "@/components/readiness-card";
 import { WallLoop } from "@/components/mission-control";
+import { failingReplayId } from "@/lib/fixtures/scenarios";
 
 /**
  * Landing — calm, spacious, expensive. The autoplay loop below the fold
@@ -168,6 +169,12 @@ judge  ✗  refunded against signed delivery;
           strengths={["Product questions", "Shipping updates", "Order status"]}
           weaknesses={["Refund fraud", "Duplicate orders", "Escalations"]}
           meta="Last run · 2m ago · 200 scenarios"
+          hrefs={Object.fromEntries(
+            ["Refund fraud", "Duplicate orders", "Escalations"].map((w) => {
+              const id = failingReplayId(w);
+              return [w, id && `/replay/${id}`];
+            }),
+          )}
         />
       </section>
 

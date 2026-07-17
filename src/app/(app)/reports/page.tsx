@@ -6,7 +6,15 @@ import { Button, Eyebrow } from "@/components/ui";
 import { LiveReport } from "@/components/live-report";
 import { demoReport } from "@/lib/fixtures/report";
 import { readiness, runStats } from "@/lib/fixtures/run";
+import { failingReplayId } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
+
+const weaknessHrefs = Object.fromEntries(
+  readiness.weaknesses.map((w) => {
+    const id = failingReplayId(w);
+    return [w, id && `/replay/${id}`];
+  }),
+);
 
 /**
  * The readiness report — a document, not a dashboard. This is the
@@ -47,6 +55,7 @@ export default function ReportsPage() {
           strengths={readiness.strengths}
           weaknesses={readiness.weaknesses}
           meta={`Run ${r.runId} · ${runStats.total} scenarios · ${runStats.pass} passed · ${runStats.fail} failed · ${runStats.partial} partial`}
+          hrefs={weaknessHrefs}
         />
       </div>
 

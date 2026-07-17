@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { verdictFor } from "@/lib/types";
 import { Eyebrow } from "./ui";
@@ -53,6 +54,8 @@ export function ReadinessCard({
   weaknesses,
   meta,
   threshold = 90,
+  hrefs,
+  reportHref,
   className = "",
 }: {
   score: number;
@@ -60,6 +63,11 @@ export function ReadinessCard({
   weaknesses: string[];
   meta: string;
   threshold?: number;
+  /** Optional category → link (e.g. a failing replay). Categories
+   * without an entry render as plain text. */
+  hrefs?: Record<string, string | undefined>;
+  /** Optional link rendered on the meta line ("full report →"). */
+  reportHref?: string;
   className?: string;
 }) {
   const shown = useCountUp(score);
@@ -110,59 +118,83 @@ export function ReadinessCard({
       <div className="mt-10 grid grid-cols-2 gap-8">
         <div>
           <Eyebrow>Strengths</Eyebrow>
-          <ul className="mt-3 space-y-2.5">
-            {strengths.slice(0, maxList).map((s) => (
-              <li key={s} className="flex items-baseline gap-2 text-sm text-ink">
-                <span aria-hidden className="font-mono text-accent">
-                  ✓
-                </span>
-                <span className="min-w-0">
-                  {s}
-                  {CATEGORY_DETAIL[s] && (
-                    <span className="mt-0.5 block text-[11px] leading-snug text-mut">
-                      {CATEGORY_DETAIL[s]}
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-            {strengths.length > maxList && (
-              <li className="text-sm text-mut">
-                +{strengths.length - maxList} more
-              </li>
-            )}
-          </ul>
+          <CategoryList items={strengths} glyph="✓" glyphClass="text-accent" hrefs={hrefs} maxList={maxList} />
         </div>
         <div>
           <Eyebrow>Weaknesses</Eyebrow>
-          <ul className="mt-3 space-y-2.5">
-            {weaknesses.slice(0, maxList).map((w) => (
-              <li key={w} className="flex items-baseline gap-2 text-sm text-ink">
-                <span aria-hidden className="font-mono text-fail">
-                  ✗
-                </span>
-                <span className="min-w-0">
-                  {w}
-                  {CATEGORY_DETAIL[w] && (
-                    <span className="mt-0.5 block text-[11px] leading-snug text-mut">
-                      {CATEGORY_DETAIL[w]}
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-            {weaknesses.length > maxList && (
-              <li className="text-sm text-mut">
-                +{weaknesses.length - maxList} more
-              </li>
-            )}
-          </ul>
+          <CategoryList items={weaknesses} glyph="✗" glyphClass="text-fail" hrefs={hrefs} maxList={maxList} />
         </div>
       </div>
 
-      <div className="mt-10 border-t border-edge pt-4 text-[13px] text-mut">
-        {meta}
+      <div className="mt-10 flex items-baseline justify-between gap-4 border-t border-edge pt-4 text-[13px] text-mut">
+        <span>{meta}</span>
+        {reportHref && (
+          <Link
+            href={reportHref}
+            className="focus-ring shrink-0 rounded font-mono text-[11px] text-accent hover:underline"
+          >
+            full report →
+          </Link>
+        )}
       </div>
     </div>
+  );
+}
+
+function CategoryList({
+  items,
+  glyph,
+  glyphClass,
+  hrefs,
+  maxList,
+}: {
+  items: string[];
+  glyph: string;
+  glyphClass: string;
+  hrefs?: Record<string, string | undefined>;
+  maxList: number;
+}) {
+  return (
+    <ul className="mt-3 space-y-2.5">
+      {items.slice(0, maxList).map((name) => {
+        const href = hrefs?.[name];
+        const body = (
+          <>
+            {name}
+            {href && (
+              <span aria-hidden className="ml-1.5 font-mono text-[11px] text-accent">
+                →
+              </span>
+            )}
+            {CATEGORY_DETAIL[name] && (
+              <span className="mt-0.5 block text-[11px] leading-snug text-mut">
+                {CATEGORY_DETAIL[name]}
+              </span>
+            )}
+          </>
+        );
+        return (
+          <li key={name} className="flex items-baseline gap-2 text-sm text-ink">
+            <span aria-hidden className={`font-mono ${glyphClass}`}>
+              {glyph}
+            </span>
+            {href ? (
+              <Link
+                href={href}
+                title="Watch a failing replay"
+                className="focus-ring min-w-0 rounded transition-colors hover:text-accent"
+              >
+                {body}
+              </Link>
+            ) : (
+              <span className="min-w-0">{body}</span>
+            )}
+          </li>
+        );
+      })}
+      {items.length > maxList && (
+        <li className="text-sm text-mut">+{items.length - maxList} more</li>
+      )}
+    </ul>
   );
 }
