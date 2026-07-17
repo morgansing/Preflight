@@ -6,6 +6,7 @@ import { ButtonLink, Eyebrow } from "@/components/ui";
 import { LiveRunHistory } from "@/components/live-run-history";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { pastRuns } from "@/lib/fixtures/runs";
+import { toPastRun, useSessionRuns } from "@/lib/demo-runs";
 import { useMode } from "@/lib/mode";
 
 /**
@@ -15,11 +16,17 @@ import { useMode } from "@/lib/mode";
  */
 export default function RunHistoryPage() {
   const { mode } = useMode();
+  const sessionRuns = useSessionRuns();
   const [agentFilter, setAgentFilter] = useState<string | null>(null);
 
   if (mode === "live") return <LiveRunHistory />;
 
-  const rows = agentFilter ? pastRuns.filter((r) => r.agentId === agentFilter) : pastRuns;
+  // Fake tests run in this browser merge ahead of the fixture history.
+  const merged = [
+    ...sessionRuns.map((r) => toPastRun(r)),
+    ...pastRuns,
+  ].sort((a, b) => parseInt(b.id.slice(4), 10) - parseInt(a.id.slice(4), 10));
+  const rows = agentFilter ? merged.filter((r) => r.agentId === agentFilter) : merged;
 
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
@@ -27,7 +34,7 @@ export default function RunHistoryPage() {
         <div>
           <h1 className="font-display text-3xl tracking-tight text-ink">Run history</h1>
           <p className="mt-2 text-sm text-sub">
-            {pastRuns.length} runs across {demoAgents.length} agents · Ecommerce Support Suite v2
+            {merged.length} runs across {demoAgents.length} agents · Ecommerce Support Suite v2
           </p>
         </div>
         <ButtonLink href="/runs" variant="secondary">

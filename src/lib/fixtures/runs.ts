@@ -120,9 +120,11 @@ function hashCode(s: string): number {
 }
 
 /** Stable per-agent miss order within a category: pinned misses first
- * (so they persist across the agent's history), must-pass ids last. */
+ * (so they persist across the agent's history), must-pass ids last.
+ * Exported for the demo-run generator (src/lib/demo-runs.ts), which
+ * draws fake-test misses from the same canonical ordering. */
 const missOrderCache = new Map<string, string[]>();
-function missOrder(agentId: string, category: string): string[] {
+export function missOrder(agentId: string, category: string): string[] {
   const key = `${agentId}:${category}`;
   const hit = missOrderCache.get(key);
   if (hit) return hit;
@@ -144,7 +146,7 @@ function missOrder(agentId: string, category: string): string[] {
 }
 
 /** How a given scenario presents when missed — stable across runs. */
-function missKind(agentId: string, scenarioId: string): Outcome {
+export function missKind(agentId: string, scenarioId: string): Outcome {
   const demo = demoOutcomes.get(scenarioId);
   if (agentId === "agent_aurora_12" && v12MustFail.has(scenarioId)) return "fail";
   if (demo && demo !== "pass") return demo;

@@ -8,7 +8,8 @@ import { demoAgents } from "@/lib/fixtures/agents";
 import { demoReport } from "@/lib/fixtures/report";
 import { demoRun } from "@/lib/fixtures/run";
 import { categoryResults, getPastRun, runOutcomes } from "@/lib/fixtures/runs";
-import { scenarios } from "@/lib/fixtures/scenarios";
+import { canLinkReplay, toPastRun, useSessionRuns } from "@/lib/demo-runs";
+import { scenarioById, scenarios } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
 import { DIFFICULTY_LABELS, verdictFor, type Difficulty, type Outcome } from "@/lib/types";
 
@@ -20,11 +21,18 @@ import { DIFFICULTY_LABELS, verdictFor, type Difficulty, type Outcome } from "@/
 export default function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { mode } = useMode();
+  const sessionRuns = useSessionRuns();
 
   if (mode === "live") return <LiveRunDetail runId={id} />;
 
-  const run = getPastRun(id);
-  const outcomes = runOutcomes(id);
+  // Fixture run, or a fake test stored in this browser.
+  const sessionRun = sessionRuns.find((r) => r.id === id);
+  const run = getPastRun(id) ?? (sessionRun ? toPastRun(sessionRun) : undefined);
+  const outcomes =
+    runOutcomes(id) ??
+    (sessionRun
+      ? new Map(Object.entries(sessionRun.outcomes) as [string, Outcome][])
+      : undefined);
 
   if (!run || !outcomes) {
     return (
@@ -45,9 +53,12 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const threshold = agent?.threshold ?? 90;
   const above = run.score >= threshold;
   const isLatest = run.id === demoRun.id;
-  const categories = [...categoryResults(run.id)].sort(
-    (a, b) => a.pass / a.total - b.pass / b.total,
-  );
+  const fixtureCategories = categoryResults(run.id);
+  const categories = (
+    fixtureCategories.length > 0 ? fixtureCategories : categoriesFromOutcomes(outcomes)
+  )
+    .slice()
+    .sort((a, b) => a.pass / a.total - b.pass / b.total);
 
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
@@ -144,11 +155,21 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
           </span>
         </div>
         <Card className="mt-4">
-          <StaticWall outcomes={outcomes} interactive={isLatest} />
+          <StaticWall
+            outcomes={outcomes}
+            interactive={isLatest}
+            scenarioIds={sessionRun?.scenarioIds}
+            linkWhen={sessionRun ? canLinkReplay : undefined}
+          />
         </Card>
         <p className="mt-3 text-[12px] text-mut">
           {isLatest ? (
             <>Every cell links to the full transcript replay of that scenario.</>
+          ) : sessionRun ? (
+            <>
+              A fake test run in this browser — cells link to a replay where the demo
+              transcript shows the same outcome.
+            </>
           ) : (
             <>
               Replays are retained for the workspace&apos;s most recent run —{" "}
@@ -247,10 +268,19 @@ const wallCellGlyph: Record<Outcome, string> = { pass: "✓", fail: "✗", parti
 function StaticWall({
   outcomes,
   interactive,
+  scenarioIds,
+  linkWhen,
 }: {
   outcomes: Map<string, Outcome>;
   interactive: boolean;
+  /** Restrict the wall to a suite subset (fake tests). */
+  scenarioIds?: string[];
+  /** Per-cell link predicate — overrides `interactive` when given. */
+  linkWhen?: (scenarioId: string, outcome: Outcome) => boolean;
 }) {
+  const list = scenarioIds
+    ? scenarioIds.map((sid) => scenarioById.get(sid)).filter((s): s is (typeof scenarios)[number] => !!s)
+    : scenarios;
   return (
     <div
       className="grid gap-1.5"
@@ -258,19 +288,20 @@ function StaticWall({
       role="grid"
       aria-label="Scenario outcomes"
     >
-      {scenarios.map((s) => {
+      {list.map((s) => {
         const outcome = outcomes.get(s.id) ?? "pass";
+        const linked = linkWhen ? linkWhen(s.id, outcome) : interactive;
         const title = `${s.id} · ${s.name} · ${outcome}`;
         const cell = (
           <span
             className={`flex aspect-square w-full items-center justify-center rounded-[4px] text-[10px] leading-none ${
               wallCellStyles[outcome]
-            } ${interactive ? "hover:ring-1 hover:ring-mut" : ""}`}
+            } ${linked ? "hover:ring-1 hover:ring-mut" : ""}`}
           >
             {wallCellGlyph[outcome]}
           </span>
         );
-        if (!interactive) {
+        if (!linked) {
           return (
             <div key={s.id} title={title}>
               {cell}
@@ -290,6 +321,23 @@ function StaticWall({
       })}
     </div>
   );
+}
+
+/** Category pass/total computed straight from an outcome map — used for
+ * fake tests, whose outcomes cover only their suite's scenarios. */
+function categoriesFromOutcomes(
+  outcomes: Map<string, Outcome>,
+): { category: string; pass: number; total: number }[] {
+  const map = new Map<string, { pass: number; total: number }>();
+  for (const [sid, o] of outcomes) {
+    const s = scenarioById.get(sid);
+    if (!s) continue;
+    const c = map.get(s.category) ?? { pass: 0, total: 0 };
+    c.total += 1;
+    if (o === "pass") c.pass += 1;
+    map.set(s.category, c);
+  }
+  return [...map.entries()].map(([category, c]) => ({ category, ...c }));
 }
 
 function StatCard({

@@ -7,6 +7,7 @@ import { LiveEmpty } from "@/components/live-empty";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { categoryResults, runsByAgent, type PastRun } from "@/lib/fixtures/runs";
+import { toPastRun, useSessionRuns } from "@/lib/demo-runs";
 import { failingReplayId } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
 import { verdictFor } from "@/lib/types";
@@ -19,6 +20,7 @@ import { verdictFor } from "@/lib/types";
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { mode } = useMode();
+  const sessionRuns = useSessionRuns();
   const agent = demoAgents.find((a) => a.id === id);
 
   if (mode === "live") return <LiveEmpty surface="each agent's detail page" />;
@@ -48,7 +50,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   // with no failing replay on file get no link.
   const repScenario = failingReplayId;
 
-  const history = runsByAgent.get(agent.id) ?? [];
+  const fixtureHistory = runsByAgent.get(agent.id) ?? [];
+  // Fake tests from this browser lead the list; the category-trend grid
+  // stays fixture-only (per-category data isn't stored for fake runs).
+  const history = [
+    ...sessionRuns.filter((r) => r.agentId === agent.id).map((r) => toPastRun(r)),
+    ...fixtureHistory,
+  ];
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-10">
@@ -186,7 +194,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Category trend — did each category actually get better, run over run? */}
-      {history.length > 1 && (
+      {fixtureHistory.length > 1 && (
         <section className="mt-12">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-xl text-ink">Category trend</h2>
@@ -197,11 +205,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             </span>
           </div>
           <p className="mt-1.5 text-[13px] text-sub">
-            Every category across the last {history.length} runs, oldest to newest — each
-            cell opens its run.
+            Every category across the last {fixtureHistory.length} runs, oldest to newest —
+            each cell opens its run.
           </p>
           <Card className="mt-4 overflow-x-auto">
-            <CategoryTrend history={history} />
+            <CategoryTrend history={fixtureHistory} />
           </Card>
         </section>
       )}

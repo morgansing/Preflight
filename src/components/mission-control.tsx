@@ -6,6 +6,17 @@ import { demoRun, DEMO_RUN_DURATION_MS } from "@/lib/fixtures/run";
 import { scenarioById } from "@/lib/fixtures/scenarios";
 import type { RunCell } from "@/lib/types";
 import { useMode } from "@/lib/mode";
+import {
+  addSessionRun,
+  buildCells,
+  buildSessionRun,
+  canLinkReplay,
+  nextRunId,
+  useSessionRuns,
+  type DemoSuiteId,
+  type SessionRun,
+} from "@/lib/demo-runs";
+import { DemoRunLauncher } from "./demo-run-launcher";
 import { Button, ButtonLink } from "./ui";
 
 /**
@@ -23,7 +34,7 @@ function stateAt(cell: RunCell, elapsed: number): CellState {
   return "pending";
 }
 
-function useRunClock(loop: boolean, loopPauseMs = 3000) {
+function useRunClock(loop: boolean, loopPauseMs = 3000, durationMs = DEMO_RUN_DURATION_MS) {
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number | null>(null);
 
@@ -31,15 +42,15 @@ function useRunClock(loop: boolean, loopPauseMs = 3000) {
     const id = setInterval(() => {
       startRef.current ??= performance.now();
       const e = performance.now() - startRef.current;
-      if (loop && e > DEMO_RUN_DURATION_MS + loopPauseMs) {
+      if (loop && e > durationMs + loopPauseMs) {
         startRef.current = performance.now();
         setElapsed(0);
         return;
       }
-      setElapsed(Math.min(e, DEMO_RUN_DURATION_MS));
+      setElapsed(Math.min(e, durationMs));
     }, 120);
     return () => clearInterval(id);
-  }, [loop, loopPauseMs]);
+  }, [loop, loopPauseMs, durationMs]);
 
   const restart = () => {
     startRef.current = performance.now();
@@ -99,13 +110,13 @@ function fmtClock(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export function useWallStats(elapsed: number) {
+export function useWallStats(elapsed: number, cells: RunCell[] = demoRun.cells) {
   return useMemo(() => {
     let pass = 0,
       fail = 0,
       partial = 0,
       cost = 0;
-    for (const c of demoRun.cells) {
+    for (const c of cells) {
       if (elapsed >= c.resolveAt) {
         cost += c.costUsd;
         if (c.outcome === "pass") pass++;
@@ -119,22 +130,27 @@ export function useWallStats(elapsed: number) {
       fail,
       partial,
       resolved,
-      total: demoRun.cells.length,
+      total: cells.length,
       passRate: resolved ? Math.round((pass / resolved) * 100) : 0,
       costUsd: cost,
-      done: resolved === demoRun.cells.length,
+      done: resolved === cells.length,
     };
-  }, [elapsed]);
+  }, [elapsed, cells]);
 }
 
 export function Wall({
   elapsed,
   interactive = true,
   className = "",
+  cells = demoRun.cells,
+  linkFor,
 }: {
   elapsed: number;
   interactive?: boolean;
   className?: string;
+  cells?: RunCell[];
+  /** Where a settled cell links; null = not clickable (defaults to its replay). */
+  linkFor?: (cell: RunCell) => string | null;
 }) {
   const router = useRouter();
   return (
@@ -144,20 +160,21 @@ export function Wall({
       role="grid"
       aria-label="Scenario run wall"
     >
-      {demoRun.cells.map((cell) => {
+      {cells.map((cell) => {
         const s = scenarioById.get(cell.scenarioId);
         const state = stateAt(cell, elapsed);
+        const href = linkFor ? linkFor(cell) : `/replay/${cell.scenarioId}`;
         return (
           <Cell
             key={cell.scenarioId}
             state={state}
-            interactive={interactive}
+            interactive={interactive && href !== null}
             title={`${cell.scenarioId} · ${s?.name ?? ""}${
               state === "pass" || state === "fail" || state === "partial"
                 ? ` · ${state}`
                 : ""
             }`}
-            onOpen={() => router.push(`/replay/${cell.scenarioId}`)}
+            onOpen={() => href && router.push(href)}
           />
         );
       })}
@@ -192,11 +209,33 @@ export function WallLoop({ className = "" }: { className?: string }) {
 
 /** The full Mission Control screen. */
 export function MissionControl() {
-  const { elapsed, restart } = useRunClock(false);
-  const stats = useWallStats(elapsed);
-  const eta = Math.max(0, DEMO_RUN_DURATION_MS - elapsed);
+  // A launched fake test replaces the pre-baked demo run until reset.
+  const [fake, setFake] = useState<{ run: SessionRun; cells: RunCell[] } | null>(null);
+  const [showLauncher, setShowLauncher] = useState(false);
+  const sessionRuns = useSessionRuns();
+  const durationMs = fake ? fake.run.durationMs : DEMO_RUN_DURATION_MS;
+  const { elapsed, restart } = useRunClock(false, 3000, durationMs);
+  const cells = fake ? fake.cells : demoRun.cells;
+  const stats = useWallStats(elapsed, cells);
+  const eta = Math.max(0, durationMs - elapsed);
   const { setMode } = useMode();
   const router = useRouter();
+  const savedRef = useRef<string | null>(null);
+
+  // Persist a finished fake run exactly once.
+  useEffect(() => {
+    if (fake && stats.done && savedRef.current !== fake.run.id) {
+      savedRef.current = fake.run.id;
+      addSessionRun(fake.run);
+    }
+  }, [fake, stats.done]);
+
+  const launchFake = (agentId: string, suiteId: DemoSuiteId) => {
+    const run = buildSessionRun(agentId, suiteId, nextRunId(sessionRuns));
+    setFake({ run, cells: buildCells(run) });
+    setShowLauncher(false);
+    restart();
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -208,24 +247,41 @@ export function MissionControl() {
           200-scenario benchmark. Want to run one yourself? Switch to Live mode and start a
           sandbox run — no agent, no key, no cost.
         </p>
-        <Button
-          size="sm"
-          onClick={() => {
-            setMode("live");
-            router.push("/runs");
-          }}
-        >
-          Run one yourself →
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowLauncher((v) => !v)}
+          >
+            Run a fake test
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              setMode("live");
+              router.push("/runs");
+            }}
+          >
+            Run one yourself →
+          </Button>
+        </div>
       </div>
+      {showLauncher && (
+        <DemoRunLauncher onLaunch={launchFake} onClose={() => setShowLauncher(false)} />
+      )}
       {/* Floating header bar — a raised surface, no glass. */}
       <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4 backdrop-blur-none">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="eyebrow">Run {demoRun.id}</div>
+            <div className="eyebrow">
+              Run {fake ? fake.run.id : demoRun.id}
+              {fake && <span className="ml-2 text-accent">FAKE TEST</span>}
+            </div>
             <div className="mt-1 text-[15px] font-medium text-ink">
-              {demoRun.agent} {demoRun.agentVersion}
-              <span className="ml-2 text-sub">· {demoRun.suite}</span>
+              {fake ? `${fake.run.agentName} ${fake.run.agentVersion}` : `${demoRun.agent} ${demoRun.agentVersion}`}
+              <span className="ml-2 text-sub">
+                · {fake ? `${fake.run.suiteId} suite · ${fake.run.scenarioIds.length} scenarios` : demoRun.suite}
+              </span>
             </div>
           </div>
 
@@ -248,15 +304,34 @@ export function MissionControl() {
             <ButtonLink variant="ghost" size="sm" href="/runs/history">
               Run history
             </ButtonLink>
-            <Button variant="secondary" size="sm" onClick={restart}>
-              Replay demo run
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setFake(null);
+                restart();
+              }}
+            >
+              {fake ? "Back to demo run" : "Replay demo run"}
             </Button>
           </div>
         </div>
       </div>
 
       <div className="flex-1 px-8 py-8">
-        <Wall elapsed={elapsed} className="mx-auto max-w-5xl" />
+        <Wall
+          elapsed={elapsed}
+          className="mx-auto max-w-5xl"
+          cells={cells}
+          linkFor={
+            fake
+              ? (cell) =>
+                  canLinkReplay(cell.scenarioId, cell.outcome)
+                    ? `/replay/${cell.scenarioId}`
+                    : null
+              : undefined
+          }
+        />
 
         <div className="mx-auto mt-6 flex max-w-5xl items-center justify-between text-[13px]">
           <div className="flex items-center gap-6 text-sub">
@@ -266,10 +341,12 @@ export function MissionControl() {
           </div>
           {stats.done && (
             <a
-              href="/reports"
+              href={fake ? `/runs/${fake.run.id}` : "/reports"}
               className="focus-ring animate-fade-in rounded-md text-accent hover:underline"
             >
-              Run complete — view the readiness report →
+              {fake
+                ? `Run complete — open ${fake.run.id} →`
+                : "Run complete — view the readiness report →"}
             </a>
           )}
         </div>
