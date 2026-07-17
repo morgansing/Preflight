@@ -6,7 +6,7 @@ import { ButtonLink, Card, Eyebrow } from "@/components/ui";
 import { LiveEmpty } from "@/components/live-empty";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
-import { runsByAgent } from "@/lib/fixtures/runs";
+import { categoryResults, runsByAgent, type PastRun } from "@/lib/fixtures/runs";
 import { failingReplayId } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
 import { verdictFor } from "@/lib/types";
@@ -121,9 +121,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               const tint = pct === 100 ? "bg-accent" : pct >= 70 ? "bg-warn" : "bg-fail";
               const rep = b.pass < b.total ? repScenario(b.category) : undefined;
               const Row = (
-                <div className="flex items-center gap-4 px-5 py-3">
-                  <span className="w-44 shrink-0 text-[13px] text-ink">{b.category}</span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
+                  <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">{b.category}</span>
+                  <div className="h-1.5 min-w-36 flex-1 overflow-hidden rounded-full bg-raised">
                     <div className={`h-full rounded-full ${tint}`} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
@@ -185,6 +185,27 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
+      {/* Category trend — did each category actually get better, run over run? */}
+      {history.length > 1 && (
+        <section className="mt-12">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-xl text-ink">Category trend</h2>
+            <span className="flex items-center gap-4 font-mono text-[11px] text-mut">
+              <TrendLegend glyph="✓" colorClass="text-accent" label="clean" />
+              <TrendLegend glyph="◐" colorClass="text-warn" label="degraded" />
+              <TrendLegend glyph="✗" colorClass="text-fail" label="failing" />
+            </span>
+          </div>
+          <p className="mt-1.5 text-[13px] text-sub">
+            Every category across the last {history.length} runs, oldest to newest — each
+            cell opens its run.
+          </p>
+          <Card className="mt-4 overflow-x-auto">
+            <CategoryTrend history={history} />
+          </Card>
+        </section>
+      )}
+
       {/* Run history */}
       <section className="mt-12">
         <div className="flex items-baseline justify-between">
@@ -229,6 +250,94 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           })}
         </Card>
       </section>
+    </div>
+  );
+}
+
+const trendTint = (pct: number) =>
+  pct === 100
+    ? { cell: "bg-accent/15 text-accent", glyph: "✓" }
+    : pct >= 70
+      ? { cell: "bg-warn/15 text-warn", glyph: "◐" }
+      : { cell: "bg-fail/18 text-fail", glyph: "✗" };
+
+function TrendLegend({
+  glyph,
+  colorClass,
+  label,
+}: {
+  glyph: string;
+  colorClass: string;
+  label: string;
+}) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden className={colorClass}>
+        {glyph}
+      </span>
+      {label}
+    </span>
+  );
+}
+
+/** Category × run grid: each row a category, each cell one run's
+ * pass/total for it — the regression story at a glance. */
+function CategoryTrend({ history }: { history: PastRun[] }) {
+  const chrono = [...history].reverse();
+  const perRun = chrono.map(
+    (r) => new Map(categoryResults(r.id).map((c) => [c.category, c])),
+  );
+  const latest = perRun[perRun.length - 1];
+  const cats = [...latest.keys()].sort((a, b) => {
+    const A = latest.get(a)!;
+    const B = latest.get(b)!;
+    return A.pass / A.total - B.pass / B.total;
+  });
+
+  return (
+    <div className="min-w-[560px]">
+      <div className="flex items-center gap-4">
+        <span className="w-44 shrink-0" aria-hidden />
+        <div className="flex gap-1">
+          {chrono.map((r) => (
+            <span
+              key={r.id}
+              title={`${r.id} · ${r.label}`}
+              className="w-6 text-center font-mono text-[9px] text-mut"
+            >
+              {r.id.slice(-2)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {cats.map((cat) => (
+          <div key={cat} className="flex items-center gap-4">
+            <span className="w-44 shrink-0 truncate text-[13px] text-ink">{cat}</span>
+            <div className="flex gap-1">
+              {chrono.map((r, i) => {
+                const c = perRun[i].get(cat)!;
+                const pct = Math.round((c.pass / c.total) * 100);
+                const tint = trendTint(pct);
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/runs/${r.id}`}
+                    title={`${r.id} · ${cat} · ${c.pass}/${c.total}`}
+                    className="focus-ring rounded-[3px]"
+                  >
+                    <span
+                      className={`flex size-6 items-center justify-center rounded-[3px] text-[9px] leading-none ${tint.cell}`}
+                    >
+                      {tint.glyph}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

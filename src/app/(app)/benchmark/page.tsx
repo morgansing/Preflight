@@ -173,9 +173,9 @@ function CategoryRow({ c }: { c: CategoryComparison }) {
   const bPct = Math.round((c.bPass / c.total) * 100);
   const tint = bPct === 100 ? "bg-accent" : bPct >= 70 ? "bg-warn" : "bg-fail";
   return (
-    <div className="flex items-center gap-4 px-5 py-3">
-      <span className="w-44 shrink-0 text-[13px] text-ink">{c.category}</span>
-      <div className="flex flex-1 flex-col gap-[3px]" aria-hidden>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
+      <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">{c.category}</span>
+      <div className="flex min-w-36 flex-1 flex-col gap-[3px]" aria-hidden>
         <div className="h-1 overflow-hidden rounded-full bg-raised">
           <div
             className="h-full rounded-full bg-mut/50"

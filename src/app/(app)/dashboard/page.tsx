@@ -119,33 +119,47 @@ export default function DashboardPage() {
   );
 }
 
-/** A compact metrics strip above the demo agent list. */
+/** A compact metrics strip above the demo agent list — every tile opens
+ * the view behind its number. */
 function DemoStats() {
   const scores = demoAgents.map((a) => a.scoreHistory[a.scoreHistory.length - 1]);
   const readyToShip = demoAgents.filter(
     (a) => a.scoreHistory[a.scoreHistory.length - 1] >= a.threshold,
   ).length;
   const best = Math.max(...scores);
+  const bestAgent = demoAgents[scores.indexOf(best)];
   const openCritical = demoAgents.reduce((sum, a) => sum + a.lastRun.critical, 0);
-  const stats: { label: string; value: string; tone?: "accent" | "fail" }[] = [
-    { label: "Agents under test", value: String(demoAgents.length) },
-    { label: "Ready to ship", value: `${readyToShip}/${demoAgents.length}`, tone: "accent" },
-    { label: "Best readiness", value: `${best}%` },
-    { label: "Open critical fails", value: String(openCritical), tone: openCritical > 0 ? "fail" : undefined },
+  const stats: { label: string; value: string; href: string; tone?: "accent" | "fail" }[] = [
+    { label: "Agents under test", value: String(demoAgents.length), href: "/agents" },
+    {
+      label: "Ready to ship",
+      value: `${readyToShip}/${demoAgents.length}`,
+      href: "/agents",
+      tone: "accent",
+    },
+    { label: "Best readiness", value: `${best}%`, href: `/agents/${bestAgent.id}` },
+    {
+      label: "Open critical fails",
+      value: String(openCritical),
+      href: "/failures?severity=critical",
+      tone: openCritical > 0 ? "fail" : undefined,
+    },
   ];
   return (
     <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {stats.map((s) => (
-        <Card key={s.label} className="animate-fade-up p-4">
-          <div className="eyebrow">{s.label}</div>
-          <div
-            className={`numeral mt-1 text-3xl ${
-              s.tone === "accent" ? "text-accent" : s.tone === "fail" ? "text-fail" : "text-ink"
-            }`}
-          >
-            {s.value}
-          </div>
-        </Card>
+        <Link key={s.label} href={s.href} className="focus-ring block rounded-xl">
+          <Card className="animate-fade-up p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-mut">
+            <div className="eyebrow">{s.label}</div>
+            <div
+              className={`numeral mt-1 text-3xl ${
+                s.tone === "accent" ? "text-accent" : s.tone === "fail" ? "text-fail" : "text-ink"
+              }`}
+            >
+              {s.value}
+            </div>
+          </Card>
+        </Link>
       ))}
     </div>
   );

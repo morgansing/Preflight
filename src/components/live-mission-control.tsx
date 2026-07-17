@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Eyebrow } from "./ui";
+import { Button, ButtonLink, Card, Eyebrow } from "./ui";
 import { useLiveAgents } from "@/lib/live";
 import {
   fetchProviderStatus,
@@ -473,7 +473,10 @@ export function LiveMissionControl() {
         </Card>
 
         <p className="mt-4 text-center text-[12px] text-mut">
-          One run at a time — the store is shared and reseeded per run.
+          One run at a time — the store is shared and reseeded per run.{" "}
+          <Link href="/runs/history" className="focus-ring rounded text-accent hover:underline">
+            Past runs →
+          </Link>
         </p>
       </div>
     );
@@ -509,6 +512,9 @@ export function LiveMissionControl() {
               value={`${Math.floor(elapsed / 60000)}:${String(Math.floor(elapsed / 1000) % 60).padStart(2, "0")}`}
             />
             <HeaderStat label="Cost" value={`$${stats.costUsd.toFixed(2)}`} />
+            <ButtonLink variant="ghost" size="sm" href="/runs/history">
+              Run history
+            </ButtonLink>
             <Button
               variant="secondary"
               size="sm"

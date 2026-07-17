@@ -230,7 +230,9 @@ function buildRuns(): { all: PastRun[]; byAgent: Map<string, PastRun[]> } {
         agentVersion: agent.version,
         suite: demoRun.suite,
         score,
-        passed: score * 2, // 200-scenario suite; scores are whole points
+        // 200-scenario suite: score*2, except the demo run itself, where
+        // 193/200 = 96.5 rounds up to the 97 headline.
+        passed: id === agent.lastRun.runId ? agent.lastRun.passed : score * 2,
         failed: 0,
         partial: 0,
         critical: 0,

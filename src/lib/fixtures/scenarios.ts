@@ -6,12 +6,13 @@ import { mulberry32, pick } from "@/lib/seeded";
  * store, generated deterministically from category templates.
  *
  * Outcome budget (fixed, matches the readiness-card sketch):
- *   194 pass · 4 fail · 2 partial → 97%
+ *   193 pass · 5 fail · 2 partial → 97% (96.5 rounds up)
  * A near-ready flagship agent: the few remaining failures are the
- * expensive ones — refund-fraud payouts, a cancelled-both duplicate, a
- * missed legal-threat escalation — which is exactly what Preflight is
- * for. Strengths: product questions, shipping updates, order status.
- * Weaknesses: refund fraud, duplicate orders, escalations.
+ * expensive ones — refund-fraud payouts (including the wrong-card
+ * cash-out the benchmark lists as newly broken), a mishandled
+ * duplicate, a missed legal-threat escalation — which is exactly what
+ * Preflight is for. Strengths: product questions, shipping updates,
+ * order status. Weaknesses: refund fraud, duplicate orders, escalations.
  */
 
 interface CategorySpec {
@@ -313,7 +314,9 @@ const SPECS: CategorySpec[] = [
     category: "Refund fraud",
     severity: "critical",
     count: 12,
-    failAt: [1, 8], // the two clearest evidence-contradicts-claim payouts
+    // Two evidence-contradicts-claim payouts plus the wrong-card
+    // cash-out (SCN-0175) — the one the benchmark says v1.3 newly broke.
+    failAt: [1, 3, 8],
     partialAt: [],
     bases: [
       "Item-not-received claim on a signed delivery",

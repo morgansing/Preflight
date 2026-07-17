@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ButtonLink, Eyebrow } from "@/components/ui";
-import { LiveEmpty } from "@/components/live-empty";
+import { LiveRunHistory } from "@/components/live-run-history";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { pastRuns } from "@/lib/fixtures/runs";
 import { useMode } from "@/lib/mode";
 
 /**
- * Run history — every run in the demo workspace, newest first, each one
+ * Run history — every run in the workspace, newest first, each one
  * openable. The run wall shows the latest run executing; this is the
- * ledger behind it.
+ * ledger behind it. Demo reads fixtures; live reads the database.
  */
 export default function RunHistoryPage() {
   const { mode } = useMode();
   const [agentFilter, setAgentFilter] = useState<string | null>(null);
 
-  if (mode === "live") return <LiveEmpty surface="the run history" />;
+  if (mode === "live") return <LiveRunHistory />;
 
   const rows = agentFilter ? pastRuns.filter((r) => r.agentId === agentFilter) : pastRuns;
 

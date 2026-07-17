@@ -27,15 +27,15 @@ export const demoAgents: AgentUnderTest[] = [
     scoreHistory: [78, 82, 85, 87, 90, 89, 93, 95, 96, 97],
     lastRun: {
       runId: "run_0147",
-      passed: 194,
+      passed: 193,
       total: 200,
-      // Critical-severity fails on the wall: two refund-fraud payouts
+      // Critical-severity fails on the wall: three refund-fraud payouts
       // plus the missed legal-threat escalation.
-      critical: 3,
+      critical: 4,
       agoLabel: "2m ago",
     },
-    note: "Clears the 90% bar — two refund-fraud payouts left to fix before shipping.",
-    breakdown: breakdown([38, 30, 34, 23, 18, 14, 13, 10, 8, 6]), // 194
+    note: "Clears the 90% bar — three refund-fraud payouts left to fix before shipping.",
+    breakdown: breakdown([38, 30, 34, 23, 18, 14, 13, 9, 8, 6]), // 193
   },
   {
     id: "agent_aurora_12",

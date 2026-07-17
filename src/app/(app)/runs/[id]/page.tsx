@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { use } from "react";
 import { ButtonLink, Card, Eyebrow } from "@/components/ui";
-import { LiveEmpty } from "@/components/live-empty";
+import { LiveRunDetail } from "@/components/live-run-detail";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { demoReport } from "@/lib/fixtures/report";
 import { demoRun } from "@/lib/fixtures/run";
@@ -21,7 +21,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const { mode } = useMode();
 
-  if (mode === "live") return <LiveEmpty surface="each run's detail page" />;
+  if (mode === "live") return <LiveRunDetail runId={id} />;
 
   const run = getPastRun(id);
   const outcomes = runOutcomes(id);
@@ -171,9 +171,9 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
             const pct = Math.round((c.pass / c.total) * 100);
             const tint = pct === 100 ? "bg-accent" : pct >= 70 ? "bg-warn" : "bg-fail";
             return (
-              <div key={c.category} className="flex items-center gap-4 px-5 py-3">
-                <span className="w-44 shrink-0 text-[13px] text-ink">{c.category}</span>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
+              <div key={c.category} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
+                <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">{c.category}</span>
+                <div className="h-1.5 min-w-36 flex-1 overflow-hidden rounded-full bg-raised">
                   <div className={`h-full rounded-full ${tint}`} style={{ width: `${pct}%` }} />
                 </div>
                 <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">

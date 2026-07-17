@@ -18,8 +18,8 @@ export const demoReport = {
     {
       finding: "Still pays refunds when the evidence contradicts the claim",
       detail:
-        "97% ready, but the misses that remain are the expensive ones. Twice, when delivery records, claim history or payment data contradicted a customer's story, the agent sided with the story — its own tool calls surfaced the signature and the claim count, and it paid out anyway.",
-      failed: 2,
+        "97% ready, but the misses that remain are the expensive ones. Three times, when delivery records, claim history or payment data contradicted a customer's story, the agent sided with the story — its own tool calls surfaced the signature, the claim count and the mismatched card, and it paid out anyway.",
+      failed: 3,
       total: 12,
     },
     {
