@@ -33,6 +33,8 @@ export function LiveReplay({ scenarioId }: { scenarioId: string }) {
               name: payload.snapshot.name,
               category: payload.snapshot.category,
               severity: payload.severity,
+              // Snapshots predate difficulty grading — default to the middle.
+              difficulty: 3,
               rubric: payload.snapshot.rubric,
               persona: "",
               openingMessage: "",

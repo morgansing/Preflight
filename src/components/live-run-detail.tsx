@@ -9,7 +9,7 @@ import { fetchRun } from "@/lib/live-api";
 import { scoreOf, type LiveCellResult, type LiveRunSummary } from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { suiteLabel } from "@/lib/suite-tiers";
-import { verdictFor } from "@/lib/types";
+import { DIFFICULTY_LABELS, verdictFor, type Difficulty } from "@/lib/types";
 
 /**
  * Live run detail — one real run, settled: the wall, the result strip
@@ -55,6 +55,25 @@ export function LiveRunDetail({ runId }: { runId: string }) {
     return [...map.entries()]
       .map(([category, c]) => ({ category, ...c }))
       .sort((a, b) => a.pass / a.total - b.pass / b.total);
+  }, [run]);
+
+  // Library scenarios carry a difficulty grade; custom/security ids
+  // without one are simply not bucketed.
+  const difficulties = useMemo(() => {
+    if (!run) return [];
+    const map = new Map<Difficulty, { pass: number; total: number }>();
+    for (const r of run.results) {
+      if (r.outcome === "error") continue;
+      const level = getScenarioById(r.scenarioId)?.difficulty;
+      if (!level) continue;
+      const b = map.get(level) ?? { pass: 0, total: 0 };
+      b.total += 1;
+      if (r.outcome === "pass") b.pass += 1;
+      map.set(level, b);
+    }
+    return [...map.entries()]
+      .map(([level, b]) => ({ level, ...b }))
+      .sort((a, b) => a.level - b.level);
   }, [run]);
 
   if (run === undefined) {
@@ -234,6 +253,40 @@ export function LiveRunDetail({ runId }: { runId: string }) {
           Every cell links to the real transcript the judge scored.
         </p>
       </section>
+
+      {/* By difficulty */}
+      {difficulties.length > 1 && (
+        <section className="mt-12">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-xl text-ink">By difficulty</h2>
+            <span className="font-mono text-[11px] text-mut">
+              severity is what a miss costs · difficulty is how likely it is
+            </span>
+          </div>
+          <Card className="mt-4 divide-y divide-edge p-0">
+            {difficulties.map((d) => {
+              const pct = Math.round((d.pass / d.total) * 100);
+              const tint = pct === 100 ? "bg-accent" : pct >= 70 ? "bg-warn" : "bg-fail";
+              return (
+                <div
+                  key={d.level}
+                  className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3"
+                >
+                  <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">
+                    {d.level} · {DIFFICULTY_LABELS[d.level]}
+                  </span>
+                  <div className="h-1.5 min-w-36 flex-1 overflow-hidden rounded-full bg-raised">
+                    <div className={`h-full rounded-full ${tint}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
+                    {d.pass}/{d.total}
+                  </span>
+                </div>
+              );
+            })}
+          </Card>
+        </section>
+      )}
 
       {/* Category results */}
       {categories.length > 0 && (

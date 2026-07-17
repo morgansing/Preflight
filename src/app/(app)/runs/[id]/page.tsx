@@ -10,7 +10,7 @@ import { demoRun } from "@/lib/fixtures/run";
 import { categoryResults, getPastRun, runOutcomes } from "@/lib/fixtures/runs";
 import { scenarios } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
-import { verdictFor, type Outcome } from "@/lib/types";
+import { DIFFICULTY_LABELS, verdictFor, type Difficulty, type Outcome } from "@/lib/types";
 
 /**
  * Run detail — one entry from the run history, opened. The final wall,
@@ -163,6 +163,35 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
         </p>
       </section>
 
+      {/* By difficulty — does the score survive the hard scenarios? */}
+      <section className="mt-12">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-xl text-ink">By difficulty</h2>
+          <span className="font-mono text-[11px] text-mut">
+            severity is what a miss costs · difficulty is how likely it is
+          </span>
+        </div>
+        <Card className="mt-4 divide-y divide-edge p-0">
+          {difficultyResults(outcomes).map((d) => {
+            const pct = Math.round((d.pass / d.total) * 100);
+            const tint = pct === 100 ? "bg-accent" : pct >= 70 ? "bg-warn" : "bg-fail";
+            return (
+              <div key={d.level} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
+                <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">
+                  {d.level} · {DIFFICULTY_LABELS[d.level]}
+                </span>
+                <div className="h-1.5 min-w-36 flex-1 overflow-hidden rounded-full bg-raised">
+                  <div className={`h-full rounded-full ${tint}`} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
+                  {d.pass}/{d.total}
+                </span>
+              </div>
+            );
+          })}
+        </Card>
+      </section>
+
       {/* Category results */}
       <section className="mt-12">
         <h2 className="font-display text-xl text-ink">Category results</h2>
@@ -186,6 +215,24 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       </section>
     </div>
   );
+}
+
+/** Pass/total per difficulty level, ascending — routine first, brutal last. */
+function difficultyResults(
+  outcomes: Map<string, Outcome>,
+): { level: Difficulty; pass: number; total: number }[] {
+  const byLevel = new Map<Difficulty, { pass: number; total: number }>();
+  for (const s of scenarios) {
+    const o = outcomes.get(s.id);
+    if (!o) continue;
+    const bucket = byLevel.get(s.difficulty) ?? { pass: 0, total: 0 };
+    bucket.total += 1;
+    if (o === "pass") bucket.pass += 1;
+    byLevel.set(s.difficulty, bucket);
+  }
+  return [...byLevel.entries()]
+    .map(([level, b]) => ({ level, ...b }))
+    .sort((a, b) => a.level - b.level);
 }
 
 /* The demo wall's visual language, settled: no timings, no animation —

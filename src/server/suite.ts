@@ -1,4 +1,4 @@
-import { getSuite } from "@/lib/fixtures/scenarios";
+import { getSuite, gauntletScenarioIds } from "@/lib/fixtures/scenarios";
 import { tierById } from "@/lib/suite-tiers";
 
 /**
@@ -45,6 +45,7 @@ export const SMOKE_SUITE: string[] = [
 ];
 
 export function suiteScenarioIds(suiteId: string): string[] | null {
+  if (suiteId === "gauntlet") return gauntletScenarioIds;
   if (suiteId === "smoke" || suiteId === "full") {
     // "full" is the legacy name for the 200-scenario standard tier.
     return suiteId === "smoke" ? SMOKE_SUITE : getSuite(200).map((s) => s.id);

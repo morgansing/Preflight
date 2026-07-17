@@ -122,6 +122,7 @@ model CustomScenario {
   name          String
   category      String
   severity      String
+  difficulty    Int    @default(3)
   rubric        String
   persona       String
   opening       String

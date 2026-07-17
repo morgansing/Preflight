@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
+import { DifficultyLabel, Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { latestRunOutcomes } from "@/lib/fixtures/runs";
 import type { Scenario } from "@/lib/types";
@@ -24,6 +24,7 @@ export function ScenarioDetail({
       <div className="flex flex-wrap items-center gap-3 font-mono text-[12px] text-mut">
         {scenario.id} · {scenario.category}
         <SeverityLabel severity={scenario.severity} />
+        <DifficultyLabel level={scenario.difficulty} />
         {outcome && (
           <Link
             href={`/replay/${scenario.id}`}

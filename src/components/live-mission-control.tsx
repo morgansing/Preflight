@@ -13,7 +13,13 @@ import {
 } from "@/lib/live-api";
 import type { LiveCellResult, LiveEvent, LiveRunSummary } from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
-import { SUITE_TIERS, SECURITY_SUITE_SIZE, suiteLabel, tierById } from "@/lib/suite-tiers";
+import {
+  SUITE_TIERS,
+  SECURITY_SUITE_SIZE,
+  GAUNTLET_SUITE_SIZE,
+  suiteLabel,
+  tierById,
+} from "@/lib/suite-tiers";
 import { useSession } from "@/lib/auth";
 import { useBillingPrefs } from "@/lib/billing";
 import { fetchFreeAllowance } from "@/lib/live-api";
@@ -371,6 +377,35 @@ export function LiveMissionControl() {
             </div>
           )}
 
+          {/* The Gauntlet — hard mode. No warm-up scenarios. */}
+          <div className="space-y-2">
+            <Eyebrow>Hard mode</Eyebrow>
+            <button
+              type="button"
+              onClick={() => setSuite("gauntlet")}
+              className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
+                suite === "gauntlet"
+                  ? "border-warn/50 bg-warn/8"
+                  : "border-warn/25 hover:border-warn/50"
+              }`}
+            >
+              <div className="flex items-baseline justify-between">
+                <span className="text-[13px] font-medium text-ink">
+                  The Gauntlet
+                  <span className="ml-2 font-mono text-[9px] tracking-[0.14em] text-warn">
+                    DIFFICULTY 4–5 ONLY
+                  </span>
+                </span>
+                <span className="numeral text-lg text-ink">{GAUNTLET_SUITE_SIZE}</span>
+              </div>
+              <div className="mt-1 text-[12px] leading-relaxed text-sub">
+                Every hard and brutal scenario in the base suite — fraud with rehearsed
+                stories, legal threats, boundary amounts, wear-down tactics. No warm-up;
+                a short run that earns its verdict.
+              </div>
+            </button>
+          </div>
+
           {/* Security suite — the store data attacks the agent. */}
           <div className="space-y-2">
             <Eyebrow>Security</Eyebrow>
@@ -464,9 +499,11 @@ export function LiveMissionControl() {
               simsNeeded={
                 suite === "security"
                   ? SECURITY_SUITE_SIZE
-                  : suite === `custom:${customSuite?.version}`
-                    ? (customSuite?.scenarioCount ?? 0)
-                    : (tierById(suite)?.size ?? 0)
+                  : suite === "gauntlet"
+                    ? GAUNTLET_SUITE_SIZE
+                    : suite === `custom:${customSuite?.version}`
+                      ? (customSuite?.scenarioCount ?? 0)
+                      : (tierById(suite)?.size ?? 0)
               }
             />
           )}

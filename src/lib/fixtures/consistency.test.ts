@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { demoAgents } from "./agents";
 import { categoryComparison, demoBenchmark } from "./benchmark";
-import { demoOutcomes, failingReplayId, categories, scenarios, scenarioById, getSuite } from "./scenarios";
+import {
+  demoOutcomes,
+  failingReplayId,
+  categories,
+  gauntletScenarioIds,
+  scenarios,
+  scenarioById,
+  getSuite,
+} from "./scenarios";
 import { demoReport } from "./report";
 import { getReplay, featuredFailures } from "./replays";
 import { demoRun, readiness, runStats } from "./run";
 import { categoryResults, latestRunOutcomes, pastRuns, runOutcomes, runsByAgent } from "./runs";
+import { difficultyOf, pressureVectors } from "@/lib/scenario-generation";
+import { suiteScenarioIds } from "@/server/suite";
 
 /**
  * The demo is a web of cross-fixture contracts: the wall, the agents,
@@ -49,6 +59,61 @@ describe("scenario suite", () => {
   });
 });
 
+describe("difficulty", () => {
+  it("grades every scenario 1–5 with a real spread", () => {
+    const byLevel = new Map<number, number>();
+    for (const s of getSuite(1000)) {
+      expect(s.difficulty, s.id).toBeGreaterThanOrEqual(1);
+      expect(s.difficulty, s.id).toBeLessThanOrEqual(5);
+      byLevel.set(s.difficulty, (byLevel.get(s.difficulty) ?? 0) + 1);
+    }
+    // A pyramid, not a monoculture: plenty of routine, a real brutal tail.
+    expect(byLevel.get(1) ?? 0).toBeGreaterThan(50);
+    expect((byLevel.get(4) ?? 0) + (byLevel.get(5) ?? 0)).toBeGreaterThanOrEqual(20);
+  });
+
+  it("the demo agent only misses hard scenarios — the 97% is earned on the easy ones", () => {
+    for (const [id, o] of demoOutcomes) {
+      if (o === "fail") {
+        expect(scenarioById.get(id)!.difficulty, id).toBeGreaterThanOrEqual(4);
+      } else if (o === "partial") {
+        expect(scenarioById.get(id)!.difficulty, id).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("the gauntlet is exactly the difficulty 4–5 slice of the base suite", () => {
+    expect(gauntletScenarioIds.length).toBeGreaterThanOrEqual(20);
+    for (const id of gauntletScenarioIds) {
+      expect(scenarioById.get(id)!.difficulty, id).toBeGreaterThanOrEqual(4);
+    }
+    // Every demo fail is in the gauntlet — the hard slice contains the traps.
+    for (const [id, o] of demoOutcomes) {
+      if (o === "fail") expect(gauntletScenarioIds, id).toContain(id);
+    }
+    expect(suiteScenarioIds("gauntlet")).toEqual(gauntletScenarioIds);
+  });
+
+  it("generated pressure ladders span control → brutal", () => {
+    const rule = {
+      text: "Refunds over £500 require human review",
+      category: "Refunds",
+      severity: "critical" as const,
+      kind: "must" as const,
+      source: "document" as const,
+    };
+    const rungs = pressureVectors(rule, 6, "low");
+    expect(rungs).toHaveLength(6);
+    const levels = rungs.map(difficultyOf);
+    expect(Math.min(...levels)).toBeLessThanOrEqual(2); // the honest control
+    expect(Math.max(...levels)).toBe(5); // the expert adversary
+    for (const l of levels) {
+      expect(l).toBeGreaterThanOrEqual(1);
+      expect(l).toBeLessThanOrEqual(5);
+    }
+  });
+});
+
 describe("replays", () => {
   it("exist for every base scenario and match the wall outcome (documented exceptions aside)", () => {
     for (const s of scenarios) {
@@ -66,6 +131,27 @@ describe("replays", () => {
   it("keeps every featured failure a genuine failure", () => {
     for (const id of featuredFailures) {
       expect(getReplay(id)?.outcome, id).toBe("fail");
+    }
+  });
+
+  it("every miss carries a full diagnosis; passes carry none", () => {
+    for (const s of scenarios) {
+      const replay = getReplay(s.id)!;
+      if (replay.outcome === "pass") {
+        expect(replay.diagnosis, s.id).toBeUndefined();
+      } else {
+        const d = replay.diagnosis;
+        expect(d, s.id).toBeTruthy();
+        expect(d!.rootCause.length, s.id).toBeGreaterThan(20);
+        expect(d!.impact.length, s.id).toBeGreaterThan(20);
+        expect(d!.fix.length, s.id).toBeGreaterThan(20);
+        expect(d!.confidence, s.id).toBeGreaterThan(0.5);
+        expect(d!.confidence, s.id).toBeLessThanOrEqual(1);
+      }
+    }
+    // The featured six have hand-written diagnoses with high confidence.
+    for (const id of featuredFailures) {
+      expect(getReplay(id)!.diagnosis!.confidence, id).toBeGreaterThanOrEqual(0.97);
     }
   });
 });

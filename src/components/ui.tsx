@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Severity } from "@/lib/types";
+import { DIFFICULTY_LABELS, type Difficulty, type Severity } from "@/lib/types";
 import type { LiveOutcome } from "@/lib/live-types";
 
 /* Base components. Every one of these leans on the Part 2 rules:
@@ -139,6 +139,29 @@ export function SeverityLabel({ severity }: { severity: Severity }) {
   return (
     <span className="font-mono text-[11px] uppercase tracking-wider text-sub">
       {severity}
+    </span>
+  );
+}
+
+/** Difficulty 1–5 as a five-tick meter plus its name — always both, so
+ * the ticks never carry the meaning alone. */
+export function DifficultyLabel({ level }: { level: Difficulty }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5"
+      title={`Difficulty ${level}/5 — ${DIFFICULTY_LABELS[level]}`}
+    >
+      <span aria-hidden className="flex items-center gap-[3px]">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={`h-2 w-1 rounded-[1px] ${i <= level ? "bg-sub" : "bg-edge"}`}
+          />
+        ))}
+      </span>
+      <span className="font-mono text-[11px] uppercase tracking-wider text-sub">
+        {DIFFICULTY_LABELS[level]}
+      </span>
     </span>
   );
 }

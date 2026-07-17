@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Eyebrow, SeverityLabel } from "@/components/ui";
+import { Button, DifficultyLabel, Eyebrow, SeverityLabel } from "@/components/ui";
 import { ScenarioDetail } from "@/components/scenario-detail";
 import { demoOutcomes, getSuite } from "@/lib/fixtures/scenarios";
 import { LIBRARY_SIZES } from "@/lib/suite-tiers";
 import { useLibrarySize } from "@/lib/library-size";
-import type { Scenario, Severity } from "@/lib/types";
+import { DIFFICULTY_LABELS, type Difficulty, type Scenario, type Severity } from "@/lib/types";
 import { useMode } from "@/lib/mode";
 import { LiveEmpty } from "@/components/live-empty";
 
@@ -19,13 +19,19 @@ export default function ScenariosPage() {
   const [creating, setCreating] = useState(false);
   const [drafts, setDrafts] = useState<Scenario[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [page, setPage] = useState(0);
 
   const all = useMemo(() => [...drafts, ...getSuite(librarySize)], [drafts, librarySize]);
   const cats = useMemo(() => [...new Set(all.map((s) => s.category))], [all]);
   const filtered = useMemo(
-    () => (filter ? all.filter((s) => s.category === filter) : all),
-    [all, filter],
+    () =>
+      all.filter(
+        (s) =>
+          (!filter || s.category === filter) &&
+          (!difficulty || s.difficulty === difficulty),
+      ),
+    [all, filter, difficulty],
   );
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -95,6 +101,30 @@ export default function ScenariosPage() {
         ))}
       </div>
 
+      {/* Difficulty filter — routine warm-ups to brutal adversaries */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Eyebrow className="mr-2">Difficulty</Eyebrow>
+        <FilterChip
+          label="All"
+          active={difficulty === null}
+          onClick={() => {
+            setDifficulty(null);
+            setPage(0);
+          }}
+        />
+        {([1, 2, 3, 4, 5] as const).map((d) => (
+          <FilterChip
+            key={d}
+            label={`${d} · ${DIFFICULTY_LABELS[d]}`}
+            active={difficulty === d}
+            onClick={() => {
+              setDifficulty(difficulty === d ? null : d);
+              setPage(0);
+            }}
+          />
+        ))}
+      </div>
+
       {/* Table */}
       <div className="mt-6 overflow-hidden rounded-xl border border-edge">
         <table className="w-full text-left text-[13px]">
@@ -104,6 +134,7 @@ export default function ScenariosPage() {
               <th className="h-10 px-4 font-medium">Scenario</th>
               <th className="h-10 px-4 font-medium">Category</th>
               <th className="h-10 px-4 font-medium">Severity</th>
+              <th className="hidden h-10 px-4 font-medium lg:table-cell">Difficulty</th>
               <th className="hidden h-10 px-4 font-medium xl:table-cell">
                 Correct outcome
               </th>
@@ -121,6 +152,9 @@ export default function ScenariosPage() {
                 <td className="px-4 text-sub">{s.category}</td>
                 <td className="px-4">
                   <SeverityLabel severity={s.severity} />
+                </td>
+                <td className="hidden px-4 lg:table-cell">
+                  <DifficultyLabel level={s.difficulty} />
                 </td>
                 <td className="hidden max-w-96 truncate px-4 text-sub xl:table-cell">
                   {s.rubric}
@@ -280,6 +314,7 @@ function NewScenarioForm({
     name: "",
     category: "Refund fraud",
     severity: "high" as Severity,
+    difficulty: 3 as Difficulty,
     rubric: "",
     persona: "",
     openingMessage: "",
@@ -301,6 +336,7 @@ function NewScenarioForm({
           name: form.name || "Untitled scenario",
           category: form.category,
           severity: form.severity,
+          difficulty: form.difficulty,
           rubric: form.rubric,
           persona: form.persona,
           openingMessage: form.openingMessage,
@@ -314,7 +350,7 @@ function NewScenarioForm({
         <Eyebrow>Name</Eyebrow>
         <input className={inputCls} value={form.name} onChange={set("name")} placeholder="Refund demanded for a gift card purchase" required />
       </label>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <label className="block space-y-2">
           <Eyebrow>Category</Eyebrow>
           <input className={inputCls} value={form.category} onChange={set("category")} />
@@ -326,6 +362,22 @@ function NewScenarioForm({
             <option value="high">high</option>
             <option value="medium">medium</option>
             <option value="low">low</option>
+          </select>
+        </label>
+        <label className="block space-y-2">
+          <Eyebrow>Difficulty</Eyebrow>
+          <select
+            className={inputCls}
+            value={form.difficulty}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, difficulty: Number(e.target.value) as Difficulty }))
+            }
+          >
+            {([1, 2, 3, 4, 5] as const).map((d) => (
+              <option key={d} value={d}>
+                {d} · {DIFFICULTY_LABELS[d]}
+              </option>
+            ))}
           </select>
         </label>
       </div>

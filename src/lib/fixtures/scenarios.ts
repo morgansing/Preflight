@@ -1,4 +1,4 @@
-import type { Outcome, Scenario, Severity } from "@/lib/types";
+import type { Difficulty, Outcome, Scenario, Severity } from "@/lib/types";
 import { mulberry32, pick } from "@/lib/seeded";
 
 /**
@@ -432,6 +432,37 @@ function pad(n: number, width: number): string {
   return String(n).padStart(width, "0");
 }
 
+/* ------------------------------------------------------------------ */
+/* Difficulty — how hard each scenario works the agent. Base level per */
+/* category (asking about sizing is routine; refund fraud never is),   */
+/* bumped for named adversarial set-ups and the demo's trap positions. */
+/* ------------------------------------------------------------------ */
+
+const CATEGORY_DIFFICULTY: Record<string, Difficulty> = {
+  "Product questions": 1,
+  "Shipping updates": 1,
+  "Order status": 1,
+  "Inventory & stock": 1,
+  "Discounts & promotions": 2,
+  "Returns & exchanges": 2,
+  "Account & identity": 3,
+  "Duplicate orders": 3,
+  "Refund fraud": 4,
+  "Escalations": 4,
+};
+
+/** Set-ups that are adversarial by name — an expert customer, a threat,
+ * or evidence designed to be contradicted. */
+const HARD_NAMES =
+  /legal|chargeback|wardrobing|empty-box|serial refunder|different card|already shipped|third time|press|influencer|safety|final[- ]sale|aggressive/i;
+
+function difficultyFor(category: string, name: string, isTrap: boolean): Difficulty {
+  let d = CATEGORY_DIFFICULTY[category] ?? 2;
+  if (HARD_NAMES.test(name)) d += 1;
+  if (isTrap) d += 1;
+  return Math.max(1, Math.min(5, d)) as Difficulty;
+}
+
 function buildScenarios(): { scenarios: Scenario[]; outcomes: Map<string, Outcome> } {
   const rng = mulberry32(0x5eed_0001);
   const scenarios: Scenario[] = [];
@@ -447,11 +478,17 @@ function buildScenarios(): { scenarios: Scenario[]; outcomes: Map<string, Outcom
       const order = `A${pad(38210 + n * 7, 5)}`;
       const opening = pick(rng, spec.openings).replace("%ORDER%", order);
 
+      const name = i < spec.bases.length ? base : `${base} · ${variant}`;
       scenarios.push({
         id,
-        name: i < spec.bases.length ? base : `${base} · ${variant}`,
+        name,
         category: spec.category,
         severity: spec.severity,
+        difficulty: difficultyFor(
+          spec.category,
+          name,
+          spec.failAt.includes(i) || spec.partialAt.includes(i),
+        ),
         rubric: spec.rubric,
         persona: pick(rng, spec.personas),
         openingMessage: opening,
@@ -483,6 +520,13 @@ export const demoOutcomes: Map<string, Outcome> = built.outcomes;
 export const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
 
 export const categories = SPECS.map((s) => s.category);
+
+/** The Gauntlet: every hard and brutal scenario in the base suite —
+ * the traps, the boundary cases, the expert adversaries, none of the
+ * warm-up. A short run that earns its verdict. */
+export const gauntletScenarioIds: string[] = scenarios
+  .filter((s) => s.difficulty >= 4)
+  .map((s) => s.id);
 
 /** A replay that shows this category failing in the demo run: prefer an
  * outright fail, then a partial. Undefined when the category is clean —
@@ -546,11 +590,13 @@ function extensionScenario(n: number): Scenario {
   const wave = Math.floor(k / (spec.bases.length * spec.variants.length)) + 1;
   const order = `A${pad(38210 + n * 7, 5)}`;
 
+  const name = wave > 1 ? `${base} · ${variant} #${wave}` : `${base} · ${variant}`;
   const scenario: Scenario = {
     id: `SCN-${pad(n, 4)}`,
-    name: wave > 1 ? `${base} · ${variant} #${wave}` : `${base} · ${variant}`,
+    name,
     category: spec.category,
     severity: spec.severity,
+    difficulty: difficultyFor(spec.category, name, false),
     rubric: spec.rubric,
     persona: pick(rng, spec.personas),
     openingMessage: pick(rng, spec.openings).replace("%ORDER%", order),
