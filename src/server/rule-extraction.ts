@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { config } from "./config";
 import type { DraftRule, RuleSource } from "@/lib/rulebook-types";
 import { RULE_CATEGORIES } from "@/lib/rulebook-types";
 import { providerKey } from "./provider";
@@ -49,7 +50,7 @@ export async function fetchPolicyPage(url: string): Promise<string> {
 
 /* ----------------------------- Anthropic ---------------------------- */
 
-const MODEL = process.env.PREFLIGHT_MODEL ?? "claude-opus-4-8";
+const MODEL = config.model;
 
 const SUBMIT_RULES_TOOL: Anthropic.Tool = {
   name: "submit_rules",

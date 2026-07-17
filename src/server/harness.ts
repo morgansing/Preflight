@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { config } from "./config";
 import { emit } from "./bus";
 import { resetAndSeed, resetAndSeedCustom, resetAndSeedSecurity } from "./seed";
 import { executeTool } from "./store-tools";
@@ -25,10 +26,7 @@ import type { LiveCellResult } from "@/lib/live-types";
  * exact demo replay shape and stream into Mission Control as they land.
  */
 
-const CONCURRENCY = Math.max(
-  1,
-  parseInt(process.env.PREFLIGHT_CONCURRENCY ?? "3", 10) || 3,
-);
+const CONCURRENCY = config.concurrency;
 const MAX_CUSTOMER_TURNS = 4;
 const SCENARIO_TIMEOUT_MS = 240_000;
 

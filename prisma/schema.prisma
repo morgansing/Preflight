@@ -10,17 +10,19 @@ datasource db {
 }
 
 model Customer {
-  id         String  @id
-  name       String
-  email      String
-  address    String
-  claims90d  Int     @default(0) // refund claims in the last 90 days
-  flagsJson  String  @default("[]")
+  id        String  @id
+  name      String
+  email     String
+  address   String
+  claims90d Int     @default(0) // refund claims in the last 90 days
+  flagsJson String  @default("[]")
   // Free-text account note surfaced by get_customer. In the Security
   // suite this is a poison vector — untrusted text the agent must not
   // obey as if it were an instruction.
-  noteText   String?
-  orders     Order[]
+  noteText  String?
+  orders    Order[]
+
+  @@index([email])
 }
 
 model Product {
@@ -51,6 +53,9 @@ model Order {
   noteText      String?
   events        ShippingEvent[]
   refunds       Refund[]
+
+  @@index([customerId, createdAt])
+  @@index([status])
 }
 
 model ShippingEvent {
@@ -60,17 +65,22 @@ model ShippingEvent {
   ts         String
   status     String
   detailJson String @default("{}")
+
+  @@index([orderId])
 }
 
 model Refund {
-  id              String  @id
+  id              String   @id
   orderId         String
-  order           Order   @relation(fields: [orderId], references: [id])
+  order           Order    @relation(fields: [orderId], references: [id])
   runId           String? // which live run created it (null = seeded history)
   amount          Float
   reason          String
   destinationJson String?
   createdAt       DateTime @default(now())
+
+  @@index([orderId])
+  @@index([runId])
 }
 
 model Escalation {
@@ -113,24 +123,28 @@ model CustomSuite {
   scenarioCount Int      @default(0)
   provider      String // anthropic | mock
   createdAt     DateTime @default(now())
+
+  @@index([status])
 }
 
 model CustomScenario {
-  id            String @id // CUS-<version>-0001
-  suiteVersion  Int
-  ruleText      String
-  name          String
-  category      String
-  severity      String
-  difficulty    Int    @default(3)
-  rubric        String
-  persona       String
-  opening       String
-  hiddenJson    String @default("[]")
-  passJson      String @default("[]")
-  mustNotJson   String @default("[]")
-  pressureJson  String @default("{}")
-  fixtureJson   String @default("{}")
+  id           String @id // CUS-<version>-0001
+  suiteVersion Int
+  ruleText     String
+  name         String
+  category     String
+  severity     String
+  difficulty   Int    @default(3)
+  rubric       String
+  persona      String
+  opening      String
+  hiddenJson   String @default("[]")
+  passJson     String @default("[]")
+  mustNotJson  String @default("[]")
+  pressureJson String @default("{}")
+  fixtureJson  String @default("{}")
+
+  @@index([suiteVersion])
 }
 
 model PolicyRule {
@@ -143,6 +157,8 @@ model PolicyRule {
   source    String // help_centre | document | agent_prompt | questionnaire | manual | starter
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  @@index([profileId, enabled])
 }
 
 // Free-grant ledger: how many free simulations an identity has already
@@ -150,11 +166,11 @@ model PolicyRule {
 // a coarse device fingerprint (fp:<hash>) — so cycling accounts from the
 // same person or browser can't reset the 250-simulation free grant.
 model FreeGrant {
-  key        String   @id // "email:<normalized>" or "fp:<hash>"
-  kind       String // email | fingerprint
-  simsUsed   Int      @default(0)
-  firstSeen  DateTime @default(now())
-  lastSeen   DateTime @updatedAt
+  key       String   @id // "email:<normalized>" or "fp:<hash>"
+  kind      String // email | fingerprint
+  simsUsed  Int      @default(0)
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @updatedAt
 }
 
 // Pinned regression baseline: the run every later run of the same
@@ -185,6 +201,9 @@ model LiveRun {
   startedAt     DateTime     @default(now())
   finishedAt    DateTime?
   results       LiveResult[]
+
+  @@index([status])
+  @@index([agentName, suite, status, startedAt])
 }
 
 model LiveResult {

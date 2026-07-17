@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { config } from "./config";
 import { prisma } from "./db";
 import { providerKey } from "./provider";
 import {
@@ -19,7 +20,7 @@ import type { Scenario } from "@/lib/types";
  * The mock provider uses the deterministic composition as-is.
  */
 
-const MODEL = process.env.PREFLIGHT_MODEL ?? "claude-opus-4-8";
+const MODEL = config.model;
 const MAX_TOTAL = 1000;
 
 export async function startGeneration(
