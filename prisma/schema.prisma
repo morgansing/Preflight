@@ -193,8 +193,13 @@ model LiveRun {
   provider      String // anthropic | mock
   suite         String // smoke | full
   scenariosJson String // ordered scenario ids in this run
-  status        String // running | complete | error
+  status        String // queued | running | complete | error
   error         String?
+  // Flight plan membership: a preset launches several runs as one job.
+  // Queued runs start automatically when the store frees up.
+  planId        String?
+  planKind      String? // quick | deep | signoff
+  planStep      Int? // 1-based position within the plan
   // Cached root-cause clustering (ClusterReport JSON) — failures don't
   // change after completion, so this is computed once on first request.
   clustersJson  String?
@@ -204,6 +209,7 @@ model LiveRun {
 
   @@index([status])
   @@index([agentName, suite, status, startedAt])
+  @@index([planId])
 }
 
 model LiveResult {

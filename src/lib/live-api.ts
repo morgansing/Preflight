@@ -3,6 +3,7 @@
 import type {
   ClusterReport,
   LiveEvent,
+  LivePlan,
   LiveReplayPayload,
   LiveRunListItem,
   LiveRunSummary,
@@ -72,6 +73,48 @@ export async function startRun(body: {
   } catch {
     // Offline/network throw — without this the launcher spinner stuck.
     return { error: "Couldn't reach the server — check your connection and try again." };
+  }
+}
+
+/** Launch a flight plan — several suites as one sequential job. */
+export async function startPlan(body: {
+  agentName: string;
+  agentKind: string;
+  endpoint?: string;
+  model?: string;
+  authToken?: string;
+  systemPrompt?: string;
+  suites: string[];
+  planKind: string;
+  plan?: string;
+  identity?: { email?: string; fingerprint?: string };
+  sandbox?: boolean;
+}): Promise<
+  | { planId: string; runIds: string[] }
+  | { error: string; freeGrantBlocked?: boolean }
+> {
+  try {
+    const res = await fetch("/api/live/plan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    return res.ok
+      ? json
+      : { error: json.error ?? `HTTP ${res.status}`, freeGrantBlocked: json.freeGrantBlocked };
+  } catch {
+    return { error: "Couldn't reach the server — check your connection and try again." };
+  }
+}
+
+export async function fetchPlan(planId: string): Promise<LivePlan | null> {
+  try {
+    const res = await fetch(`/api/live/plan/${planId}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
   }
 }
 

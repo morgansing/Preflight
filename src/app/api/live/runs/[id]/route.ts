@@ -43,6 +43,9 @@ export async function GET(
     startedAt: run.startedAt.toISOString(),
     finishedAt: run.finishedAt?.toISOString(),
     scenarioIds: JSON.parse(run.scenariosJson),
+    planId: run.planId ?? undefined,
+    planKind: run.planKind ?? undefined,
+    planStep: run.planStep ?? undefined,
     results: run.results.map((r) => ({
       scenarioId: r.scenarioId,
       name: r.scenarioName ?? undefined,

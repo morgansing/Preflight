@@ -4,61 +4,22 @@ import { routeError } from "@/server/log";
 import { config } from "@/server/config";
 import { debitRun, getAccount, precheckRun } from "@/server/billing";
 import { launchRun } from "@/server/harness";
-import { suiteScenarioIds } from "@/server/suite";
 import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
-import { SECURITY_SUITE_SIZE } from "@/lib/suite-tiers";
+import { plannedSimCount, toRunListItems } from "@/server/run-list";
 import type { WorkspaceIdentity } from "@/lib/identity";
-import type { LiveRunListItem } from "@/lib/live-types";
-
-/** How many simulations a suite will run — for free-grant accounting. */
-async function plannedSimCount(suite: string): Promise<number> {
-  if (suite === "security") return SECURITY_SUITE_SIZE;
-  const custom = suite.match(/^custom:(\d+)$/);
-  if (custom) {
-    const cs = await prisma.customSuite.findUnique({ where: { version: parseInt(custom[1], 10) } });
-    return cs?.scenarioCount ?? 0;
-  }
-  return suiteScenarioIds(suite)?.length ?? 0;
-}
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-  const runs = await prisma.liveRun.findMany({
-    orderBy: { startedAt: "desc" },
-    take: 20,
-  });
-  const grouped = await prisma.liveResult.groupBy({
-    by: ["runId", "outcome"],
-    _count: { _all: true },
-    where: { runId: { in: runs.map((r) => r.id) } },
-  });
-
-  const items: LiveRunListItem[] = runs.map((run) => {
-    const counts = { pass: 0, fail: 0, partial: 0, error: 0 };
-    for (const g of grouped) {
-      if (g.runId === run.id && g.outcome in counts) {
-        counts[g.outcome as keyof typeof counts] = g._count._all;
-      }
-    }
-    const scored = counts.pass + counts.fail + counts.partial;
-    return {
-      id: run.id,
-      agentName: run.agentName,
-      agentKind: run.agentKind,
-      provider: run.provider as "anthropic" | "mock",
-      suite: run.suite,
-      status: run.status as LiveRunListItem["status"],
-      error: run.error ?? undefined,
-      startedAt: run.startedAt.toISOString(),
-      finishedAt: run.finishedAt?.toISOString(),
-      total: (JSON.parse(run.scenariosJson) as string[]).length,
-      counts,
-      score: scored ? Math.round((counts.pass / scored) * 100) : 0,
-    };
-  });
-  return NextResponse.json(items);
+    // Queued plan steps stay off the list — they surface through their
+    // plan, not as phantom history rows.
+    const runs = await prisma.liveRun.findMany({
+      where: { status: { not: "queued" } },
+      orderBy: { startedAt: "desc" },
+      take: 20,
+    });
+    return NextResponse.json(await toRunListItems(runs));
   } catch (err) {
     return NextResponse.json(routeError("live.runs", err), { status: 500 });
   }

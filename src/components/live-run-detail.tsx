@@ -31,6 +31,8 @@ const cellGlyph: Record<string, string> = { pass: "✓", fail: "✗", partial: "
 export function LiveRunDetail({ runId }: { runId: string }) {
   // undefined = loading; null = not found.
   const [run, setRun] = useState<LiveRunSummary | null | undefined>(undefined);
+  // Wall filter: the full run first, then one outcome at a time.
+  const [filter, setFilter] = useState<"all" | "fail" | "partial" | "error">("all");
 
   useEffect(() => {
     fetchRun(runId).then(setRun);
@@ -131,8 +133,16 @@ export function LiveRunDetail({ runId }: { runId: string }) {
     ? new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()
     : 0;
 
-  // Same scaling rules as the live wall, so the two read identically.
-  const cols = n <= 32 ? 8 : n <= 200 ? 20 : n <= 600 ? 30 : n <= 1200 ? 40 : n <= 3000 ? 60 : 100;
+  const shownIds =
+    filter === "all"
+      ? run.scenarioIds
+      : run.scenarioIds.filter((id) => byId.get(id)?.outcome === filter);
+
+  // Same scaling rules as the live wall — sized to what's shown, so
+  // filtering 10,000 cells down to 5 fails renders them readably large.
+  const shown = shownIds.length;
+  const cols =
+    shown <= 32 ? 8 : shown <= 200 ? 20 : shown <= 600 ? 30 : shown <= 1200 ? 40 : shown <= 3000 ? 60 : 100;
   const cellPx = Math.max(7, Math.min(44, Math.floor((1160 - cols * 6) / cols)));
   const gap = cellPx >= 20 ? 6 : cellPx >= 12 ? 3 : 2;
   const showGlyph = cellPx >= 16;
@@ -195,25 +205,47 @@ export function LiveRunDetail({ runId }: { runId: string }) {
 
       {/* The wall, settled */}
       <section className="mt-12">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="font-display text-xl text-ink">The wall</h2>
-          <span className="flex items-center gap-5 font-mono text-[11px] tabular-nums text-sub">
-            <span><span aria-hidden className="text-accent">✓</span> {counts.pass}</span>
-            <span><span aria-hidden className="text-fail">✗</span> {counts.fail}</span>
-            <span><span aria-hidden className="text-warn">◐</span> {counts.partial}</span>
-            {counts.error > 0 && (
-              <span><span aria-hidden className="text-warn">!</span> {counts.error}</span>
-            )}
+          <span className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+            {(
+              [
+                { id: "all" as const, label: `All ${n.toLocaleString()}`, cls: "text-sub" },
+                { id: "fail" as const, label: `✗ ${counts.fail.toLocaleString()}`, cls: "text-fail" },
+                { id: "partial" as const, label: `◐ ${counts.partial.toLocaleString()}`, cls: "text-warn" },
+                ...(counts.error > 0
+                  ? [{ id: "error" as const, label: `! ${counts.error.toLocaleString()}`, cls: "text-warn" }]
+                  : []),
+              ]
+            ).map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                aria-pressed={filter === f.id}
+                className={`focus-ring h-7 cursor-pointer rounded-full border px-3 transition-colors ${
+                  filter === f.id
+                    ? "border-accent/50 bg-accent/10 text-accent"
+                    : `border-edge hover:border-mut ${f.cls}`
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </span>
         </div>
         <Card className="mt-4 overflow-x-auto">
+          {shownIds.length === 0 && (
+            <p className="py-8 text-center text-sm text-mut">
+              Nothing with that outcome in this run.
+            </p>
+          )}
           <div
             className="mx-auto grid w-fit"
             style={{ gridTemplateColumns: `repeat(${cols}, ${cellPx}px)`, gap }}
             role="grid"
             aria-label="Scenario outcomes"
           >
-            {run.scenarioIds.map((scenarioId) => {
+            {shownIds.map((scenarioId) => {
               const result = byId.get(scenarioId);
               const state: LiveOutcomeKey = result?.outcome ?? "pending";
               const name = result?.name ?? getScenarioById(scenarioId)?.name ?? "";

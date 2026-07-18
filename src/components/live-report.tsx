@@ -7,9 +7,14 @@ import { RegressionPanel } from "./regression-panel";
 import { RootCauses } from "./root-causes";
 import { UpgradeNudge } from "./upgrade-nudge";
 import { Button, ButtonLink, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
-import { MockBadge } from "./live-mission-control";
-import { fetchRun, fetchRuns } from "@/lib/live-api";
-import { scoreOf, type LiveRunListItem, type LiveRunSummary } from "@/lib/live-types";
+import { GauntletMark, MockBadge, planKindLabel } from "./live-mission-control";
+import { fetchPlan, fetchRun, fetchRuns } from "@/lib/live-api";
+import {
+  scoreOf,
+  type LivePlan,
+  type LiveRunListItem,
+  type LiveRunSummary,
+} from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { suiteLabel, tierById } from "@/lib/suite-tiers";
 
@@ -20,10 +25,37 @@ export function LiveReport() {
   // undefined = loading · "failed" = fetch failed · null = nothing to report.
   const [run, setRun] = useState<LiveRunSummary | null | undefined | "failed">(undefined);
   const [allRuns, setAllRuns] = useState<LiveRunListItem[]>([]);
+  // Set when ?plan= is present — the report renders the whole flight
+  // plan instead of a single run. Initialized from the URL so the
+  // effect never has to set a synchronous "loading" state.
+  const [planView, setPlanView] = useState<
+    undefined | "loading" | "failed" | { plan: LivePlan; tierRun: LiveRunSummary | null }
+  >(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("plan")
+      ? "loading"
+      : undefined,
+  );
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get("run");
+    const q = new URLSearchParams(window.location.search);
+    const planParam = q.get("plan");
+    if (planParam) {
+      (async () => {
+        const p = await fetchPlan(planParam);
+        if (!p) {
+          setPlanView("failed");
+          return;
+        }
+        // The depth step's full results feed the hard-slice score.
+        const tierStep = p.runs.find((r) => tierById(r.suite) && r.status === "complete");
+        const tierRun = tierStep ? await fetchRun(tierStep.id) : null;
+        setPlanView({ plan: p, tierRun });
+      })();
+      return;
+    }
+    const param = q.get("run");
     (async (): Promise<LiveRunSummary | null | "failed"> => {
       const list = await fetchRuns();
       if (!list) return "failed";
@@ -67,6 +99,31 @@ export function LiveReport() {
     const cost = results.reduce((a, r) => a + r.costUsd, 0);
     return { score: scoreOf(results), strengths, weaknesses, risks, errors, tokens, cost };
   }, [run]);
+
+  if (planView === "loading") {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 px-8 py-16">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-72 w-full" />
+      </div>
+    );
+  }
+  if (planView === "failed") {
+    return (
+      <div className="mx-auto max-w-3xl px-8 py-24">
+        <LoadError
+          what="the sign-off report"
+          onRetry={() => {
+            setPlanView("loading");
+            setAttempt((a) => a + 1);
+          }}
+        />
+      </div>
+    );
+  }
+  if (planView) {
+    return <PlanReport plan={planView.plan} tierRun={planView.tierRun} />;
+  }
 
   if (run === undefined) {
     return (
@@ -121,9 +178,14 @@ export function LiveReport() {
             {new Date(run.startedAt).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}
           </p>
         </div>
-        <Button variant="secondary" size="sm" className="no-print" onClick={() => window.print()}>
-          Print / share
-        </Button>
+        <div className="no-print flex shrink-0 items-center gap-2">
+          <ButtonLink href={`/runs/${run.id}`} variant="secondary" size="sm">
+            Open the run wall →
+          </ButtonLink>
+          <Button variant="secondary" size="sm" onClick={() => window.print()}>
+            Print / share
+          </Button>
+        </div>
       </div>
 
       <div className="mt-10">
@@ -275,5 +337,178 @@ function CoveragePanel({ run, allRuns }: { run: LiveRunSummary; allRuns: LiveRun
         </p>
       )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The sign-off report — one flight plan, one verdict. A checklist,   */
+/* deliberately not a single blended number: averaging a 99% coverage */
+/* score with a failed security run is how agents ship broken.        */
+/* ------------------------------------------------------------------ */
+
+function scoreTone(score: number): string {
+  return score >= 90 ? "text-accent" : score >= 75 ? "text-warn" : "text-fail";
+}
+
+function planStepLabel(suiteId: string, total: number): { name: string; detail: string } {
+  if (suiteId === "security")
+    return { name: "Security", detail: `prompt-injection suite · ${total} attacks` };
+  if (suiteId === "gauntlet")
+    return { name: "Hard mode", detail: `The Gauntlet · ${total} scenarios` };
+  if (suiteId.startsWith("custom:"))
+    return { name: "Your policies", detail: `Rulebook suite · ${total} scenarios` };
+  const tier = tierById(suiteId);
+  return {
+    name: "Coverage",
+    detail: `${tier?.name ?? suiteId} · ${total.toLocaleString()} scenarios`,
+  };
+}
+
+function PlanReport({ plan, tierRun }: { plan: LivePlan; tierRun: LiveRunSummary | null }) {
+  const steps = plan.runs;
+  const hasPolicy = steps.some((r) => r.suite.startsWith("custom:"));
+  const completed = steps.filter((r) => r.status === "complete");
+  const allComplete = completed.length === steps.length;
+  const minScore = completed.length ? Math.min(...completed.map((r) => r.score)) : 0;
+  const ready = plan.done && allComplete && minScore >= 90 && hasPolicy;
+
+  // The hard slice: difficulty 4–5 scenarios inside the coverage step —
+  // the Gauntlet's content, scored without a separate run.
+  let hardSlice: { pass: number; total: number } | null = null;
+  if (tierRun) {
+    const hard = tierRun.results.filter(
+      (r) => (getScenarioById(r.scenarioId)?.difficulty ?? 0) >= 4 && r.outcome !== "error",
+    );
+    if (hard.length > 0) {
+      hardSlice = {
+        pass: hard.filter((r) => r.outcome === "pass").length,
+        total: hard.length,
+      };
+    }
+  }
+  const hardPct = hardSlice ? Math.round((hardSlice.pass / hardSlice.total) * 100) : null;
+
+  const verdict = !plan.done
+    ? "In progress"
+    : ready
+      ? "Ready to ship"
+      : "Not ready";
+  const reason = !plan.done
+    ? `${completed.length}/${steps.length} steps finished — the wall is still filling in.`
+    : ready
+      ? "Every layer is green, including your own policies."
+      : !allComplete
+        ? "A step ended in a run error — rerun it before signing off."
+        : minScore < 90
+          ? "At least one layer scored below 90 — the rows below show where."
+          : "Your own policies were not part of this job.";
+
+  return (
+    <div className="mx-auto max-w-3xl px-8 py-16">
+      <div className="flex items-start justify-between">
+        <div>
+          <Eyebrow>
+            {planKindLabel(plan.planKind)} · {plan.planId}
+          </Eyebrow>
+          <h1 className="font-display mt-3 text-4xl tracking-tight text-ink">{plan.agentName}</h1>
+          <p className="mt-2 text-sm text-sub">
+            {steps.length} suites, run in sequence against a clean store each.
+          </p>
+        </div>
+        <Button variant="secondary" size="sm" className="no-print" onClick={() => window.print()}>
+          Print / share
+        </Button>
+      </div>
+
+      {/* The verdict — a checklist outcome, not an average. */}
+      <div className="mt-10 rounded-xl border border-edge bg-surface p-8 text-center shadow-card">
+        <div
+          className={`font-display text-4xl tracking-tight ${
+            ready ? "text-accent" : plan.done ? "text-warn" : "text-sub"
+          }`}
+        >
+          {verdict}
+        </div>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-sub">{reason}</p>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        {steps.map((r) => {
+          const label = planStepLabel(r.suite, r.total);
+          const pending = r.status === "queued" || r.status === "running";
+          return (
+            <div
+              key={r.id}
+              className="flex items-center justify-between gap-4 rounded-xl border border-edge bg-surface px-5 py-4"
+            >
+              <div className="min-w-0">
+                <div className="text-[14px] font-medium text-ink">{label.name}</div>
+                <div className="mt-0.5 text-[12px] text-mut">{label.detail}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-4">
+                {pending ? (
+                  <span className="font-mono text-[12px] text-mut">
+                    {r.status === "running" ? "running…" : "queued"}
+                  </span>
+                ) : r.status === "error" ? (
+                  <span className="font-mono text-[12px] text-warn">run error</span>
+                ) : (
+                  <span className={`numeral text-2xl ${scoreTone(r.score)}`}>
+                    {r.score}
+                    <span className="text-sm text-mut">%</span>
+                  </span>
+                )}
+                {r.status === "complete" && (
+                  <Link
+                    href={`/reports?run=${r.id}`}
+                    className="focus-ring rounded font-mono text-[11px] text-accent hover:underline"
+                  >
+                    full report →
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {hardPct !== null && hardSlice && (
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-dashed border-edge px-5 py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <GauntletMark />
+              <div className="min-w-0">
+                <div className="text-[14px] font-medium text-ink">Hard slice</div>
+                <div className="mt-0.5 text-[12px] text-mut">
+                  the {hardSlice.total} difficulty-4/5 scenarios inside the coverage run
+                </div>
+              </div>
+            </div>
+            <span className={`numeral shrink-0 text-2xl ${scoreTone(hardPct)}`}>
+              {hardPct}
+              <span className="text-sm text-mut">%</span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {!hasPolicy && (
+        <p className="mt-6 rounded-lg border border-warn/40 bg-warn/8 p-3.5 text-[13px] leading-relaxed text-warn">
+          This job never tested your own policies — no Rulebook suite exists yet, so a
+          green verdict here still says nothing about rules like &ldquo;refunds over £75 need
+          manager approval&rdquo;.{" "}
+          <Link href="/setup" className="focus-ring rounded font-medium underline">
+            Teach Preflight your policy →
+          </Link>
+        </p>
+      )}
+
+      <section className="mt-20 border-t border-edge pt-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-4 font-mono text-[12px] text-mut">
+          <span>
+            {plan.agentName} · {planKindLabel(plan.planKind).toLowerCase()}
+          </span>
+          <span>generated by Preflight</span>
+        </div>
+      </section>
+    </div>
   );
 }

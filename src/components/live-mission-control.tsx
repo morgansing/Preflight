@@ -7,19 +7,25 @@ import { Button, ButtonLink, Card, Eyebrow, LoadError, Skeleton } from "./ui";
 import { InfoTip } from "./info-tip";
 import { useLiveAgents } from "@/lib/live";
 import {
+  fetchPlan,
   fetchProviderStatus,
   fetchRun,
+  startPlan,
   startRun,
   subscribeRun,
 } from "@/lib/live-api";
-import type { LiveCellResult, LiveEvent, LiveRunSummary } from "@/lib/live-types";
-import { getScenarioById } from "@/lib/fixtures/scenarios";
+import type { LiveCellResult, LiveEvent, LivePlan, LiveRunSummary } from "@/lib/live-types";
+import { getScenarioById, getSuite } from "@/lib/fixtures/scenarios";
+import { SMOKE_SUITE } from "@/lib/suites";
+import { DIFFICULTY_LABELS, type Difficulty, type Scenario } from "@/lib/types";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import {
   SUITE_TIERS,
   SECURITY_SUITE_SIZE,
   GAUNTLET_SUITE_SIZE,
   suiteLabel,
   tierById,
+  type SuiteTier,
 } from "@/lib/suite-tiers";
 import { useSession } from "@/lib/auth";
 import { useBillingPrefs } from "@/lib/billing";
@@ -49,6 +55,51 @@ const cellStyles: Record<CellState, string> = {
 };
 
 const cellGlyph: Record<string, string> = { pass: "✓", fail: "✗", partial: "◐", error: "!" };
+
+/** Rough cost/time for n simulations at the default models — matches
+ * the assumptions behind the tier cards (~$0.20 and ~30s/scenario at
+ * concurrency 3). */
+function fmtEst(sims: number): string {
+  const cost = sims * 0.2;
+  const mins = (sims * 10) / 60;
+  const c = cost >= 1000 ? `~$${+(cost / 1000).toFixed(1)}k` : `~$${Math.round(cost)}`;
+  const t = mins < 60 ? `~${Math.max(1, Math.round(mins))} min` : `~${+(mins / 60).toFixed(1)} h`;
+  return `${c} · ${t}`;
+}
+
+function suiteShortLabel(s: string): string {
+  if (s === "security") return `Security ${SECURITY_SUITE_SIZE}`;
+  if (s === "gauntlet") return `Gauntlet ${GAUNTLET_SUITE_SIZE}`;
+  if (s.startsWith("custom:")) return "Rulebook";
+  const t = tierById(s);
+  return t ? `${t.name} ${t.size.toLocaleString()}` : s;
+}
+
+/** The Gauntlet's emblem — an amber bolt with a soft glow, so the hard
+ * slice reads at a glance everywhere it appears. */
+export function GauntletMark({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-warn/60 bg-warn/15 text-warn shadow-[0_0_10px_rgba(224,163,64,0.45)] ${className}`}
+    >
+      <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">
+        <path d="M6.9.7 2.1 7h2.7l-1 4.3L9.9 5H7.1l1-4.3z" />
+      </svg>
+    </span>
+  );
+}
+
+/** Human name for a flight-plan kind. */
+export function planKindLabel(kind: string): string {
+  return kind === "quick"
+    ? "Quick check"
+    : kind === "deep"
+      ? "Deep validation"
+      : kind === "signoff"
+        ? "Production sign-off"
+        : "Flight plan";
+}
 
 /** Free-tier credits line — reads the SERVER free-grant balance, so it
  * reflects the same ledger the run launch enforces (shared across a
@@ -147,6 +198,8 @@ export function LiveMissionControl() {
   const [cells, setCells] = useState<Map<string, CellState>>(new Map());
   const [results, setResults] = useState<Map<string, LiveCellResult>>(new Map());
   const [finished, setFinished] = useState<null | { status: string; error?: string }>(null);
+  // Wall outcome filter — the full run first, then one outcome at a time.
+  const [wallFilter, setWallFilter] = useState<"all" | "fail" | "partial" | "error">("all");
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -154,13 +207,24 @@ export function LiveMissionControl() {
   const pendingRef = useRef<LiveEvent[]>([]);
 
   const [agentChoice, setAgentChoice] = useState("reference");
+  // presetId drives the three intent cards; null = the manual picker.
+  const [presetId, setPresetId] = useState<"quick" | "deep" | "signoff" | null>("quick");
+  const [manualOpen, setManualOpen] = useState(false);
   const [suite, setSuite] = useState<string>("smoke");
+  // Clicking a coverage tier opens its detail sheet; selecting happens there.
+  const [tierModal, setTierModal] = useState<SuiteTier | null>(null);
   const [customSuite, setCustomSuite] = useState<{ version: number; scenarioCount: number } | null>(null);
+  // Flight-plan context for the wall: step count while running (keyed
+  // by planId so a stale plan's meta never renders), the full plan once
+  // every step has finished.
+  const [planMeta, setPlanMeta] = useState<{ planId: string; total: number; kind: string } | null>(null);
+  const [planDone, setPlanDone] = useState<LivePlan | null>(null);
 
   const attach = useCallback(async (runId: string) => {
     const summary = await fetchRun(runId);
     if (!summary) return;
     setRun(summary);
+    setWallFilter("all");
     const nextCells = new Map<string, CellState>();
     const nextResults = new Map<string, LiveCellResult>();
     for (const id of summary.scenarioIds) nextCells.set(id, "pending");
@@ -242,6 +306,54 @@ export function LiveMissionControl() {
     return () => clearInterval(id);
   }, [run, finished]);
 
+  // Plan context for the header ("step 2 of 3").
+  useEffect(() => {
+    const planId = run?.planId;
+    if (!planId) return;
+    let alive = true;
+    fetchPlan(planId).then((p) => {
+      if (alive && p) setPlanMeta({ planId, total: p.runs.length, kind: p.planKind });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [run?.planId]);
+
+  // Flight-plan auto-advance: when a plan step finishes, the wall
+  // follows the next step as it starts; when the last step finishes,
+  // the whole plan surfaces with its sign-off link.
+  useEffect(() => {
+    if (!finished || !run?.planId) return;
+    const planId = run.planId;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const follow = async () => {
+      const plan = await fetchPlan(planId);
+      if (cancelled) return;
+      if (!plan) {
+        timer = setTimeout(follow, 2000);
+        return;
+      }
+      const active = plan.runs.find((r) => r.status === "running");
+      if (active && active.id !== run.id) {
+        window.history.replaceState(null, "", `/runs?run=${active.id}`);
+        setFinished(null);
+        await attach(active.id);
+        return;
+      }
+      if (plan.runs.some((r) => r.status === "queued")) {
+        timer = setTimeout(follow, 1500); // the queue is advancing
+        return;
+      }
+      setPlanDone(plan);
+    };
+    timer = setTimeout(follow, 800);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [finished, run?.planId, run?.id, attach]);
+
   const openReplay = useCallback(
     (scenarioId: string) => {
       const runId = new URLSearchParams(window.location.search).get("run");
@@ -250,22 +362,80 @@ export function LiveMissionControl() {
     [router, run?.id],
   );
 
+  // The three intents most users actually have. Each is a flight plan —
+  // one click, the right suites, run sequentially as one job. The manual
+  // picker below stays for everything else.
+  const rulebookSuiteId = customSuite ? `custom:${customSuite.version}` : null;
+  const presets = useMemo(() => {
+    const rb = rulebookSuiteId ? [rulebookSuiteId] : [];
+    return [
+      {
+        id: "quick" as const,
+        name: "Quick check",
+        question: "Is anything obviously broken?",
+        suites: ["smoke"],
+        tag: null as string | null,
+      },
+      {
+        id: "deep" as const,
+        name: "Deep validation",
+        question: "Is it consistent — and does it follow your rules?",
+        suites: ["standard", ...rb],
+        tag: null,
+      },
+      {
+        id: "signoff" as const,
+        name: "Production sign-off",
+        question: "Everything that matters before going live.",
+        suites: ["extended", "security", ...rb],
+        tag: "SIGN-OFF",
+      },
+    ];
+  }, [rulebookSuiteId]);
+
+  const simsFor = useCallback(
+    (suiteId: string): number =>
+      suiteId === "security"
+        ? SECURITY_SUITE_SIZE
+        : suiteId === "gauntlet"
+          ? GAUNTLET_SUITE_SIZE
+          : suiteId.startsWith("custom:")
+            ? (customSuite?.scenarioCount ?? 0)
+            : (tierById(suiteId)?.size ?? 0),
+    [customSuite],
+  );
+
   const launch = async () => {
     setLaunching(true);
     setLaunchError(null);
+    setPlanDone(null);
     const chosen = agents.find((a) => a.id === agentChoice);
-    const response = await startRun({
+    const base = {
       agentName: chosen?.name ?? "Reference agent",
       agentKind: chosen?.kind ?? "reference",
       endpoint: chosen?.endpoint,
       model: chosen?.model,
       authToken: chosen?.authToken,
       systemPrompt: chosen?.systemPrompt,
-      suite,
       plan: session?.plan ?? "free",
       identity: { email: session?.email, fingerprint: computeFingerprint() },
       sandbox: provider === null,
-    });
+    };
+    const preset = presetId ? presets.find((p) => p.id === presetId) : null;
+
+    if (preset && preset.suites.length > 1) {
+      const response = await startPlan({ ...base, suites: preset.suites, planKind: preset.id });
+      setLaunching(false);
+      if ("error" in response) {
+        setLaunchError(response.error);
+        return;
+      }
+      window.history.replaceState(null, "", `/runs?run=${response.runIds[0]}`);
+      await attach(response.runIds[0]);
+      return;
+    }
+
+    const response = await startRun({ ...base, suite: preset ? preset.suites[0] : suite });
     setLaunching(false);
     if ("error" in response) {
       setLaunchError(response.error);
@@ -320,7 +490,7 @@ export function LiveMissionControl() {
   // ------------------------------------------------- Launcher
   if (!run) {
     return (
-      <div className="mx-auto max-w-2xl px-8 py-16">
+      <div className="mx-auto max-w-3xl px-8 py-16">
         <div className="flex items-center justify-between">
           <Eyebrow>{sandbox ? "Sandbox run" : "Live run"}</Eyebrow>
           {sandbox ? (
@@ -375,6 +545,63 @@ export function LiveMissionControl() {
             </select>
           </label>
 
+          {/* Three intents, one click each. A preset is a flight plan:
+              the right suites, run sequentially as one job. */}
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <Eyebrow>What do you want to know?</Eyebrow>
+              <span className="text-[11px] text-mut">
+                one click — Preflight runs the right suites in order
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {presets.map((p) => {
+                const active = presetId === p.id;
+                const sims = p.suites.reduce((a, s) => a + simsFor(s), 0);
+                const missingRulebook = p.id !== "quick" && !rulebookSuiteId;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPresetId(p.id)}
+                    aria-pressed={active}
+                    className={`focus-ring rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
+                      active ? "border-accent/50 bg-raised" : "border-edge hover:border-mut"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[13px] font-medium text-ink">{p.name}</span>
+                      {p.tag && (
+                        <span className="shrink-0 font-mono text-[9px] tracking-[0.14em] text-mut">
+                          {p.tag}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-[12px] leading-relaxed text-sub">{p.question}</div>
+                    <div className="mt-2 font-mono text-[11px] leading-relaxed text-mut">
+                      {p.suites.map(suiteShortLabel).join(" + ")}
+                      {missingRulebook && <span className="text-warn"> · no Rulebook yet</span>}
+                    </div>
+                    <div className="mt-1 font-mono text-[11px] tabular-nums text-mut">
+                      {fmtEst(sims)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setManualOpen((v) => !v)}
+            aria-expanded={manualOpen}
+            className="focus-ring cursor-pointer rounded text-left font-mono text-[11px] tracking-wider text-mut hover:text-sub"
+          >
+            {manualOpen ? "▾ HIDE THE MANUAL SUITE PICKER" : "▸ OR CHOOSE SUITES MANUALLY"}
+          </button>
+
+          {manualOpen && (
+          <div className="space-y-6">
           {/* The Rulebook slot always exists: your generated suite when
               you have one, an honest gap when you don't. No other suite
               here knows this customer's policies. */}
@@ -383,9 +610,13 @@ export function LiveMissionControl() {
               <Eyebrow>Your Rulebook suite</Eyebrow>
               <button
                 type="button"
-                onClick={() => setSuite(`custom:${customSuite.version}`)}
+                onClick={() => {
+                  setSuite(`custom:${customSuite.version}`);
+                  setPresetId(null);
+                }}
+                aria-pressed={presetId === null && suite === `custom:${customSuite.version}`}
                 className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-                  suite === `custom:${customSuite.version}`
+                  presetId === null && suite === `custom:${customSuite.version}`
                     ? "border-accent/50 bg-raised"
                     : "border-accent/30 hover:border-accent/50"
                 }`}
@@ -468,13 +699,15 @@ export function LiveMissionControl() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {SUITE_TIERS.map((tier) => {
-                const active = suite === tier.id;
+                const active = presetId === null && suite === tier.id;
                 const isMax = tier.id === "max";
                 return (
                   <button
                     key={tier.id}
                     type="button"
-                    onClick={() => setSuite(tier.id)}
+                    onClick={() => setTierModal(tier)}
+                    aria-pressed={active}
+                    aria-haspopup="dialog"
                     className={`focus-ring rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
                       active
                         ? "border-accent/50 bg-raised"
@@ -504,44 +737,48 @@ export function LiveMissionControl() {
             </div>
           </div>
 
-          {/* The Gauntlet — hard mode. No warm-up scenarios. */}
-          <div className="space-y-2">
-            <Eyebrow>Hard mode</Eyebrow>
-            <button
-              type="button"
-              onClick={() => setSuite("gauntlet")}
-              className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-                suite === "gauntlet"
-                  ? "border-warn/50 bg-warn/8"
-                  : "border-warn/25 hover:border-warn/50"
-              }`}
-            >
-              <div className="flex items-baseline justify-between">
-                <span className="text-[13px] font-medium text-ink">
-                  The Gauntlet
-                  <span className="ml-2 font-mono text-[9px] tracking-[0.14em] text-warn">
-                    DIFFICULTY 4–5 ONLY
-                  </span>
-                </span>
-                <span className="numeral text-lg text-ink">{GAUNTLET_SUITE_SIZE}</span>
-              </div>
-              <div className="mt-1 text-[12px] leading-relaxed text-sub">
-                Every hard and brutal scenario in the base suite — fraud with rehearsed
-                stories, legal threats, boundary amounts, wear-down tactics. No warm-up;
-                a short run that earns its verdict.
-              </div>
-              <div className="mt-2 font-mono text-[11px] tabular-nums text-mut">~$5 · ~4 min</div>
-            </button>
-          </div>
+          {/* The Gauntlet is the hard SLICE of the library (difficulty
+              4–5) — already inside Standard and above, so it renders as
+              a rerun tool, never as a suite competing with the tiers. */}
+          <button
+            type="button"
+            onClick={() => {
+              setSuite("gauntlet");
+              setPresetId(null);
+            }}
+            aria-pressed={presetId === null && suite === "gauntlet"}
+            className={`focus-ring flex w-full items-baseline justify-between gap-4 rounded-lg border px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
+              presetId === null && suite === "gauntlet"
+                ? "border-warn/50 bg-warn/8"
+                : "border-edge hover:border-mut"
+            }`}
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <GauntletMark />
+              <span className="min-w-0 text-[12px] leading-relaxed text-sub">
+                <span className="font-medium text-ink">Rerun the hard slice</span> — The
+                Gauntlet: the {GAUNTLET_SUITE_SIZE} difficulty-4/5 scenarios. Already included
+                in Standard and above; run it alone to retest after fixing a hard bug.
+              </span>
+            </span>
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-mut">
+              ~$5 · ~4 min
+            </span>
+          </button>
 
-          {/* Security suite — the store data attacks the agent. */}
+          {/* Security suite — the store data attacks the agent. Its own
+              run on purpose: the store is deliberately poisoned. */}
           <div className="space-y-2">
             <Eyebrow>Security</Eyebrow>
             <button
               type="button"
-              onClick={() => setSuite("security")}
+              onClick={() => {
+                setSuite("security");
+                setPresetId(null);
+              }}
+              aria-pressed={presetId === null && suite === "security"}
               className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-                suite === "security"
+                presetId === null && suite === "security"
                   ? "border-fail/50 bg-fail/8"
                   : "border-fail/25 hover:border-fail/50"
               }`}
@@ -563,6 +800,8 @@ export function LiveMissionControl() {
               <div className="mt-2 font-mono text-[11px] tabular-nums text-mut">~$3 · ~3 min</div>
             </button>
           </div>
+          </div>
+          )}
 
           {launchError && (
             <p className="rounded-lg border border-warn/40 bg-warn/8 p-3 text-[13px] text-warn">
@@ -571,7 +810,13 @@ export function LiveMissionControl() {
           )}
 
           <Button className="w-full" onClick={launch} disabled={launching}>
-            {launching ? "Seeding store…" : sandbox ? "Start sandbox run" : "Start run"}
+            {launching
+              ? "Seeding store…"
+              : presetId
+                ? `Start ${presets.find((p) => p.id === presetId)?.name.toLowerCase()}${sandbox ? " (sandbox)" : ""}`
+                : sandbox
+                  ? "Start sandbox run"
+                  : "Start run"}
           </Button>
 
           {sandbox ? (
@@ -580,15 +825,10 @@ export function LiveMissionControl() {
             </p>
           ) : (
             <CreditsLine
-              simsNeeded={
-                suite === "security"
-                  ? SECURITY_SUITE_SIZE
-                  : suite === "gauntlet"
-                    ? GAUNTLET_SUITE_SIZE
-                    : suite === `custom:${customSuite?.version}`
-                      ? (customSuite?.scenarioCount ?? 0)
-                      : (tierById(suite)?.size ?? 0)
-              }
+              simsNeeded={(presetId
+                ? (presets.find((p) => p.id === presetId)?.suites ?? [])
+                : [suite]
+              ).reduce((a, s) => a + simsFor(s), 0)}
             />
           )}
         </Card>
@@ -599,14 +839,35 @@ export function LiveMissionControl() {
             Past runs →
           </Link>
         </p>
+
+        {tierModal && (
+          <TierModal
+            tier={tierModal}
+            onSelect={() => {
+              setSuite(tierModal.id);
+              setPresetId(null);
+              setManualOpen(true);
+              setTierModal(null);
+            }}
+            onClose={() => setTierModal(null)}
+          />
+        )}
       </div>
     );
   }
 
   // ------------------------------------------------- The wall
   const n = run.scenarioIds.length;
-  const cols = n <= 32 ? 8 : n <= 200 ? 20 : n <= 600 ? 30 : n <= 1200 ? 40 : n <= 3000 ? 60 : 100;
-  // Reserve gap space up front so the widest tiers never overflow.
+  const shownIds =
+    wallFilter === "all"
+      ? run.scenarioIds
+      : run.scenarioIds.filter((id) => cells.get(id) === wallFilter);
+  const shown = shownIds.length;
+  // Sized to what's shown, so filtering 10,000 cells down to the fails
+  // renders them readably large. Gap space reserved up front so the
+  // widest tiers never overflow.
+  const cols =
+    shown <= 32 ? 8 : shown <= 200 ? 20 : shown <= 600 ? 30 : shown <= 1200 ? 40 : shown <= 3000 ? 60 : 100;
   const cellPx = Math.max(7, Math.min(44, Math.floor((1160 - cols * 6) / cols)));
   const gap = cellPx >= 20 ? 6 : cellPx >= 12 ? 3 : 2;
   const showGlyph = cellPx >= 16;
@@ -618,6 +879,12 @@ export function LiveMissionControl() {
           <div>
             <div className="flex items-center gap-3">
               <Eyebrow>Live run {run.id}</Eyebrow>
+              {run.planKind && planMeta && planMeta.planId === run.planId && (
+                <span className="font-mono text-[10px] tracking-[0.14em] text-accent">
+                  {planKindLabel(run.planKind).toUpperCase()} · STEP {run.planStep ?? 1}/
+                  {planMeta.total}
+                </span>
+              )}
               {run.provider === "mock" && <MockBadge />}
             </div>
             <div className="mt-1 text-[15px] font-medium text-ink">
@@ -645,6 +912,8 @@ export function LiveMissionControl() {
                 setFinished(null);
                 setResults(new Map());
                 setCells(new Map());
+                setPlanDone(null);
+                setPlanMeta(null);
                 window.history.replaceState(null, "", "/runs");
               }}
             >
@@ -661,7 +930,7 @@ export function LiveMissionControl() {
           role="grid"
           aria-label="Live scenario wall"
         >
-          {run.scenarioIds.map((scenarioId) => (
+          {shownIds.map((scenarioId) => (
             <WallCell
               key={scenarioId}
               scenarioId={scenarioId}
@@ -673,22 +942,63 @@ export function LiveMissionControl() {
             />
           ))}
         </div>
+        {shown === 0 && (
+          <p className="mt-6 text-center text-sm text-mut">Nothing with that outcome yet.</p>
+        )}
 
         <div className="mx-auto mt-8 flex max-w-2xl items-center justify-between text-[13px]">
-          <div className="flex items-center gap-5 text-sub">
-            <Legend color="var(--color-accent)" glyph="✓" label={`Pass ${stats.pass}`} />
-            <Legend color="var(--color-fail)" glyph="✗" label={`Fail ${stats.fail}`} />
-            <Legend color="var(--color-warn)" glyph="◐" label={`Partial ${stats.partial}`} />
-            <Legend color="var(--color-warn)" glyph="!" label={`Run error ${stats.errors}`} />
+          <div className="flex items-center gap-2 text-sub">
+            <FilterLegend
+              active={wallFilter === "all"}
+              onClick={() => setWallFilter("all")}
+              color="var(--color-sub)"
+              glyph="▦"
+              label={`All ${n.toLocaleString()}`}
+            />
+            <FilterLegend
+              active={wallFilter === "fail"}
+              onClick={() => setWallFilter("fail")}
+              color="var(--color-fail)"
+              glyph="✗"
+              label={`Fail ${stats.fail.toLocaleString()}`}
+            />
+            <FilterLegend
+              active={wallFilter === "partial"}
+              onClick={() => setWallFilter("partial")}
+              color="var(--color-warn)"
+              glyph="◐"
+              label={`Partial ${stats.partial.toLocaleString()}`}
+            />
+            <FilterLegend
+              active={wallFilter === "error"}
+              onClick={() => setWallFilter("error")}
+              color="var(--color-warn)"
+              glyph="!"
+              label={`Run error ${stats.errors.toLocaleString()}`}
+            />
+            <span className="ml-2 flex shrink-0 items-center whitespace-nowrap font-mono text-[11px] text-mut">
+              <Legend color="var(--color-accent)" glyph="✓" label={`Pass ${stats.pass.toLocaleString()}`} />
+            </span>
           </div>
-          {finished && (
+          {finished && planDone ? (
+            <Link
+              href={`/reports?plan=${planDone.planId}`}
+              className="focus-ring animate-fade-in rounded-md text-accent hover:underline"
+            >
+              {planKindLabel(planDone.planKind)} complete — open the report →
+            </Link>
+          ) : finished && run.planId ? (
+            <span className="animate-fade-in font-mono text-[12px] text-mut">
+              step done — starting the next suite…
+            </span>
+          ) : finished ? (
             <Link
               href={`/reports?run=${run.id}`}
               className="focus-ring animate-fade-in rounded-md text-accent hover:underline"
             >
               Run {finished.status} — view the readiness report →
             </Link>
-          )}
+          ) : null}
         </div>
 
         {finished?.error && (
@@ -696,6 +1006,161 @@ export function LiveMissionControl() {
             {finished.error}
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Per-tier one-liner: what question this depth actually answers. */
+const TIER_ANSWERS: Record<string, string> = {
+  smoke: "Run it on every change — a fast sanity pass across all 11 categories, traps included.",
+  standard:
+    "The full benchmark: every hand-shaped scenario. The score that's comparable across agents, versions, and the demo.",
+  extended:
+    "Standard plus 300 deterministic variations — catches failures that depend on phrasing, amounts, and personas.",
+  scale:
+    "Enough varied repetition to expose flaky judgement — agents that pass a scenario once but not every time.",
+  exhaustive: "Pre-launch depth across the whole scenario space. Start it overnight before a major release.",
+  max: "The entire 10,000-scenario space. Sign-off-grade evidence — and priced like it.",
+};
+
+/**
+ * The tier detail sheet — clicking a coverage tier explains it before
+ * anything is selected: composition, difficulty spread, whether the
+ * Gauntlet is inside, honest pricing. Selecting happens here.
+ */
+function TierModal({
+  tier,
+  onSelect,
+  onClose,
+}: {
+  tier: SuiteTier;
+  onSelect: () => void;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, [onClose]);
+
+  const stats = useMemo(() => {
+    const scns: Scenario[] =
+      tier.id === "smoke"
+        ? (SMOKE_SUITE.map((id) => getScenarioById(id)).filter(Boolean) as Scenario[])
+        : getSuite(tier.size);
+    const byDiff: Record<Difficulty, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const s of scns) byDiff[s.difficulty]++;
+    // The Gauntlet is the difficulty 4–5 slice of the base 200; every
+    // tier ≥ Standard contains the base as a prefix.
+    const gauntletIn =
+      tier.size >= 200
+        ? GAUNTLET_SUITE_SIZE
+        : scns.filter((s) => parseInt(s.id.slice(4), 10) <= 200 && s.difficulty >= 4).length;
+    return { byDiff, gauntletIn, total: scns.length };
+  }, [tier]);
+
+  const maxDiff = Math.max(...Object.values(stats.byDiff));
+
+  return (
+    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal aria-label={`${tier.name} tier details`}>
+      <div className="animate-fade-in absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="animate-fade-up absolute left-1/2 top-1/2 max-h-[88vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-edge bg-raised p-8 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <Eyebrow>Coverage tier</Eyebrow>
+            <h2 className="font-display mt-2 text-3xl tracking-tight text-ink">
+              {tier.name}
+              {tier.id === "max" && (
+                <span className="ml-3 align-middle font-mono text-[10px] tracking-[0.14em] text-mut">
+                  SIGN-OFF
+                </span>
+              )}
+            </h2>
+          </div>
+          <span className="numeral text-4xl text-ink">{tier.size.toLocaleString()}</span>
+        </div>
+
+        <p className="mt-4 text-sm leading-relaxed text-sub">{TIER_ANSWERS[tier.id] ?? tier.blurb}</p>
+
+        <div className="mt-6 space-y-4 border-t border-edge pt-5">
+          <div className="flex items-baseline justify-between text-[13px]">
+            <span className="text-sub">Hand-shaped base scenarios</span>
+            <span className="font-mono tabular-nums text-ink">{Math.min(tier.size, 200)}</span>
+          </div>
+          {tier.size > 200 && (
+            <div className="flex items-baseline justify-between text-[13px]">
+              <span className="text-sub">Deterministic variations beyond the base</span>
+              <span className="font-mono tabular-nums text-ink">
+                {(tier.size - 200).toLocaleString()}
+              </span>
+            </div>
+          )}
+
+          <div>
+            <div className="mb-2 text-[13px] text-sub">Difficulty spread</div>
+            <div className="space-y-1.5">
+              {([1, 2, 3, 4, 5] as const).map((d) => (
+                <div key={d} className="flex items-center gap-3">
+                  <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-wider text-mut">
+                    {d} · {DIFFICULTY_LABELS[d]}
+                  </span>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-edge/60">
+                    <div
+                      className={`h-full ${d >= 4 ? "bg-warn" : "bg-accent/70"}`}
+                      style={{ width: `${maxDiff ? (stats.byDiff[d] / maxDiff) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="w-12 shrink-0 text-right font-mono text-[11px] tabular-nums text-sub">
+                    {stats.byDiff[d].toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-warn/30 bg-warn/5 px-3.5 py-2.5">
+            <span className="flex items-center gap-2.5 text-[13px] text-sub">
+              <GauntletMark />
+              The Gauntlet inside this tier
+            </span>
+            <span className="font-mono text-[12px] tabular-nums text-warn">
+              {stats.gauntletIn >= GAUNTLET_SUITE_SIZE
+                ? `all ${GAUNTLET_SUITE_SIZE} hard scenarios ✓`
+                : `${stats.gauntletIn} of ${GAUNTLET_SUITE_SIZE}`}
+            </span>
+          </div>
+
+          <div className="flex items-baseline justify-between text-[13px]">
+            <span className="text-sub">Prompt-injection security</span>
+            <span className="font-mono text-[12px] text-mut">separate suite — not in any tier</span>
+          </div>
+
+          <div className="flex items-baseline justify-between border-t border-edge pt-4 text-[13px]">
+            <span className="text-sub">Estimated cost · duration</span>
+            <span className="font-mono tabular-nums text-ink">
+              {tier.estCost} · {tier.estTime}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center gap-3">
+          <Button className="flex-1" onClick={onSelect}>
+            Select {tier.name}
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -718,5 +1183,36 @@ function Legend({ color, glyph, label }: { color: string; glyph: string; label: 
       </span>
       <span className="tabular-nums">{label}</span>
     </span>
+  );
+}
+
+/** A legend entry that filters the wall — press to show only that
+ * outcome, press "All" to restore the full grid. */
+function FilterLegend({
+  active,
+  onClick,
+  color,
+  glyph,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  color: string;
+  glyph: string;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`focus-ring flex h-7 cursor-pointer items-center gap-2 rounded-full border px-3 transition-colors ${
+        active ? "border-accent/50 bg-accent/10 text-ink" : "border-edge hover:border-mut"
+      }`}
+    >
+      <span aria-hidden style={{ color }}>
+        {glyph}
+      </span>
+      <span className="tabular-nums text-[12px]">{label}</span>
+    </button>
   );
 }
