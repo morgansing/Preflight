@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ReadinessCard } from "@/components/readiness-card";
-import { Button, Eyebrow } from "@/components/ui";
+import { Button, ButtonLink, Eyebrow } from "@/components/ui";
 import { LiveReport } from "@/components/live-report";
 import { demoReport } from "@/lib/fixtures/report";
 import { readiness, runStats } from "@/lib/fixtures/run";
@@ -39,14 +39,14 @@ export default function ReportsPage() {
             {r.suite} · {r.date}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="no-print"
-          onClick={() => window.print()}
-        >
-          Print / share
-        </Button>
+        <div className="no-print flex shrink-0 items-center gap-2">
+          <ButtonLink href={`/runs/${r.runId}`} variant="secondary" size="sm">
+            Open the run wall →
+          </ButtonLink>
+          <Button variant="secondary" size="sm" onClick={() => window.print()}>
+            Print / share
+          </Button>
+        </div>
       </div>
 
       <div className="mt-10">

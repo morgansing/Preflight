@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
 import { ButtonLink, Card, Eyebrow } from "@/components/ui";
 import { LiveRunDetail } from "@/components/live-run-detail";
 import { demoAgents } from "@/lib/fixtures/agents";
@@ -22,6 +22,8 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const { mode } = useMode();
   const sessionRuns = useSessionRuns();
+  // Wall filter — the full run first, then one outcome at a time.
+  const [filter, setFilter] = useState<"all" | Outcome>("all");
 
   if (mode === "live") return <LiveRunDetail runId={id} />;
 
@@ -140,18 +142,30 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
       {/* The wall, settled */}
       <section className="mt-12">
-        <div className="flex items-baseline justify-between">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="font-display text-xl text-ink">The wall</h2>
-          <span className="flex items-center gap-5 font-mono text-[11px] tabular-nums text-sub">
-            <span>
-              <span aria-hidden className="text-accent">✓</span> {run.passed}
-            </span>
-            <span>
-              <span aria-hidden className="text-fail">✗</span> {run.failed}
-            </span>
-            <span>
-              <span aria-hidden className="text-warn">◐</span> {run.partial}
-            </span>
+          <span className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+            {(
+              [
+                { id: "all" as const, label: `All ${run.total}` },
+                { id: "pass" as const, label: `✓ ${run.passed}` },
+                { id: "fail" as const, label: `✗ ${run.failed}` },
+                { id: "partial" as const, label: `◐ ${run.partial}` },
+              ]
+            ).map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                aria-pressed={filter === f.id}
+                className={`focus-ring h-7 cursor-pointer rounded-full border px-3 transition-colors ${
+                  filter === f.id
+                    ? "border-accent/50 bg-accent/10 text-accent"
+                    : "border-edge text-sub hover:border-mut"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </span>
         </div>
         <Card className="mt-4">
@@ -159,6 +173,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
             outcomes={outcomes}
             interactive={isLatest}
             scenarioIds={sessionRun?.scenarioIds}
+            filter={filter}
             linkWhen={sessionRun ? canLinkReplay : undefined}
           />
         </Card>
@@ -269,18 +284,26 @@ function StaticWall({
   outcomes,
   interactive,
   scenarioIds,
+  filter = "all",
   linkWhen,
 }: {
   outcomes: Map<string, Outcome>;
   interactive: boolean;
   /** Restrict the wall to a suite subset (fake tests). */
   scenarioIds?: string[];
+  /** Show only one outcome ("all" = the full wall). */
+  filter?: "all" | Outcome;
   /** Per-cell link predicate — overrides `interactive` when given. */
   linkWhen?: (scenarioId: string, outcome: Outcome) => boolean;
 }) {
-  const list = scenarioIds
+  const full = scenarioIds
     ? scenarioIds.map((sid) => scenarioById.get(sid)).filter((s): s is (typeof scenarios)[number] => !!s)
     : scenarios;
+  const list =
+    filter === "all" ? full : full.filter((s) => (outcomes.get(s.id) ?? "pass") === filter);
+  if (list.length === 0) {
+    return <p className="py-8 text-center text-sm text-mut">Nothing with that outcome in this run.</p>;
+  }
   return (
     <div
       className="grid gap-1.5"
