@@ -10,7 +10,6 @@ import {
   fetchPlan,
   fetchProviderStatus,
   fetchRun,
-  startPlan,
   startRun,
   subscribeRun,
 } from "@/lib/live-api";
@@ -55,25 +54,6 @@ const cellStyles: Record<CellState, string> = {
 };
 
 const cellGlyph: Record<string, string> = { pass: "✓", fail: "✗", partial: "◐", error: "!" };
-
-/** Rough cost/time for n simulations at the default models — matches
- * the assumptions behind the tier cards (~$0.20 and ~30s/scenario at
- * concurrency 3). */
-function fmtEst(sims: number): string {
-  const cost = sims * 0.2;
-  const mins = (sims * 10) / 60;
-  const c = cost >= 1000 ? `~$${+(cost / 1000).toFixed(1)}k` : `~$${Math.round(cost)}`;
-  const t = mins < 60 ? `~${Math.max(1, Math.round(mins))} min` : `~${+(mins / 60).toFixed(1)} h`;
-  return `${c} · ${t}`;
-}
-
-function suiteShortLabel(s: string): string {
-  if (s === "security") return `Security ${SECURITY_SUITE_SIZE}`;
-  if (s === "gauntlet") return `Gauntlet ${GAUNTLET_SUITE_SIZE}`;
-  if (s.startsWith("custom:")) return "Rulebook";
-  const t = tierById(s);
-  return t ? `${t.name} ${t.size.toLocaleString()}` : s;
-}
 
 /** The Gauntlet's emblem — an amber bolt with a soft glow, so the hard
  * slice reads at a glance everywhere it appears. */
@@ -207,9 +187,6 @@ export function LiveMissionControl() {
   const pendingRef = useRef<LiveEvent[]>([]);
 
   const [agentChoice, setAgentChoice] = useState("reference");
-  // presetId drives the three intent cards; null = the manual picker.
-  const [presetId, setPresetId] = useState<"quick" | "deep" | "signoff" | null>("quick");
-  const [manualOpen, setManualOpen] = useState(false);
   const [suite, setSuite] = useState<string>("smoke");
   // Clicking a coverage tier opens its detail sheet; selecting happens there.
   const [tierModal, setTierModal] = useState<SuiteTier | null>(null);
@@ -362,37 +339,6 @@ export function LiveMissionControl() {
     [router, run?.id],
   );
 
-  // The three intents most users actually have. Each is a flight plan —
-  // one click, the right suites, run sequentially as one job. The manual
-  // picker below stays for everything else.
-  const rulebookSuiteId = customSuite ? `custom:${customSuite.version}` : null;
-  const presets = useMemo(() => {
-    const rb = rulebookSuiteId ? [rulebookSuiteId] : [];
-    return [
-      {
-        id: "quick" as const,
-        name: "Quick check",
-        question: "Is anything obviously broken?",
-        suites: ["smoke"],
-        tag: null as string | null,
-      },
-      {
-        id: "deep" as const,
-        name: "Deep validation",
-        question: "Is it consistent — and does it follow your rules?",
-        suites: ["standard", ...rb],
-        tag: null,
-      },
-      {
-        id: "signoff" as const,
-        name: "Production sign-off",
-        question: "Everything that matters before going live.",
-        suites: ["extended", "security", ...rb],
-        tag: "SIGN-OFF",
-      },
-    ];
-  }, [rulebookSuiteId]);
-
   const simsFor = useCallback(
     (suiteId: string): number =>
       suiteId === "security"
@@ -410,32 +356,18 @@ export function LiveMissionControl() {
     setLaunchError(null);
     setPlanDone(null);
     const chosen = agents.find((a) => a.id === agentChoice);
-    const base = {
+    const response = await startRun({
       agentName: chosen?.name ?? "Reference agent",
       agentKind: chosen?.kind ?? "reference",
       endpoint: chosen?.endpoint,
       model: chosen?.model,
       authToken: chosen?.authToken,
       systemPrompt: chosen?.systemPrompt,
+      suite,
       plan: session?.plan ?? "free",
       identity: { email: session?.email, fingerprint: computeFingerprint() },
       sandbox: provider === null,
-    };
-    const preset = presetId ? presets.find((p) => p.id === presetId) : null;
-
-    if (preset && preset.suites.length > 1) {
-      const response = await startPlan({ ...base, suites: preset.suites, planKind: preset.id });
-      setLaunching(false);
-      if ("error" in response) {
-        setLaunchError(response.error);
-        return;
-      }
-      window.history.replaceState(null, "", `/runs?run=${response.runIds[0]}`);
-      await attach(response.runIds[0]);
-      return;
-    }
-
-    const response = await startRun({ ...base, suite: preset ? preset.suites[0] : suite });
+    });
     setLaunching(false);
     if ("error" in response) {
       setLaunchError(response.error);
@@ -545,63 +477,6 @@ export function LiveMissionControl() {
             </select>
           </label>
 
-          {/* Three intents, one click each. A preset is a flight plan:
-              the right suites, run sequentially as one job. */}
-          <div className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <Eyebrow>What do you want to know?</Eyebrow>
-              <span className="text-[11px] text-mut">
-                one click — Preflight runs the right suites in order
-              </span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {presets.map((p) => {
-                const active = presetId === p.id;
-                const sims = p.suites.reduce((a, s) => a + simsFor(s), 0);
-                const missingRulebook = p.id !== "quick" && !rulebookSuiteId;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setPresetId(p.id)}
-                    aria-pressed={active}
-                    className={`focus-ring rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-                      active ? "border-accent/50 bg-raised" : "border-edge hover:border-mut"
-                    }`}
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[13px] font-medium text-ink">{p.name}</span>
-                      {p.tag && (
-                        <span className="shrink-0 font-mono text-[9px] tracking-[0.14em] text-mut">
-                          {p.tag}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-[12px] leading-relaxed text-sub">{p.question}</div>
-                    <div className="mt-2 font-mono text-[11px] leading-relaxed text-mut">
-                      {p.suites.map(suiteShortLabel).join(" + ")}
-                      {missingRulebook && <span className="text-warn"> · no Rulebook yet</span>}
-                    </div>
-                    <div className="mt-1 font-mono text-[11px] tabular-nums text-mut">
-                      {fmtEst(sims)}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setManualOpen((v) => !v)}
-            aria-expanded={manualOpen}
-            className="focus-ring cursor-pointer rounded text-left font-mono text-[11px] tracking-wider text-mut hover:text-sub"
-          >
-            {manualOpen ? "▾ HIDE THE MANUAL SUITE PICKER" : "▸ OR CHOOSE SUITES MANUALLY"}
-          </button>
-
-          {manualOpen && (
-          <div className="space-y-6">
           {/* The Rulebook slot always exists: your generated suite when
               you have one, an honest gap when you don't. No other suite
               here knows this customer's policies. */}
@@ -610,13 +485,10 @@ export function LiveMissionControl() {
               <Eyebrow>Your Rulebook suite</Eyebrow>
               <button
                 type="button"
-                onClick={() => {
-                  setSuite(`custom:${customSuite.version}`);
-                  setPresetId(null);
-                }}
-                aria-pressed={presetId === null && suite === `custom:${customSuite.version}`}
+                onClick={() => setSuite(`custom:${customSuite.version}`)}
+                aria-pressed={suite === `custom:${customSuite.version}`}
                 className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-                  presetId === null && suite === `custom:${customSuite.version}`
+                  suite === `custom:${customSuite.version}`
                     ? "border-accent/50 bg-raised"
                     : "border-accent/30 hover:border-accent/50"
                 }`}
@@ -699,7 +571,7 @@ export function LiveMissionControl() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {SUITE_TIERS.map((tier) => {
-                const active = presetId === null && suite === tier.id;
+                const active = suite === tier.id;
                 const isMax = tier.id === "max";
                 return (
                   <button
@@ -742,13 +614,10 @@ export function LiveMissionControl() {
               a rerun tool, never as a suite competing with the tiers. */}
           <button
             type="button"
-            onClick={() => {
-              setSuite("gauntlet");
-              setPresetId(null);
-            }}
-            aria-pressed={presetId === null && suite === "gauntlet"}
+            onClick={() => setSuite("gauntlet")}
+            aria-pressed={suite === "gauntlet"}
             className={`focus-ring flex w-full items-baseline justify-between gap-4 rounded-lg border px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
-              presetId === null && suite === "gauntlet"
+              suite === "gauntlet"
                 ? "border-warn/50 bg-warn/8"
                 : "border-edge hover:border-mut"
             }`}
@@ -772,13 +641,10 @@ export function LiveMissionControl() {
             <Eyebrow>Security</Eyebrow>
             <button
               type="button"
-              onClick={() => {
-                setSuite("security");
-                setPresetId(null);
-              }}
-              aria-pressed={presetId === null && suite === "security"}
+              onClick={() => setSuite("security")}
+              aria-pressed={suite === "security"}
               className={`focus-ring w-full rounded-lg border p-3.5 text-left transition-colors cursor-pointer ${
-                presetId === null && suite === "security"
+                suite === "security"
                   ? "border-fail/50 bg-fail/8"
                   : "border-fail/25 hover:border-fail/50"
               }`}
@@ -800,8 +666,6 @@ export function LiveMissionControl() {
               <div className="mt-2 font-mono text-[11px] tabular-nums text-mut">~$3 · ~3 min</div>
             </button>
           </div>
-          </div>
-          )}
 
           {launchError && (
             <p className="rounded-lg border border-warn/40 bg-warn/8 p-3 text-[13px] text-warn">
@@ -810,13 +674,7 @@ export function LiveMissionControl() {
           )}
 
           <Button className="w-full" onClick={launch} disabled={launching}>
-            {launching
-              ? "Seeding store…"
-              : presetId
-                ? `Start ${presets.find((p) => p.id === presetId)?.name.toLowerCase()}${sandbox ? " (sandbox)" : ""}`
-                : sandbox
-                  ? "Start sandbox run"
-                  : "Start run"}
+            {launching ? "Seeding store…" : sandbox ? "Start sandbox run" : "Start run"}
           </Button>
 
           {sandbox ? (
@@ -825,10 +683,7 @@ export function LiveMissionControl() {
             </p>
           ) : (
             <CreditsLine
-              simsNeeded={(presetId
-                ? (presets.find((p) => p.id === presetId)?.suites ?? [])
-                : [suite]
-              ).reduce((a, s) => a + simsFor(s), 0)}
+              simsNeeded={simsFor(suite)}
             />
           )}
         </Card>
@@ -845,8 +700,6 @@ export function LiveMissionControl() {
             tier={tierModal}
             onSelect={() => {
               setSuite(tierModal.id);
-              setPresetId(null);
-              setManualOpen(true);
               setTierModal(null);
             }}
             onClose={() => setTierModal(null)}
