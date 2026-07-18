@@ -6,7 +6,7 @@ import { ReadinessCard } from "./readiness-card";
 import { RegressionPanel } from "./regression-panel";
 import { RootCauses } from "./root-causes";
 import { UpgradeNudge } from "./upgrade-nudge";
-import { Button, Eyebrow, EmptyState, ButtonLink } from "./ui";
+import { Button, ButtonLink, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
 import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
@@ -17,20 +17,22 @@ const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
 /** The live readiness report — computed from a real run's results. */
 export function LiveReport() {
-  // undefined = loading; null = no completed run to report on.
-  const [run, setRun] = useState<LiveRunSummary | null | undefined>(undefined);
+  // undefined = loading · "failed" = fetch failed · null = nothing to report.
+  const [run, setRun] = useState<LiveRunSummary | null | undefined | "failed">(undefined);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get("run");
-    (async () => {
+    (async (): Promise<LiveRunSummary | null | "failed"> => {
       const list = await fetchRuns();
+      if (!list) return "failed";
       const targetId = param ?? list.find((r) => r.status === "complete")?.id;
       return targetId ? await fetchRun(targetId) : null;
     })().then(setRun);
-  }, []);
+  }, [attempt]);
 
   const report = useMemo(() => {
-    if (!run) return null;
+    if (!run || run === "failed") return null;
     const results = run.results;
     const byCategory = new Map<string, { pass: number; fail: number; partial: number; total: number }>();
     const catOf = (r: (typeof results)[number]) =>
@@ -64,7 +66,21 @@ export function LiveReport() {
     return { score: scoreOf(results), strengths, weaknesses, risks, errors, tokens, cost };
   }, [run]);
 
-  if (run === undefined) return null;
+  if (run === undefined) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 px-8 py-16">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-72 w-full" />
+      </div>
+    );
+  }
+  if (run === "failed") {
+    return (
+      <div className="mx-auto max-w-3xl px-8 py-24">
+        <LoadError what="the live report" onRetry={() => setAttempt((a) => a + 1)} />
+      </div>
+    );
+  }
   if (!run || !report) {
     return (
       <div className="mx-auto max-w-2xl px-8 py-24">

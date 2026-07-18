@@ -153,7 +153,7 @@ export function NavRail() {
               DEMO
             </span>
           ) : (
-            <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-[#08110b]">
+            <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-on-accent">
               LIVE
             </span>
           )}

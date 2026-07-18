@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { pastRuns } from "@/lib/fixtures/runs";
 import { getScenarioById, scenarios } from "@/lib/fixtures/scenarios";
@@ -57,6 +58,8 @@ export function CommandPalette() {
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
 
   const index = useMemo<Entry[]>(() => {
     if (mode === "live") return PAGES;
@@ -161,6 +164,11 @@ export function CommandPalette() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Keep the active option visible while arrowing through a long list.
+  useEffect(() => {
+    if (open) document.getElementById(`palette-opt-${cursor}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, cursor]);
+
   if (!open) return null;
 
   const go = (href: string) => {
@@ -169,11 +177,16 @@ export function CommandPalette() {
   };
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal aria-label="Command palette">
+    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal aria-label="Command palette">
       <div className="animate-fade-in absolute inset-0 bg-black/50" onClick={close} />
       <div className="animate-fade-up absolute left-1/2 top-24 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border border-edge bg-raised shadow-2xl">
         <input
           ref={inputRef}
+          role="combobox"
+          aria-expanded={results.length > 0}
+          aria-controls="palette-listbox"
+          aria-activedescendant={results[cursor] ? `palette-opt-${cursor}` : undefined}
+          aria-label="Jump to a page, agent, run, or scenario"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -197,7 +210,7 @@ export function CommandPalette() {
           placeholder="Jump to a page, agent, run, or scenario…"
           className="w-full border-b border-edge bg-transparent px-5 py-4 text-sm text-ink placeholder:text-mut outline-none"
         />
-        <div className="max-h-80 overflow-y-auto py-2">
+        <div id="palette-listbox" role="listbox" aria-label="Results" className="max-h-80 overflow-y-auto py-2">
           {results.length === 0 && (
             <p className="px-5 py-6 text-center text-sm text-mut">No matches.</p>
           )}
@@ -206,11 +219,15 @@ export function CommandPalette() {
             return (
               <div key={`${e.type}:${e.href}`}>
                 {showHeading && (
-                  <div className="px-5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-mut">
+                  <div aria-hidden className="px-5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-mut">
                     {e.type}
                   </div>
                 )}
                 <button
+                  id={`palette-opt-${i}`}
+                  role="option"
+                  aria-selected={i === cursor}
+                  tabIndex={-1}
                   onClick={() => go(e.href)}
                   onMouseEnter={() => setCursor(i)}
                   className={`flex w-full cursor-pointer items-baseline justify-between gap-3 px-5 py-2 text-left text-[13px] ${

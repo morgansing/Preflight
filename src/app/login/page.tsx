@@ -36,26 +36,32 @@ export default function LoginPage() {
           router.push("/dashboard");
         }}
       >
-        <input
-          className={inputCls}
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Work email"
-          autoComplete="email"
-        />
+        <label className="block space-y-1.5">
+          <span className="text-[13px] text-sub">Work email</span>
+          <input
+            className={inputCls}
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
+            autoComplete="email"
+          />
+        </label>
         {/* Design-complete; V0 never stores or transmits this value. */}
-        <input
-          className={inputCls}
-          type="password"
-          required
-          placeholder="Password"
-          autoComplete="current-password"
-        />
+        <label className="block space-y-1.5">
+          <span className="text-[13px] text-sub">Password</span>
+          <input
+            className={inputCls}
+            type="password"
+            required
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
+        </label>
         <div className="flex items-center justify-between">
           <label className="flex cursor-pointer items-center gap-2 text-[13px] text-sub">
-            <input type="checkbox" defaultChecked className="focus-ring size-3.5 accent-[#3ddc84]" />
+            <input type="checkbox" defaultChecked className="focus-ring size-3.5 accent-accent" />
             Keep me signed in
           </label>
           <span className="cursor-not-allowed text-[13px] text-mut" title="Arrives with the hosted beta">

@@ -204,6 +204,7 @@ function Chip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`focus-ring h-8 cursor-pointer rounded-full border px-3.5 text-[12px] transition-colors duration-150 ${
         active
           ? "border-accent/50 bg-accent/10 text-accent"

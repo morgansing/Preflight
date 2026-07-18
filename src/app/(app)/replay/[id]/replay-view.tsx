@@ -68,9 +68,12 @@ export function ReplayView({
     return () => clearInterval(id);
   }, [playing, total]);
 
-  // ←/→ scrubbing, space toggles play.
+  // ←/→ scrubbing, space toggles play — unless focus is on something
+  // interactive (button, link, input), which keeps its own keys.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("button, a, input, select, textarea, [contenteditable]")) return;
       if (e.key === "ArrowRight") {
         setPlaying(false);
         step(1);

@@ -8,6 +8,7 @@ import { LIBRARY_SIZES } from "@/lib/suite-tiers";
 import { useLibrarySize } from "@/lib/library-size";
 import { DIFFICULTY_LABELS, type Difficulty, type Scenario, type Severity } from "@/lib/types";
 import { useMode } from "@/lib/mode";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { LiveEmpty } from "@/components/live-empty";
 
 const PAGE_SIZE = 100;
@@ -64,6 +65,7 @@ export default function ScenariosPage() {
               setLibrarySize(n);
               setPage(0);
             }}
+            aria-pressed={librarySize === n}
             className={`focus-ring h-8 rounded-md border px-3 font-mono text-[12px] tabular-nums transition-colors duration-150 cursor-pointer ${
               librarySize === n
                 ? "border-accent/50 bg-accent/10 text-accent"
@@ -141,6 +143,14 @@ export default function ScenariosPage() {
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-mut">
+                  No scenarios match these filters — try clearing the category or
+                  difficulty.
+                </td>
+              </tr>
+            )}
             {rows.map((s) => (
               <tr
                 key={s.id}
@@ -236,6 +246,7 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`focus-ring h-8 rounded-full border px-3.5 text-[12px] transition-colors duration-150 cursor-pointer ${
         active
           ? "border-accent/50 bg-accent/10 text-accent"
@@ -257,6 +268,8 @@ function Drawer({
   children: React.ReactNode;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
 
   // Escape closes; focus moves in on open and back out on close.
   useEffect(() => {
@@ -273,7 +286,7 @@ function Drawer({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal>
+    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal aria-label={title}>
       <div
         className="animate-fade-in absolute inset-0 bg-black/50"
         onClick={onClose}

@@ -550,9 +550,15 @@ export function failingReplayId(category: string): string | undefined {
 export const BASE_SUITE_SIZE = scenarios.length; // 200
 export const MAX_SUITE_SIZE = 10_000;
 
-/** Category layout for indices beyond the base — smooth weighted
- * round-robin so proportions hold at every prefix length. */
-const extensionLayout: number[] = (() => {
+/** Category layout + within-category ordinals for indices beyond the
+ * base — smooth weighted round-robin so proportions hold at every
+ * prefix length. Built lazily: this module is imported by nearly every
+ * route, and the 9,800-iteration tables only matter once someone
+ * actually opens a suite larger than the base 200. */
+let extTables: { layout: number[]; ordinal: number[] } | null = null;
+
+function extensionTables() {
+  if (extTables) return extTables;
   const layout: number[] = [];
   const acc = SPECS.map(() => 0);
   for (let i = 0; i < MAX_SUITE_SIZE - BASE_SUITE_SIZE; i++) {
@@ -564,15 +570,11 @@ const extensionLayout: number[] = (() => {
     acc[best] -= 1;
     layout.push(best);
   }
-  return layout;
-})();
-
-/** Within-category ordinal for each extension index (continues past
- * the base count, so name variants keep cycling seamlessly). */
-const extensionOrdinal: number[] = (() => {
   const counts = SPECS.map((s) => s.count);
-  return extensionLayout.map((specIdx) => counts[specIdx]++);
-})();
+  const ordinal = layout.map((specIdx) => counts[specIdx]++);
+  extTables = { layout, ordinal };
+  return extTables;
+}
 
 const extCache = new Map<number, Scenario>();
 
@@ -581,8 +583,9 @@ function extensionScenario(n: number): Scenario {
   const hit = extCache.get(n);
   if (hit) return hit;
 
-  const spec = SPECS[extensionLayout[n - BASE_SUITE_SIZE - 1]];
-  const k = extensionOrdinal[n - BASE_SUITE_SIZE - 1];
+  const { layout, ordinal } = extensionTables();
+  const spec = SPECS[layout[n - BASE_SUITE_SIZE - 1]];
+  const k = ordinal[n - BASE_SUITE_SIZE - 1];
   const rng = mulberry32((0x5eed_0001 ^ Math.imul(n, 2654435761)) >>> 0);
 
   const base = spec.bases[k % spec.bases.length];

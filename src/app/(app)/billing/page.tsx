@@ -196,7 +196,7 @@ export default function BillingPage() {
             >
               <span
                 className={`absolute top-0.5 size-5 rounded-full bg-ink transition-all ${
-                  autoTopUpOn ? "left-[22px] bg-[#08110b]" : "left-0.5"
+                  autoTopUpOn ? "left-[22px] bg-on-accent" : "left-0.5"
                 }`}
               />
             </button>

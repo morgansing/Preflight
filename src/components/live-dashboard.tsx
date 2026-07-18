@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ButtonLink, Card, EmptyState, Eyebrow } from "./ui";
+import { ButtonLink, Card, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
 import { ReadinessCard } from "./readiness-card";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
@@ -11,22 +11,44 @@ import { strengthsAndWeaknesses } from "@/lib/live-analyze";
 import { suiteLabel } from "@/lib/suite-tiers";
 
 export function LiveDashboard() {
-  const [runs, setRuns] = useState<LiveRunListItem[] | null>(null);
+  // undefined = loading · null = fetch failed · [] = empty workspace.
+  const [runs, setRuns] = useState<LiveRunListItem[] | null | undefined>(undefined);
   const [latest, setLatest] = useState<LiveRunSummary | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let alive = true;
     (async () => {
       const list = await fetchRuns();
+      if (!list) return { list: null, full: null };
       const latestComplete = list.find((r) => r.status === "complete");
       const full = latestComplete ? await fetchRun(latestComplete.id) : null;
       return { list, full };
     })().then(({ list, full }) => {
+      if (!alive) return;
       setRuns(list);
       setLatest(full);
     });
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [attempt]);
 
-  if (!runs) return null;
+  if (runs === undefined) {
+    return (
+      <div className="mt-16 space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+  if (runs === null) {
+    return (
+      <div className="mt-16">
+        <LoadError what="live runs" onRetry={() => setAttempt((a) => a + 1)} />
+      </div>
+    );
+  }
 
   if (runs.length === 0) {
     return (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ButtonLink, Card, EmptyState, Eyebrow, SeverityLabel } from "./ui";
+import { ButtonLink, Card, EmptyState, Eyebrow, LoadError, SeverityLabel, Skeleton } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
 import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
@@ -11,22 +11,25 @@ import type { Severity } from "@/lib/types";
 
 /** Live benchmark: diff the two most recent completed runs. */
 export function LiveBenchmark() {
-  // undefined = loading; null = fewer than two completed runs.
-  const [pair, setPair] = useState<{ a: LiveRunSummary; b: LiveRunSummary } | null | undefined>(
-    undefined,
-  );
+  // undefined = loading · "failed" = fetch failed · null = <2 completed runs.
+  const [pair, setPair] = useState<
+    { a: LiveRunSummary; b: LiveRunSummary } | null | undefined | "failed"
+  >(undefined);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    (async () => {
-      const complete = (await fetchRuns()).filter((r) => r.status === "complete");
+    (async (): Promise<{ a: LiveRunSummary; b: LiveRunSummary } | null | "failed"> => {
+      const list = await fetchRuns();
+      if (!list) return "failed";
+      const complete = list.filter((r) => r.status === "complete");
       if (complete.length < 2) return null;
       const [b, a] = await Promise.all([fetchRun(complete[0].id), fetchRun(complete[1].id)]);
       return a && b ? { a, b } : null;
     })().then(setPair);
-  }, []);
+  }, [attempt]);
 
   const diff = useMemo(() => {
-    if (!pair) return null;
+    if (!pair || pair === "failed") return null;
     const { a, b } = pair; // b = newest
     const aByScenario = new Map(a.results.map((r) => [r.scenarioId, r.outcome]));
     const shared = b.results.filter((r) => aByScenario.has(r.scenarioId));
@@ -39,7 +42,21 @@ export function LiveBenchmark() {
     return { a, b, newlyBroken, newlyPassing };
   }, [pair]);
 
-  if (pair === undefined) return null;
+  if (pair === undefined) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-4 px-8 py-10">
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+  if (pair === "failed") {
+    return (
+      <div className="mx-auto max-w-5xl px-8 py-24">
+        <LoadError what="the benchmark" onRetry={() => setAttempt((a) => a + 1)} />
+      </div>
+    );
+  }
   if (!diff) {
     return (
       <div className="mx-auto max-w-2xl px-8 py-24">

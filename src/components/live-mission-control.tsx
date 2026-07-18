@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, ButtonLink, Card, Eyebrow } from "./ui";
+import { Button, ButtonLink, Card, Eyebrow, LoadError, Skeleton } from "./ui";
 import { useLiveAgents } from "@/lib/live";
 import {
   fetchProviderStatus,
@@ -138,7 +138,10 @@ export function LiveMissionControl() {
   const router = useRouter();
   const { agents } = useLiveAgents();
   const { session } = useSession();
-  const [provider, setProvider] = useState<"anthropic" | "mock" | null | undefined>(undefined);
+  const [provider, setProvider] = useState<
+    "anthropic" | "mock" | null | undefined | "unreachable"
+  >(undefined);
+  const [statusAttempt, setStatusAttempt] = useState(0);
   const [run, setRun] = useState<LiveRunSummary | null>(null);
   const [cells, setCells] = useState<Map<string, CellState>>(new Map());
   const [results, setResults] = useState<Map<string, LiveCellResult>>(new Map());
@@ -182,8 +185,12 @@ export function LiveMissionControl() {
     }
   }, []);
 
+  // The provider probe retries via statusAttempt after an unreachable state.
   useEffect(() => {
     fetchProviderStatus().then(setProvider);
+  }, [statusAttempt]);
+
+  useEffect(() => {
     // Surface a ready generated suite as its own run tier.
     fetch("/api/generate")
       .then((r) => (r.ok ? r.json() : null))
@@ -282,7 +289,27 @@ export function LiveMissionControl() {
     };
   }, [results]);
 
-  if (provider === undefined) return null;
+  if (provider === undefined) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 px-8 py-16">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+  if (provider === "unreachable") {
+    return (
+      <div className="mx-auto max-w-2xl px-8 py-24">
+        <LoadError
+          what="the run launcher"
+          onRetry={() => {
+            setProvider(undefined);
+            setStatusAttempt((a) => a + 1);
+          }}
+        />
+      </div>
+    );
+  }
   // No evaluation provider configured → sandbox mode. Instead of a
   // dead-end, the launcher runs the built-in reference agent against the
   // real store with the deterministic mock judge — offline, no cost, no

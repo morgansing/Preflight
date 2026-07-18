@@ -78,7 +78,7 @@ export function ReadinessCard({
 
   return (
     <div
-      className={`rounded-xl border border-edge bg-surface p-8 shadow-[0_1px_2px_rgba(0,0,0,0.3)] ${className}`}
+      className={`rounded-xl border border-edge bg-surface p-8 shadow-card ${className}`}
     >
       <Eyebrow>Agent readiness</Eyebrow>
 

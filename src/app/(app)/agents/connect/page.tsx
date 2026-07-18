@@ -126,7 +126,7 @@ export default function ConnectAgentPage() {
                     setKind(o.kind);
                     setProbe(null);
                   }}
-                  className="focus-ring mt-1 size-3.5 accent-[#3ddc84]"
+                  className="focus-ring mt-1 size-3.5 accent-accent"
                 />
                 <div>
                   <div className="flex items-center gap-2 text-sm font-medium text-ink">

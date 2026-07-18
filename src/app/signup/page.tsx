@@ -107,39 +107,51 @@ export default function SignupPage() {
           router.push("/setup");
         }}
       >
-        <input
-          className={inputCls}
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          autoComplete="name"
-        />
-        <input
-          className={inputCls}
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Work email"
-          autoComplete="email"
-        />
-        <input
-          className={inputCls}
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          placeholder="Company · optional"
-          autoComplete="organization"
-        />
+        <label className="block space-y-1.5">
+          <span className="text-[13px] text-sub">Your name</span>
+          <input
+            className={inputCls}
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ada Lovelace"
+            autoComplete="name"
+          />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-[13px] text-sub">Work email</span>
+          <input
+            className={inputCls}
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
+            autoComplete="email"
+          />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="text-[13px] text-sub">Company · optional</span>
+          <input
+            className={inputCls}
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="Acme Ltd"
+            autoComplete="organization"
+          />
+        </label>
         {/* Design-complete; V0 never stores or transmits this value. */}
-        <input
-          className={inputCls}
-          type="password"
-          required
-          minLength={8}
-          placeholder="Password — 8+ characters"
-          autoComplete="new-password"
-        />
+        <label className="block space-y-1.5">
+          <span className="text-[13px] text-sub">Password — 8+ characters</span>
+          <input
+            className={inputCls}
+            type="password"
+            required
+            minLength={8}
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
+        </label>
         <Button type="submit" className="w-full">
           Start simulating — free
         </Button>

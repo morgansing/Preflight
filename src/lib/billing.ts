@@ -203,7 +203,7 @@ export function useSimUsage(): number | undefined | null {
     let alive = true;
     fetchRuns()
       .then((runs) => {
-        if (alive) setUsed(runs.reduce((a, r) => a + r.total, 0));
+        if (alive) setUsed(runs ? runs.reduce((a, r) => a + r.total, 0) : null);
       })
       .catch(() => {
         if (alive) setUsed(null);

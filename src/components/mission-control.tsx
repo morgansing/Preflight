@@ -39,11 +39,28 @@ function useRunClock(loop: boolean, loopPauseMs = 3000, durationMs = DEMO_RUN_DU
   const startRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Reduced motion: the looping showcase wall renders settled instead
+    // of replaying forever. One-shot runs still progress — their cell
+    // animations are CSS, which already respects the preference.
+    if (loop && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const id = setTimeout(() => setElapsed(durationMs), 0);
+      return () => clearTimeout(id);
+    }
+    let last = performance.now();
     const id = setInterval(() => {
-      startRef.current ??= performance.now();
-      const e = performance.now() - startRef.current;
+      const now = performance.now();
+      const dt = now - last;
+      last = now;
+      startRef.current ??= now;
+      if (document.hidden) {
+        // Pause while the tab is hidden — shift the start forward so
+        // elapsed stays frozen instead of jumping on return.
+        startRef.current += dt;
+        return;
+      }
+      const e = now - startRef.current;
       if (loop && e > durationMs + loopPauseMs) {
-        startRef.current = performance.now();
+        startRef.current = now;
         setElapsed(0);
         return;
       }
@@ -188,7 +205,7 @@ export function WallLoop({ className = "" }: { className?: string }) {
   const stats = useWallStats(elapsed);
   return (
     <div
-      className={`rounded-xl border border-edge bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.3)] ${className}`}
+      className={`rounded-xl border border-edge bg-surface p-6 shadow-card ${className}`}
     >
       <div className="mb-4 flex items-center justify-between font-mono text-[11px] tracking-wider text-mut">
         <span className="flex items-center gap-2">
@@ -244,25 +261,22 @@ export function MissionControl() {
       <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-accent/20 bg-accent/5 px-8 py-3">
         <p className="text-[13px] text-sub">
           <span className="font-medium text-ink">This is a demo run</span> — a pre-baked
-          200-scenario benchmark. Want to run one yourself? Switch to Live mode and start a
-          sandbox run — no agent, no key, no cost.
+          200-scenario benchmark. Try launching one yourself: pick an agent and a suite,
+          right here in demo mode. When you&apos;re ready to test your own agent, switch to Live.
         </p>
         <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setShowLauncher((v) => !v)}
-          >
+          <Button size="sm" onClick={() => setShowLauncher((v) => !v)}>
             Run a fake test
           </Button>
           <Button
+            variant="secondary"
             size="sm"
             onClick={() => {
               setMode("live");
               router.push("/runs");
             }}
           >
-            Run one yourself →
+            Test your own agent →
           </Button>
         </div>
       </div>

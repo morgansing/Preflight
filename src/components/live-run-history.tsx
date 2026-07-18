@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ButtonLink, EmptyState, Skeleton } from "./ui";
+import { ButtonLink, EmptyState, LoadError, Skeleton } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { fetchRuns } from "@/lib/live-api";
 import type { LiveRunListItem } from "@/lib/live-types";
@@ -25,12 +25,13 @@ export function agoLabel(iso: string): string {
  * attaches to the live wall.
  */
 export function LiveRunHistory() {
-  // undefined = loading
-  const [runs, setRuns] = useState<LiveRunListItem[] | undefined>(undefined);
+  // undefined = loading · null = fetch failed.
+  const [runs, setRuns] = useState<LiveRunListItem[] | null | undefined>(undefined);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     fetchRuns().then(setRuns);
-  }, []);
+  }, [attempt]);
 
   if (runs === undefined) {
     return (
@@ -38,6 +39,14 @@ export function LiveRunHistory() {
         <Skeleton className="h-9 w-56" />
         <Skeleton className="h-4 w-80" />
         <Skeleton className="mt-6 h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (runs === null) {
+    return (
+      <div className="mx-auto max-w-5xl px-8 py-24">
+        <LoadError what="the run history" onRetry={() => setAttempt((a) => a + 1)} />
       </div>
     );
   }
