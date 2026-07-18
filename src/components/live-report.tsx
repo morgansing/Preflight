@@ -9,9 +9,9 @@ import { UpgradeNudge } from "./upgrade-nudge";
 import { Button, ButtonLink, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
-import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
+import { scoreOf, type LiveRunListItem, type LiveRunSummary } from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
-import { suiteLabel } from "@/lib/suite-tiers";
+import { suiteLabel, tierById } from "@/lib/suite-tiers";
 
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
@@ -19,6 +19,7 @@ const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 export function LiveReport() {
   // undefined = loading · "failed" = fetch failed · null = nothing to report.
   const [run, setRun] = useState<LiveRunSummary | null | undefined | "failed">(undefined);
+  const [allRuns, setAllRuns] = useState<LiveRunListItem[]>([]);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function LiveReport() {
     (async (): Promise<LiveRunSummary | null | "failed"> => {
       const list = await fetchRuns();
       if (!list) return "failed";
+      setAllRuns(list);
       const targetId = param ?? list.find((r) => r.status === "complete")?.id;
       return targetId ? await fetchRun(targetId) : null;
     })().then(setRun);
@@ -133,6 +135,8 @@ export function LiveReport() {
         />
       </div>
 
+      <CoveragePanel run={run} allRuns={allRuns} />
+
       <UpgradeNudge simsThisRun={run.results.length} />
 
       <RegressionPanel runId={run.id} />
@@ -197,5 +201,79 @@ export function LiveReport() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * What this score covers — and what it doesn't. A score can only vouch
+ * for what was tested; this panel is the report saying so out loud.
+ * Each dimension shows the agent's most recent run of that kind; the
+ * policy row warns until a Rulebook suite has actually been run.
+ */
+function CoveragePanel({ run, allRuns }: { run: LiveRunSummary; allRuns: LiveRunListItem[] }) {
+  const agentRuns = allRuns.filter(
+    (r) => r.agentName === run.agentName && r.status === "complete",
+  );
+  const latest = (match: (suiteId: string) => boolean) =>
+    agentRuns.find((r) => match(r.suite)); // list is newest-first
+
+  const dimensions = [
+    {
+      label: "General support skills",
+      detail: "the built-in scenario library",
+      hit: latest((s) => !!tierById(s) || s === "full"),
+    },
+    {
+      label: "Hard-mode pressure",
+      detail: "difficulty 4–5 adversaries (The Gauntlet)",
+      hit: latest((s) => s === "gauntlet"),
+    },
+    {
+      label: "Prompt-injection security",
+      detail: "attacks hidden in store data",
+      hit: latest((s) => s === "security"),
+    },
+    {
+      label: "Your own policies",
+      detail: "Rulebook suite written from your rules",
+      hit: latest((s) => s.startsWith("custom:")),
+    },
+  ];
+  const policyTested = !!dimensions[3].hit;
+
+  return (
+    <section className="mt-6 rounded-xl border border-edge bg-surface p-6">
+      <Eyebrow>What this score covers</Eyebrow>
+      <ul className="mt-4 space-y-3">
+        {dimensions.map((d) => (
+          <li key={d.label} className="flex items-baseline justify-between gap-4 text-sm">
+            <span className="min-w-0">
+              <span className={d.hit ? "text-ink" : "text-sub"}>{d.label}</span>
+              <span className="ml-2 hidden text-[12px] text-mut sm:inline">{d.detail}</span>
+            </span>
+            {d.hit ? (
+              <Link
+                href={`/runs/${d.hit.id}`}
+                className="focus-ring shrink-0 rounded font-mono text-[12px] tabular-nums text-accent hover:underline"
+              >
+                ✓ {d.hit.score}% · {d.hit.id}
+              </Link>
+            ) : (
+              <span className="shrink-0 font-mono text-[12px] text-mut">— not tested</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {!policyTested && (
+        <p className="mt-5 rounded-lg border border-warn/40 bg-warn/8 p-3.5 text-[13px] leading-relaxed text-warn">
+          This score says nothing about your own policies — Preflight hasn&apos;t been
+          taught them, so rules like &ldquo;refunds over £75 need manager approval&rdquo; were
+          never tested.{" "}
+          <Link href="/setup" className="focus-ring rounded font-medium underline">
+            Teach Preflight your policy →
+          </Link>
+        </p>
+      )}
+    </section>
   );
 }
