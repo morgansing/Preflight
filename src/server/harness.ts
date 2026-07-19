@@ -224,6 +224,7 @@ export async function ensureBootRecovery(): Promise<void> {
       }
     }
     if (running.length === 0) void advanceQueue();
+    void import("./retention").then((m) => m.pruneOldTranscripts());
   } catch (err) {
     log.error("harness", "boot recovery failed", err);
   }
@@ -560,6 +561,9 @@ async function executeRun(
   emit(runId, { type: "run_finished", status: "complete" });
   // A finished run frees the shared store — drain any queued plan step.
   void advanceQueue();
+  // Fire-and-forget housekeeping: webhook + retention pruning.
+  void import("./notify").then((m) => m.notifyRunFinished(runId));
+  void import("./retention").then((m) => m.pruneOldTranscripts());
 }
 
 interface ScenarioOutcome {
@@ -635,7 +639,35 @@ async function runScenario(
       return judged;
     };
 
-    const judged = await withTimeout(body(), SCENARIO_TIMEOUT_MS, scenario.id);
+    let judged = await withTimeout(body(), SCENARIO_TIMEOUT_MS, scenario.id);
+
+    // Critical-severity fails get a second, independent judge pass —
+    // a critical verdict should never rest on a single sample. Two
+    // fails confirm it; a disagreement keeps the milder verdict,
+    // flagged. (Skipped for the deterministic mock judge.)
+    if (
+      judged.verdict.outcome === "fail" &&
+      judged.verdict.severity === "critical" &&
+      provider.name !== "mock"
+    ) {
+      try {
+        const second = await withTimeout(
+          provider.judge(scenario, steps),
+          SCENARIO_TIMEOUT_MS,
+          `${scenario.id}(confirm)`,
+        );
+        tokens += second.tokens;
+        costUsd += second.costUsd;
+        if (second.verdict.outcome !== "fail") {
+          second.verdict.failureReason =
+            `Judges disagreed on a critical verdict (fail vs ${second.verdict.outcome}) — the milder verdict was kept. ` +
+            (second.verdict.failureReason ?? "");
+          judged = second;
+        }
+      } catch {
+        // The confirmation pass is best-effort; the first verdict stands.
+      }
+    }
     const v = judged.verdict;
 
     return {

@@ -12,7 +12,8 @@
     "predev": "prisma db push",
     "prestart": "prisma db push",
     "test": "vitest run",
-    "calibrate": "vitest run src/server/calibration.test.ts"
+    "calibrate": "vitest run src/server/calibration.test.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
@@ -27,6 +28,7 @@
     "stripe": "^22.3.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

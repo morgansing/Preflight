@@ -1,121 +1,142 @@
 # Preflight
 
-**The flight simulator for AI agents.** Preflight tests AI support agents against
-hundreds of realistic scenarios in a simulated store — before they ever touch a
-real customer — and produces a readiness verdict: what passes, where it breaks,
-and step-by-step replays of every failure.
+**The flight simulator for AI agents.** Preflight runs AI support agents
+through hundreds of realistic scenarios in a simulated store — before they
+ever touch a real customer — and produces a readiness verdict: what passes,
+where it breaks, a root-cause diagnosis for every failure pattern, and a
+step-by-step replay of every conversation.
 
-## Running it
+[![Preflight](https://your-preflight-host/api/badge/demo)](https://your-preflight-host/share/demo)
+*Every completed run can mint a public, verifiable score badge like this one.*
+
+## Quickstart
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
 ```
 
-`npm run build && npm start` for production. Demo mode needs no API keys
-and makes zero network calls. (`npm run dev`/`start` auto-create the SQLite
-store via `prisma db push`.)
+Demo mode needs no API keys and makes zero network calls — the full product
+tour works offline, including launching a **fake test** and watching the wall
+fill in. (`npm run dev`/`start` auto-create the SQLite store via
+`prisma db push`.)
 
-## The two modes
+For real evaluations, set one env var:
 
-A persistent switch at the bottom of the nav rail toggles Demo/Live (stored in
-localStorage). Same components, same routes — only the data source differs.
+```bash
+PREFLIGHT_LLM_KEY=sk-ant-…   # or ANTHROPIC_API_KEY
+```
 
-- **Demo mode** (default): one pre-baked run — 200 scenarios, 182 pass / 15
-  fail / 3 partial → 91% — replayed with scripted timings so Mission Control
-  looks live but is identical every time. Six failure replays are hand-authored
-  end-to-end; every other cell gets a deterministic generated replay so no
-  click is a dead end. Demo mode makes zero network calls.
-- **Live mode**: the real product. The harness resets + reseeds a simulated
-  store (Prisma + SQLite: ~500 orders full of realistic mess, grounded in the
-  scenario suite), then runs each scenario as a genuine multi-turn
-  conversation — an LLM customer persona against the agent under test, which
-  drives real store tools (`get_order`, `issue_refund`, `escalate`, …). An
-  LLM judge grades every transcript against the scenario rubric via a strict
-  JSON-schema tool call. Results stream into Mission Control over SSE (with
-  DB catch-up on refresh) and persist in the demo replay shape, so Replay,
-  Reports and Benchmark work identically in both modes. Live mode never
-  falls back to scripted data.
+`PREFLIGHT_LLM_KEY=mock` selects an explicitly-labeled deterministic provider
+for development and CI — never a silent fallback. Sandbox runs (no key at
+all) run the built-in reference agent free and offline. See `.env.example`
+for everything else — every subsystem below that needs credentials is
+**built and dormant** until its keys exist.
 
-  Setup: `PREFLIGHT_LLM_KEY=sk-ant-…` (or `ANTHROPIC_API_KEY`) on the
-  server. Models default to `claude-opus-4-8` (override `PREFLIGHT_MODEL`;
-  `PREFLIGHT_CONCURRENCY` sets parallel scenarios, default 3).
-  Live runs pick a **suite tier**: Smoke 24 (default) · Standard 200 ·
-  Extended 500 · Scale 1,000 · Exhaustive 5,000 · Max 10,000. The first
-  200 scenarios are the hand-shaped base suite; larger tiers extend it
-  deterministically across the same category proportions, every scenario
-  grounded in the seeded store. Tier cards show estimated cost and
-  duration up front (Max ≈ $2,000 · ≈ 28 h at Opus pricing) and the run
-  header ticks the real numbers. The built-in
-  **reference agent** is deliberately imperfect *by incentive* — its prompt
-  optimizes for "resolve fast, keep the customer happy, avoid escalating" —
-  so its refund-fraud/duplicate/escalation failures are genuine model
-  behavior. Infra failures render as amber "run error", excluded from the
-  score — red only ever means the agent failed.
+## What a test is
 
-  For development/CI without a key, `PREFLIGHT_LLM_KEY=mock` selects an
-  explicitly-labeled deterministic mock provider (visible MOCK PROVIDER
-  badge on every surface) that exercises the real store, tools, harness,
-  persistence and streaming with scripted agent behavior. It is an explicit
-  setting, never a fallback.
+A scenario is a *setup* — customer persona, opening message, hidden facts,
+pass criteria, must-nots, severity, and a difficulty grade (1 Routine → 5
+Brutal). In a live run, an LLM customer persona **improvises** the
+conversation from that setup against your agent, which drives real store
+tools (`get_order`, `issue_refund`, `escalate`, …) against a seeded
+simulated store. An LLM judge grades every transcript against the rubric —
+critical-severity fails require a **second independent judge pass** to be
+confirmed. Scores carry a **95% confidence interval**; infra failures render
+amber "run error" and never count against the agent. Red only ever means the
+agent failed.
 
-## Setup wizard + custom suite generation (Phase A + B)
+**Two scenario sources:**
 
-`/setup` turns "a connected agent" into a confirmed **Agent Dossier** and
-an approved **Rulebook**, then generates a bespoke scenario suite from it —
-so the test is built from *your* rules, not a generic library.
+- **The built-in library** — 200 hand-shaped base scenarios across 11
+  categories (traps included), extended deterministically to 10,000. Run it
+  at any depth: Smoke 24 · Standard 200 · Extended 500 · Scale 1,000 ·
+  Exhaustive 5,000 · Max 10,000, plus **The Gauntlet** (the 23 difficulty
+  4–5 scenarios — included in Standard and above, rerunnable alone) and the
+  **prompt-injection Security suite** (attacks planted in store data).
+- **Your Rulebook suite** — the Setup wizard turns your policy (help-centre
+  URL, docs, system prompt, **real conversation transcripts**, or 7
+  questions) into an approved Rulebook, then generates scenarios from each
+  rule × a pressure grid: emotion, boundary amounts (a £500 rule yields
+  £499/£500/£501), identity, deception, and adversarial tactics up the
+  difficulty ladder. The only test that knows *your* policies.
+- **Red-team suites** — one click on any report turns that run's failure
+  clusters into a new suite that attacks exactly where the agent already
+  cracked. Your agent's weaknesses become its next exam.
 
-- **The wizard** (5 steps): role → agent → capabilities + dossier
-  (platform, tone, risk tolerance — the generator reads all of it) →
-  policy → Rulebook. Four optional policy inputs converge on one Rulebook:
-  paste a help-centre URL (server crawl), paste/upload documents, paste the
-  agent's system prompt, or answer 7 questions (pure templating, no LLM).
-  Rules are AI-drafted (strict-schema extraction) and human-approved on the
-  editable Rulebook screen — the trust checkpoint.
-- **Generation** (`/api/generate`): each approved rule × a **pressure grid**
-  — emotion (calm → legal threat), **boundary amounts** (a £500 rule yields
-  £499 / £500 / £501 scenarios — thresholds are where agents break),
-  identity (regular/VIP/new/suspected-fraud), deception (honest/embellished/
-  fraudulent). Risk tolerance biases how adversarial the mix is. Each
-  scenario ships with **matching store fixtures**, so its hidden facts are
-  true in the environment (the signed delivery record actually exists).
-- The generated suite is versioned, appears in the run launcher as a
-  **Custom · From your Rulebook** tier (`custom:<version>`), and flows
-  through the wall, replay, report and benchmark unchanged — results carry a
-  scenario snapshot so replays survive suite regeneration.
+## What you get after a run
 
-## The screens
+- **The wall** — every scenario a cell, filterable to just the fails;
+  every cell opens the full transcript replay with the divergence marker.
+- **The readiness report** — score ± CI, strengths/weaknesses,
+  *N problems not M failures* (root-cause clusters with fixes and proof
+  replays), the risks that matter, and a **"What this score covers"** panel
+  that says out loud when your own policies were never tested.
+- **Flight plans** — one job that runs several suites sequentially
+  (coverage + security + your Rulebook), auto-advancing, with an aggregate
+  sign-off report whose verdict is a checklist, not an average.
+- **Regression vs baseline** — pin a baseline; every run diffs against it
+  (newly broken / newly fixed), with webhook alerts on regressions.
+- **Shareable proof** — a public read-only result page, an embeddable SVG
+  score badge, and a PDF export of the report.
 
-| Route | What it is |
-| --- | --- |
-| `/` | Landing — hero, autoplaying wall loop (the real component, not a video) |
-| `/dashboard` | Agents under test, readiness card, sparklines |
-| `/setup` | **Setup wizard** — Agent Dossier, 4 policy inputs, Rulebook, generate |
-| `/runs` | **Mission Control** — the wall filling in live (24 → 10,000 cells) |
-| `/replay/[id]` | **Replay** — saw / did / expected columns, divergence marker, ←/→ scrubber |
-| `/reports` | The readiness report — a document, not a dashboard; printable |
-| `/benchmark` | Two-run diff — newly passing / newly broken |
-| `/scenarios` | Scenario library — size selector (200 → 10,000), paginated |
-| `/components` | Design-system proof page |
+## CI: gate your agent like you gate your tests
+
+```yaml
+# .github/workflows/preflight.yml
+- uses: your-org/preflight@main
+  with:
+    endpoint: ${{ secrets.AGENT_ENDPOINT }}
+    suite: smoke
+    min-score: 90
+```
+
+The bundled Action (`action.yml` + `scripts/preflight-gate.mjs`) runs a
+suite against your agent on every PR, comments the scorecard, and fails the
+check below your threshold. For **continuous monitoring**, run it on a
+schedule and gate against the pinned baseline:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 3 * * *"   # nightly standard run; alerts via PREFLIGHT_WEBHOOK_URL
+```
+
+## Operations
+
+- `GET /api/health` — subsystem status for uptime monitors.
+- `PREFLIGHT_WEBHOOK_URL` — Slack-compatible notifications on run
+  completion and regressions.
+- `PREFLIGHT_RETENTION_DAYS` — transcript pruning (scores kept forever).
+- Interrupted runs **resume automatically** after a restart or deploy,
+  continuing from the last written result.
+- `npm run calibrate` — replays the hand-labeled calibration set through
+  the judge and prints agreement + a confusion matrix
+  (`CALIBRATE=real` measures the production judge).
+- `npm run e2e` — Playwright golden paths (demo replay, fake test,
+  filters, sandbox run, share/badge loop); CI runs them on every push.
+
+## Production activation
+
+Everything ships dormant and flips on with env vars — no code changes:
+
+| Subsystem | Activation | Docs |
+| --- | --- | --- |
+| Postgres/Supabase DB | `DATABASE_URL` + adapter swap | `docs/PRODUCTION.md` §1 |
+| Stripe billing (plans + token ledger) | 2 env vars + price lookup_keys | `docs/PRODUCTION.md` §2 |
+| Supabase auth (all mutating routes) | `SUPABASE_JWT_SECRET` | `docs/PRODUCTION.md` §3 |
+
+The prioritised list of deliberate V0 trade-offs lives in `docs/ROADMAP.md`.
 
 ## Architecture
 
-- Next.js (App Router) + TypeScript + Tailwind v4 — design tokens live in
-  `src/app/globals.css` (`@theme`), per the design system: one signal-green
-  accent, red reserved exclusively for failures, serif numerals for scores.
-- All demo data is generated deterministically from a seeded PRNG
-  (`src/lib/seeded.ts`) in `src/lib/fixtures/` — scenarios, run timings,
-  replays, benchmark, report.
-- Mode context in `src/lib/mode.tsx`; live agent registry scaffolding in
-  `src/lib/live.ts`.
-
-## Status vs the build brief
-
-All nine build steps are complete: design system, Mission Control, Readiness
-Card + Dashboard, Replay, Reports/Benchmark/Scenarios, mode switch, the
-simulated store (Prisma schema + deterministic seed + tools), the harness +
-judge + reference agent wiring Live mode end to end, and the landing page.
-Server code lives in `src/server/` (seed, store tools, providers, harness,
-prompts, SSE bus); live API routes in `src/app/api/live/`. Not yet built:
-MCP-endpoint agents (registered but rejected at run time with honest copy),
-auth, and Postgres.
+- Next.js (App Router) + TypeScript + Tailwind v4; design tokens in
+  `src/app/globals.css` (`@theme`) — one signal-green accent, red reserved
+  exclusively for failures, serif numerals for scores.
+- Demo world generated deterministically from a seeded PRNG in
+  `src/lib/fixtures/` and locked by contract tests (`npm test`, 44 tests) —
+  scores, miss orders, and replays are consistent across every surface.
+- Server in `src/server/` (harness, providers, judge, seed, store tools,
+  billing, auth, share, notify); live API routes in `src/app/api/`.
+- One evaluation at a time by design (the store is shared and reseeded per
+  run); flight plans queue and auto-advance.

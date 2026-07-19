@@ -164,6 +164,11 @@ export function LiveReport() {
     fail: run.results.filter((r) => r.outcome === "fail").length,
     partial: run.results.filter((r) => r.outcome === "partial").length,
   };
+  // Wilson 95% interval on the pass proportion — a 24-scenario smoke
+  // score wears its uncertainty; a 5,000-scenario run has earned a
+  // tight one. Honest numbers build the badge's credibility.
+  const scoredN = counts.pass + counts.fail + counts.partial;
+  const ciMargin = wilsonMarginPts(counts.pass, scoredN);
 
   return (
     <div className="mx-auto max-w-3xl px-8 py-16">
@@ -199,7 +204,7 @@ export function LiveReport() {
           strengths={report.strengths}
           weaknesses={report.weaknesses}
           wallHref={`/runs/${run.id}`}
-          meta={`${run.results.length} scenarios · ${counts.pass} passed · ${counts.fail} failed · ${counts.partial} partial${report.errors.length ? ` · ${report.errors.length} run error` : ""} · ${report.tokens.toLocaleString()} tok · $${report.cost.toFixed(2)}`}
+          meta={`${run.results.length} scenarios · ${counts.pass} passed · ${counts.fail} failed · ${counts.partial} partial${report.errors.length ? ` · ${report.errors.length} run error` : ""} · ±${ciMargin} pts (95% CI) · ${report.tokens.toLocaleString()} tok · $${report.cost.toFixed(2)}`}
         />
       </div>
 
@@ -346,6 +351,16 @@ function CoveragePanel({ run, allRuns }: { run: LiveRunSummary; allRuns: LiveRun
       )}
     </section>
   );
+}
+
+/** Wilson 95% half-width on a pass proportion, in score points. */
+function wilsonMarginPts(pass: number, n: number): number {
+  if (n === 0) return 0;
+  const z = 1.96;
+  const p = pass / n;
+  const denom = 1 + (z * z) / n;
+  const half = (z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n)) / denom;
+  return Math.max(1, Math.round(half * 100));
 }
 
 /** Build and save the PDF artefact for a live run's report. */

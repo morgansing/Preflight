@@ -49,6 +49,16 @@ export const config = {
     catalogJson: process.env.BILLING_CATALOG_JSON ?? null,
   },
 
+  /** Optional webhook (Slack-compatible) notified on run completion
+   * and regressions. The operator's own endpoint — still SSRF-screened
+   * in production. */
+  webhookUrl: process.env.PREFLIGHT_WEBHOOK_URL ?? null,
+
+  /** Transcript retention in days; null/0 = keep forever (default).
+   * Outcomes and scores are always kept — only transcript/judge JSON
+   * is pruned. */
+  retentionDays: int(process.env.PREFLIGHT_RETENTION_DAYS, 0) || null,
+
   auth: {
     /** Supabase project URL (informational; verification is local). */
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,

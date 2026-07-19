@@ -128,6 +128,74 @@ async function executeGeneration(
   });
 }
 
+/**
+ * Red-team generation: point the generator at an agent's OWN failures.
+ * Each failure cluster from a completed run becomes a must-not rule,
+ * and the pressure grid is run at maximum adversarial intent — so the
+ * next suite attacks exactly where this agent already cracked.
+ */
+export async function startRedteamGeneration(
+  runId: string,
+): Promise<{ version: number; ruleCount: number } | { error: string; status: number }> {
+  const key = providerKey();
+  if (!key) return { error: "Generation needs an LLM provider key (or PREFLIGHT_LLM_KEY=mock for dev).", status: 409 };
+
+  const generating = await prisma.customSuite.findFirst({ where: { status: "generating" } });
+  if (generating) return { error: `Suite v${generating.version} is still generating.`, status: 409 };
+
+  const run = await prisma.liveRun.findUnique({ where: { id: runId } });
+  if (!run || run.status !== "complete") {
+    return { error: "Red-team suites are generated from a completed run.", status: 409 };
+  }
+  const { getClusterReport } = await import("./clustering");
+  const { getProvider } = await import("./provider");
+  const provider = key === "mock" ? null : await getProvider();
+  const report = await getClusterReport(prisma, runId, provider);
+  if (report.clusters.length === 0) {
+    return { error: "No failures in that run — nothing to attack. That's the good ending.", status: 409 };
+  }
+
+  // Each cluster becomes a constraint the agent has already violated.
+  const rules: DraftRule[] = report.clusters.slice(0, 12).map((c) => ({
+    text: c.title,
+    category: c.categories[0] ?? "Escalation",
+    severity: c.severity,
+    kind: "must_not",
+    source: "manual",
+  }));
+
+  const profileRow = await prisma.agentProfile.findUnique({ where: { id: "default" } });
+  const profile: AgentProfile = profileRow
+    ? {
+        role: profileRow.role,
+        agentRef: profileRow.agentRef,
+        tools: JSON.parse(profileRow.toolsJson),
+        platform: profileRow.platform,
+        tone: profileRow.tone,
+        // Red-team always generates at the most adversarial setting.
+        riskTolerance: "low",
+      }
+    : { ...DEFAULT_PROFILE, riskTolerance: "low" };
+
+  const suite = await prisma.customSuite.create({
+    data: {
+      name: `Red-team suite (from ${runId})`,
+      status: "generating",
+      ruleCount: rules.length,
+      provider: key === "mock" ? "mock" : "anthropic",
+    },
+  });
+
+  void executeGeneration(suite.version, rules, profile, 6, key === "mock").catch(async (err) => {
+    await prisma.customSuite.update({
+      where: { version: suite.version },
+      data: { status: "error", error: String(err) },
+    });
+  });
+
+  return { version: suite.version, ruleCount: rules.length };
+}
+
 /* --------------------- LLM enrichment (real provider) --------------------- */
 
 const ENRICH_TOOL: Anthropic.Tool = {
