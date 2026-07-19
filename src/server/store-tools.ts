@@ -124,24 +124,35 @@ export interface ToolContext {
 
 const j = (x: unknown) => JSON.parse(JSON.stringify(x));
 
-async function orderView(prisma: PrismaClient, orderId: string) {
+/* Store rows are run-scoped: ids are stored as `<runId>~<logical>` so
+ * concurrent runs never collide (see src/server/seed.ts). The agent
+ * only ever sees logical ids — these two translate at the boundary. */
+const scoped = (runId: string, id: string) => `${runId}~${id}`;
+function logical(runId: string, id: string): string;
+function logical(runId: string, id: string | null): string | null;
+function logical(runId: string, id: string | null): string | null {
+  const prefix = `${runId}~`;
+  return id && id.startsWith(prefix) ? id.slice(prefix.length) : id;
+}
+
+async function orderView(prisma: PrismaClient, runId: string, orderId: string) {
   const order = await prisma.order.findUnique({
-    where: { id: orderId },
+    where: { id: scoped(runId, orderId) },
     include: { events: true, refunds: true, customer: true },
   });
   if (!order) return null;
   return {
-    order_id: order.id,
+    order_id: logical(runId, order.id),
     status: order.status,
     total: order.total,
     created_at: order.createdAt.toISOString(),
     items: JSON.parse(order.itemsJson),
     payment: { method: order.paymentMethod, last4: order.paymentLast4 },
     delivery_address: order.address,
-    customer_id: order.customerId,
+    customer_id: logical(runId, order.customerId),
     customer_name: order.customer.name,
     policy_flags: JSON.parse(order.flagsJson),
-    duplicate_of: order.duplicateOf,
+    duplicate_of: logical(runId, order.duplicateOf),
     // Untrusted free-text (customer note / gift message). It is data, not
     // instructions — an agent that acts on text found here is exploitable.
     ...(order.noteText ? { customer_service_note: order.noteText } : {}),
@@ -151,7 +162,7 @@ async function orderView(prisma: PrismaClient, orderId: string) {
       ...JSON.parse(e.detailJson),
     })),
     refunds: order.refunds.map((r) => ({
-      refund_id: r.id,
+      refund_id: logical(runId, r.id),
       amount: r.amount,
       reason: r.reason,
       created_at: r.createdAt.toISOString(),
@@ -174,13 +185,14 @@ export async function executeTool(
 
   switch (name) {
     case "get_order": {
-      const view = await orderView(prisma, String(input.order_id ?? ""));
+      const view = await orderView(prisma, runId, String(input.order_id ?? ""));
       return view ?? { error: `No order ${input.order_id}` };
     }
 
     case "search_orders": {
-      const where: Record<string, unknown> = {};
-      if (input.customer_id) where.customerId = String(input.customer_id);
+      // Every path stays inside this run's slice.
+      const where: Record<string, unknown> = { id: { startsWith: `${runId}~` } };
+      if (input.customer_id) where.customerId = scoped(runId, String(input.customer_id));
       if (input.email) where.customer = { email: String(input.email) };
       if (!input.customer_id && !input.email) {
         return { error: "Provide customer_id or email" };
@@ -194,28 +206,32 @@ export async function executeTool(
         take: 10,
       });
       return orders.map((o) => ({
-        order_id: o.id,
+        order_id: logical(runId, o.id),
         status: o.status,
         total: o.total,
         created_at: o.createdAt.toISOString(),
         items: JSON.parse(o.itemsJson),
-        duplicate_of: o.duplicateOf,
+        duplicate_of: logical(runId, o.duplicateOf),
         policy_flags: JSON.parse(o.flagsJson),
       }));
     }
 
     case "get_customer": {
       const customer = input.customer_id
-        ? await prisma.customer.findUnique({ where: { id: String(input.customer_id) } })
+        ? await prisma.customer.findUnique({
+            where: { id: scoped(runId, String(input.customer_id)) },
+          })
         : input.email
-          ? await prisma.customer.findFirst({ where: { email: String(input.email) } })
+          ? await prisma.customer.findFirst({
+              where: { email: String(input.email), id: { startsWith: `${runId}~` } },
+            })
           : null;
       if (!customer) return { error: "Customer not found — provide customer_id or email" };
       const refundCount = await prisma.refund.count({
         where: { order: { customerId: customer.id }, runId: null },
       });
       return {
-        customer_id: customer.id,
+        customer_id: logical(runId, customer.id),
         name: customer.name,
         email: customer.email,
         address: customer.address,
@@ -229,13 +245,16 @@ export async function executeTool(
 
     case "check_stock": {
       const product = input.sku
-        ? await prisma.product.findUnique({ where: { sku: String(input.sku) } })
+        ? await prisma.product.findUnique({ where: { sku: scoped(runId, String(input.sku)) } })
         : await prisma.product.findFirst({
-            where: { name: { contains: String(input.name ?? "") } },
+            where: {
+              name: { contains: String(input.name ?? "") },
+              sku: { startsWith: `${runId}~` },
+            },
           });
       if (!product) return { error: "Product not found" };
       return j({
-        sku: product.sku,
+        sku: logical(runId, product.sku),
         name: product.name,
         price: product.price,
         in_stock: product.stock,
@@ -247,7 +266,7 @@ export async function executeTool(
 
     case "issue_refund": {
       const order = await prisma.order.findUnique({
-        where: { id: String(input.order_id ?? "") },
+        where: { id: scoped(runId, String(input.order_id ?? "")) },
         include: { refunds: true },
       });
       if (!order) return { error: `No order ${input.order_id}` };
@@ -264,7 +283,7 @@ export async function executeTool(
           destinationJson: input.destination ? JSON.stringify(input.destination) : null,
         },
       });
-      await log({ order_id: order.id, amount, destination: input.destination ?? "original" });
+      await log({ order_id: logical(runId, order.id), amount, destination: input.destination ?? "original" });
       return {
         refund_id: refund.id,
         status: "processed",
@@ -274,33 +293,39 @@ export async function executeTool(
     }
 
     case "cancel_order": {
-      const order = await prisma.order.findUnique({ where: { id: String(input.order_id ?? "") } });
+      const order = await prisma.order.findUnique({
+        where: { id: scoped(runId, String(input.order_id ?? "")) },
+      });
       if (!order) return { error: `No order ${input.order_id}` };
       if (order.status === "delivered" || order.status === "cancelled") {
         return { error: `Order is ${order.status} and cannot be cancelled` };
       }
       await prisma.order.update({ where: { id: order.id }, data: { status: "cancelled" } });
-      await log({ order_id: order.id, previous_status: order.status });
-      return { order_id: order.id, status: "cancelled", previous_status: order.status };
+      await log({ order_id: logical(runId, order.id), previous_status: order.status });
+      return { order_id: logical(runId, order.id), status: "cancelled", previous_status: order.status };
     }
 
     case "create_return": {
-      const order = await prisma.order.findUnique({ where: { id: String(input.order_id ?? "") } });
+      const order = await prisma.order.findUnique({
+        where: { id: scoped(runId, String(input.order_id ?? "")) },
+      });
       if (!order) return { error: `No order ${input.order_id}` };
       await log({
-        order_id: order.id,
+        order_id: logical(runId, order.id),
         override_final_sale: !!input.override_final_sale,
         reason: input.reason ?? null,
       });
       return {
-        rma_id: `RMA-${order.id.slice(1)}`,
+        rma_id: `RMA-${logical(runId, order.id).slice(1)}`,
         status: "label_sent",
         final_sale_override_used: !!input.override_final_sale,
       };
     }
 
     case "update_address": {
-      const order = await prisma.order.findUnique({ where: { id: String(input.order_id ?? "") } });
+      const order = await prisma.order.findUnique({
+        where: { id: scoped(runId, String(input.order_id ?? "")) },
+      });
       if (!order) return { error: `No order ${input.order_id}` };
       const flags: string[] = JSON.parse(order.flagsJson);
       if (flags.includes("address_locked_with_carrier") || order.status !== "processing") {
@@ -310,8 +335,8 @@ export async function executeTool(
         where: { id: order.id },
         data: { address: String(input.address) },
       });
-      await log({ order_id: order.id, address: input.address });
-      return { order_id: order.id, address: input.address, status: "updated" };
+      await log({ order_id: logical(runId, order.id), address: input.address });
+      return { order_id: logical(runId, order.id), address: input.address, status: "updated" };
     }
 
     case "escalate": {

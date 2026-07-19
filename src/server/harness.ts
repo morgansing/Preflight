@@ -3,7 +3,7 @@ import { config } from "./config";
 import { log } from "./log";
 import { assertFetchableUrl } from "./net-guard";
 import { emit } from "./bus";
-import { resetAndSeed, resetAndSeedCustom, resetAndSeedSecurity } from "./seed";
+import { cleanupRunStore, resetAndSeed, resetAndSeedCustom, resetAndSeedSecurity } from "./seed";
 import { executeTool } from "./store-tools";
 import { suiteScenarioIds } from "./suite";
 import { loadSuiteScenarios } from "./generation";
@@ -90,9 +90,9 @@ async function validateLaunch(
 interface ResolvedSuite {
   scenarioIds: string[];
   scenarioMap: Map<string, Scenario>;
-  /** Reset + reseed the shared store for this suite. Run just before
-   * execution — never at queue time. */
-  seed: () => Promise<void>;
+  /** Seed this run's isolated store slice. Run just before execution —
+   * never at queue time. */
+  seed: (runId: string) => Promise<void>;
 }
 
 /** Resolve a suite id to its scenarios and seeding strategy.
@@ -109,7 +109,7 @@ async function resolveSuite(
     return {
       scenarioIds: SECURITY_SCENARIOS.map((s) => s.scenario.id),
       scenarioMap: new Map(SECURITY_SCENARIOS.map((s) => [s.scenario.id, s.scenario])),
-      seed: () => resetAndSeedSecurity(prisma, SECURITY_SCENARIOS),
+      seed: (runId: string) => resetAndSeedSecurity(prisma, runId, SECURITY_SCENARIOS),
     };
   }
   if (customMatch) {
@@ -121,7 +121,7 @@ async function resolveSuite(
     return {
       scenarioIds: loaded.map((l) => l.scenario.id),
       scenarioMap: new Map(loaded.map((l) => [l.scenario.id, l.scenario])),
-      seed: () => resetAndSeedCustom(prisma, loaded),
+      seed: (runId: string) => resetAndSeedCustom(prisma, runId, loaded),
     };
   }
   const ids = suiteScenarioIds(suite);
@@ -131,7 +131,7 @@ async function resolveSuite(
     scenarioMap: new Map(
       ids.map((id) => [id, getScenarioById(id)]).filter((e): e is [string, Scenario] => !!e[1]),
     ),
-    seed: () => resetAndSeed(prisma, ids),
+    seed: (runId: string) => resetAndSeed(prisma, runId, ids),
   };
 }
 
@@ -190,6 +190,7 @@ async function resumeRun(row: RunRow): Promise<boolean> {
         data: { status: "error", error: String(err), finishedAt: new Date() },
       });
       emit(row.id, { type: "run_finished", status: "error", error: String(err) });
+      scheduleStoreCleanup(row.id);
       void advanceQueue();
     },
   );
@@ -230,40 +231,53 @@ export async function ensureBootRecovery(): Promise<void> {
   }
 }
 
-/** One run at a time (the store is shared). A crashed or restarted
- * process must not deadlock this forever: a "running" run with no
- * recent progress is resumed when possible, closed out when not.
- * Returns an error when a live run is genuinely still executing. */
+/** Fire-and-forget store-slice cleanup once a run is finished. */
+function scheduleStoreCleanup(runId: string): void {
+  void cleanupRunStore(prisma, runId).catch((err) =>
+    log.warn("harness", "store cleanup failed", { runId, err: String(err) }),
+  );
+}
+
+/** Capacity guard. Runs are isolated (each seeds its own store slice),
+ * so concurrency is a resource cap, not a correctness constraint. On
+ * the way through, stale "running" rows are resumed when possible and
+ * closed out when not — a crashed process never wedges the launcher. */
 async function guardSharedStore(): Promise<{ error: string; status: number } | null> {
   const staleBefore = new Date(Date.now() - STALE_RUN_MS);
-  const running = await prisma.liveRun.findFirst({ where: { status: "running" } });
-  if (!running) return null;
-  const lastResult = await prisma.liveResult.findFirst({
-    where: { runId: running.id },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-  const lastProgress = lastResult?.createdAt ?? running.startedAt;
-  if (lastProgress >= staleBefore) {
-    return { error: `Run ${running.id} is still executing — the store is shared, one run at a time.`, status: 409 };
+  const running = await prisma.liveRun.findMany({ where: { status: "running" } });
+  let active = 0;
+  for (const row of running) {
+    const lastResult = await prisma.liveResult.findFirst({
+      where: { runId: row.id },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const lastProgress = lastResult?.createdAt ?? row.startedAt;
+    if (lastProgress >= staleBefore || activeRuns.has(row.id)) {
+      active += 1;
+      continue;
+    }
+    if (await resumeRun(row)) {
+      active += 1;
+      continue;
+    }
+    log.warn("harness", "recovering abandoned run", { runId: row.id });
+    await prisma.liveRun.update({
+      where: { id: row.id },
+      data: {
+        status: "error",
+        error: "Run abandoned — the server restarted or the process crashed. Auto-recovered.",
+        finishedAt: new Date(),
+      },
+    });
+    scheduleStoreCleanup(row.id);
   }
-  // Stale. Resume it if we can (the launch attempt that found it waits);
-  // close it out only when resumption is impossible.
-  if (!activeRuns.has(running.id) && (await resumeRun(running))) {
+  if (active >= config.maxConcurrentRuns) {
     return {
-      error: `Run ${running.id} was interrupted and is now resuming — the store is shared, one run at a time.`,
+      error: `Preflight is at capacity — ${active} run${active === 1 ? "" : "s"} executing (limit ${config.maxConcurrentRuns}). Try again when one finishes.`,
       status: 409,
     };
   }
-  log.warn("harness", "recovering abandoned run", { runId: running.id });
-  await prisma.liveRun.update({
-    where: { id: running.id },
-    data: {
-      status: "error",
-      error: "Run abandoned — the server restarted or the process crashed. Auto-recovered.",
-      finishedAt: new Date(),
-    },
-  });
   return null;
 }
 
@@ -280,15 +294,15 @@ export async function launchRun(
   const resolved = await resolveSuite(opts.suite);
   if ("error" in resolved) return resolved;
   const { scenarioIds, scenarioMap } = resolved;
-  await resolved.seed();
 
   const runId = `lrun_${Date.now().toString(36)}`;
+  await resolved.seed(runId);
   // Re-check + create atomically: seeding above takes seconds, and two
   // concurrent launches must not both pass the earlier guard.
   try {
     await prisma.$transaction(async (tx) => {
-      const race = await tx.liveRun.findFirst({ where: { status: "running" } });
-      if (race) throw new Error(`RACE:${race.id}`);
+      const runningCount = await tx.liveRun.count({ where: { status: "running" } });
+      if (runningCount >= config.maxConcurrentRuns) throw new Error("RACE:capacity");
       await tx.liveRun.create({
         data: {
           id: runId,
@@ -311,7 +325,7 @@ export async function launchRun(
     const race = err instanceof Error && err.message.startsWith("RACE:");
     if (race) {
       return {
-        error: `Run ${err.message.slice(5)} just started — the store is shared, one run at a time.`,
+        error: `Preflight just reached capacity (limit ${config.maxConcurrentRuns} concurrent runs). Try again when one finishes.`,
         status: 409,
       };
     }
@@ -326,6 +340,7 @@ export async function launchRun(
       data: { status: "error", error: String(err), finishedAt: new Date() },
     });
     emit(runId, { type: "run_finished", status: "error", error: String(err) });
+    scheduleStoreCleanup(runId);
     void advanceQueue();
   });
 
@@ -376,10 +391,11 @@ export async function launchPlan(
   const runIds = suites.map((_, i) => `lrun_${stamp}_${i + 1}`);
   try {
     await prisma.$transaction(async (tx) => {
-      const race = await tx.liveRun.findFirst({
-        where: { status: { in: ["running", "queued"] } },
-      });
-      if (race) throw new Error(`RACE:${race.id}`);
+      // One plan in flight at a time — its steps queue and start as
+      // capacity frees up (runs are isolated, so unrelated single runs
+      // can execute alongside).
+      const queued = await tx.liveRun.findFirst({ where: { status: "queued" } });
+      if (queued) throw new Error(`RACE:${queued.id}`);
       for (let i = 0; i < suites.length; i++) {
         await tx.liveRun.create({
           data: {
@@ -406,7 +422,7 @@ export async function launchPlan(
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("RACE:")) {
       return {
-        error: `Run ${err.message.slice(5)} just started — the store is shared, one job at a time.`,
+        error: `Another flight plan is already in flight (${err.message.slice(5)}) — one plan at a time.`,
         status: 409,
       };
     }
@@ -427,13 +443,20 @@ export async function advanceQueue(): Promise<void> {
     let next: { id: string; suite: string; planId: string | null } | null = null;
     try {
       next = await prisma.$transaction(async (tx) => {
-        const running = await tx.liveRun.findFirst({ where: { status: "running" } });
-        if (running) return null;
-        const candidate = await tx.liveRun.findFirst({
+        const running = await tx.liveRun.findMany({
+          where: { status: "running" },
+          select: { planId: true },
+        });
+        if (running.length >= config.maxConcurrentRuns) return null;
+        // A plan's steps run strictly in order — never start a step
+        // while a sibling step is still executing.
+        const runningPlans = new Set(running.map((r) => r.planId).filter(Boolean));
+        const candidates = await tx.liveRun.findMany({
           where: { status: "queued" },
           orderBy: [{ startedAt: "asc" }, { planStep: "asc" }],
           select: { id: true, suite: true, planId: true },
         });
+        const candidate = candidates.find((c) => !c.planId || !runningPlans.has(c.planId));
         if (!candidate) return null;
         await tx.liveRun.update({
           where: { id: candidate.id },
@@ -481,7 +504,7 @@ export async function advanceQueue(): Promise<void> {
 
     const runId = next.id;
     try {
-      await resolvedSuite.seed();
+      await resolvedSuite.seed(runId);
     } catch (err) {
       log.error("harness", `plan step ${runId} failed to seed`, err);
       await prisma.liveRun.update({
@@ -499,10 +522,11 @@ export async function advanceQueue(): Promise<void> {
           data: { status: "error", error: String(err), finishedAt: new Date() },
         });
         emit(runId, { type: "run_finished", status: "error", error: String(err) });
+        scheduleStoreCleanup(runId);
         void advanceQueue();
       },
     );
-    return; // one at a time — the completion hook advances the rest
+    return; // the completion hook advances the rest
   }
 }
 
@@ -559,9 +583,10 @@ async function executeRun(
     data: { status: "complete", finishedAt: new Date() },
   });
   emit(runId, { type: "run_finished", status: "complete" });
-  // A finished run frees the shared store — drain any queued plan step.
+  // A finished run frees capacity — drain any queued plan step.
   void advanceQueue();
-  // Fire-and-forget housekeeping: webhook + retention pruning.
+  // Fire-and-forget housekeeping: store slice, webhook, retention.
+  scheduleStoreCleanup(runId);
   void import("./notify").then((m) => m.notifyRunFinished(runId));
   void import("./retention").then((m) => m.pruneOldTranscripts());
 }

@@ -593,7 +593,7 @@ export function LiveMissionControl() {
         </Card>
 
         <p className="mt-4 text-center text-[12px] text-mut">
-          One run at a time — the store is shared and reseeded per run.{" "}
+          Every run gets its own freshly seeded store — several can execute at once.{" "}
           <Link href="/runs/history" className="focus-ring rounded text-accent hover:underline">
             Past runs →
           </Link>

@@ -138,5 +138,6 @@ The prioritised list of deliberate V0 trade-offs lives in `docs/ROADMAP.md`.
   scores, miss orders, and replays are consistent across every surface.
 - Server in `src/server/` (harness, providers, judge, seed, store tools,
   billing, auth, share, notify); live API routes in `src/app/api/`.
-- One evaluation at a time by design (the store is shared and reseeded per
-  run); flight plans queue and auto-advance.
+- Runs are isolated: each seeds its own run-scoped store slice, so several
+  evaluations execute concurrently (`PREFLIGHT_MAX_CONCURRENT_RUNS`,
+  default 2); flight plans queue and auto-advance, steps strictly in order.

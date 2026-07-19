@@ -34,6 +34,10 @@ export const config = {
   model: process.env.PREFLIGHT_MODEL ?? "claude-opus-4-8",
   concurrency: int(process.env.PREFLIGHT_CONCURRENCY, 3),
 
+  /** Simultaneous evaluations. Each run seeds its own isolated store
+   * slice, so this is a resource cap, not a correctness constraint. */
+  maxConcurrentRuns: int(process.env.PREFLIGHT_MAX_CONCURRENT_RUNS, 2),
+
   /** Agent endpoints may reach private/internal hosts only outside
    * production, or when explicitly allowed (self-hosted setups). */
   allowPrivateEndpoints:

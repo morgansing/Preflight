@@ -8,19 +8,13 @@ this is the ordered list of what to build next and why it can wait.
    client-trusted free-grant identity. Auth is the unlock for per-user
    Stripe customers, seats, entitlement middleware, and API gating.
    (See docs/PRODUCTION.md §3.)
-2. **Per-run store isolation — the concurrency unlock.** DONE-ADJACENT
-   PREREQS: runs now resume after restarts and queue behind each other; the
-   remaining wall is the shared store forcing one evaluation at a time.
-   Concrete plan (one focused session):
-   - Add `runId String?` to `Customer`, `Order`, `Refund`, `ShippingEvent`
-     (+ composite indexes led by `runId`).
-   - Thread `ctx.runId` through `src/server/seed.ts` writes and every
-     `src/server/store-tools.ts` query (`where: { runId }`), so each run
-     reads only its own store rows.
-   - Drop the one-run-at-a-time guard; cap concurrent runs via config;
-     delete a run's store rows on completion (or lazily by retention).
-   - Risk: the seed/tools surface is the product's core — land it behind
-     its own e2e pass (two simultaneous sandbox runs, disjoint results).
+2. **Per-run store isolation — SHIPPED.** Implemented via run-prefixed
+   identity (`<runId>~<logical id>` on orders, customers, product SKUs;
+   translated at the tool boundary so agents only see logical ids) — zero
+   schema changes, relations intact. Concurrency is now a resource cap
+   (`PREFLIGHT_MAX_CONCURRENT_RUNS`, default 2); a run's store slice is
+   deleted when it finishes; plan steps stay strictly sequential. Proven
+   by e2e: two simultaneous sandbox runs, both complete, disjoint.
 3. **Multi-instance event bus.** Live-wall SSE uses an in-process
    emitter with DB catch-up. Fine on one instance; horizontal scaling needs
    Postgres LISTEN/NOTIFY or Supabase Realtime behind the same
