@@ -13,6 +13,11 @@ import { LiveEmpty } from "@/components/live-empty";
 
 const PAGE_SIZE = 100;
 
+/** Header cells stick to the viewport (below the mobile top bar until lg);
+ * border/bg live here because a sticky th leaves its row's border behind. */
+const TH =
+  "sticky top-14 z-10 h-10 border-b border-edge bg-surface px-4 font-medium lg:top-0";
+
 export default function ScenariosPage() {
   const { mode } = useMode();
   const { size: librarySize, setSize: setLibrarySize } = useLibrarySize();
@@ -127,17 +132,17 @@ export default function ScenariosPage() {
         ))}
       </div>
 
-      {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-edge">
+      {/* Table — header cells stick (below the mobile top bar until lg). */}
+      <div className="mt-6 rounded-xl border border-edge max-sm:overflow-x-auto">
         <table className="w-full text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-edge bg-surface font-mono text-[10px] uppercase tracking-wider text-mut">
-              <th className="h-10 px-4 font-medium">ID</th>
-              <th className="h-10 px-4 font-medium">Scenario</th>
-              <th className="h-10 px-4 font-medium">Category</th>
-              <th className="h-10 px-4 font-medium">Severity</th>
-              <th className="hidden h-10 px-4 font-medium lg:table-cell">Difficulty</th>
-              <th className="hidden h-10 px-4 font-medium xl:table-cell">
+          <thead className="font-mono text-[10px] uppercase tracking-wider text-mut">
+            <tr>
+              <th className={`${TH} rounded-tl-xl`}>ID</th>
+              <th className={TH}>Scenario</th>
+              <th className={TH}>Category</th>
+              <th className={`${TH} rounded-tr-xl lg:rounded-tr-none`}>Severity</th>
+              <th className={`${TH} hidden lg:table-cell lg:rounded-tr-xl xl:rounded-tr-none`}>Difficulty</th>
+              <th className={`${TH} hidden xl:table-cell xl:rounded-tr-xl`}>
                 Correct outcome
               </th>
             </tr>
@@ -158,7 +163,9 @@ export default function ScenariosPage() {
                 className="h-12 cursor-pointer border-b border-edge/60 transition-colors last:border-0 hover:bg-surface"
               >
                 <td className="px-4 font-mono text-[12px] text-mut">{s.id}</td>
-                <td className="max-w-64 truncate px-4 text-ink">{s.name}</td>
+                <td className="max-w-64 truncate px-4 text-ink" title={s.name}>
+                  {s.name}
+                </td>
                 <td className="px-4 text-sub">{s.category}</td>
                 <td className="px-4">
                   <SeverityLabel severity={s.severity} />
@@ -166,7 +173,7 @@ export default function ScenariosPage() {
                 <td className="hidden px-4 lg:table-cell">
                   <DifficultyLabel level={s.difficulty} />
                 </td>
-                <td className="hidden max-w-96 truncate px-4 text-sub xl:table-cell">
+                <td className="hidden max-w-96 truncate px-4 text-sub xl:table-cell" title={s.rubric}>
                   {s.rubric}
                 </td>
               </tr>

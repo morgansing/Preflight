@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { openPalette } from "@/components/command-palette";
 import { useMode } from "@/lib/mode";
 import { useSession } from "@/lib/auth";
@@ -64,20 +65,41 @@ const items = [
   { href: "/benchmark", label: "Benchmark", icon: icons.benchmark },
 ];
 
-export function NavRail() {
+function Wordmark() {
+  return (
+    <Link href="/" className="focus-ring flex items-center gap-2 rounded-md px-2">
+      <span aria-hidden className="inline-block size-2 rounded-full bg-accent" />
+      <span className="font-mono text-xs tracking-[0.18em] text-ink">PREFLIGHT</span>
+    </Link>
+  );
+}
+
+function ModeChip({ mode }: { mode: "demo" | "live" }) {
+  return mode === "demo" ? (
+    <span className="inline-flex h-6 items-center rounded-md border border-accent/40 px-2 font-mono text-[10px] tracking-[0.14em] text-accent/80">
+      DEMO
+    </span>
+  ) : (
+    <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-on-accent">
+      LIVE
+    </span>
+  );
+}
+
+/** Everything below the wordmark — shared by the desktop rail and the
+ * mobile sheet. `onNavigate` lets the sheet close itself on any jump. */
+function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { mode, setMode } = useMode();
   const { session } = useSession();
 
   return (
-    <nav className="no-print sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-edge bg-surface px-3 py-6">
-      <Link href="/" className="focus-ring mb-6 flex items-center gap-2 rounded-md px-2">
-        <span aria-hidden className="inline-block size-2 rounded-full bg-accent" />
-        <span className="font-mono text-xs tracking-[0.18em] text-ink">PREFLIGHT</span>
-      </Link>
-
+    <>
       <button
-        onClick={openPalette}
+        onClick={() => {
+          onNavigate?.();
+          openPalette();
+        }}
         className="focus-ring mb-4 flex h-9 cursor-pointer items-center justify-between rounded-lg border border-edge px-2.5 text-[13px] text-mut transition-colors hover:border-mut hover:text-sub"
       >
         <span className="flex items-center gap-2.5">
@@ -100,6 +122,7 @@ export function NavRail() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={`focus-ring flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13px] transition-colors duration-150 ${
                 active
                   ? "bg-raised text-ink"
@@ -118,6 +141,7 @@ export function NavRail() {
         {session ? (
           <Link
             href="/billing"
+            onClick={onNavigate}
             className={`focus-ring flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-raised/60 ${
               pathname.startsWith("/billing") ? "bg-raised" : ""
             }`}
@@ -133,6 +157,7 @@ export function NavRail() {
         ) : (
           <Link
             href="/signup"
+            onClick={onNavigate}
             className="focus-ring flex items-center justify-between rounded-lg px-2 py-2 text-[13px] text-sub transition-colors hover:bg-raised/60 hover:text-ink"
           >
             <span>Create workspace</span>
@@ -148,20 +173,94 @@ export function NavRail() {
           className="focus-ring group flex w-full items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-raised/60 cursor-pointer"
           title={`Switch to ${mode === "demo" ? "Live" : "Demo"} mode`}
         >
-          {mode === "demo" ? (
-            <span className="inline-flex h-6 items-center rounded-md border border-accent/40 px-2 font-mono text-[10px] tracking-[0.14em] text-accent/80">
-              DEMO
-            </span>
-          ) : (
-            <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-on-accent">
-              LIVE
-            </span>
-          )}
+          <ModeChip mode={mode} />
           <span className="text-[11px] text-mut transition-colors group-hover:text-sub">
             switch
           </span>
         </button>
       </div>
+    </>
+  );
+}
+
+/** The desktop rail — hidden below lg, where MobileNav takes over. */
+export function NavRail() {
+  return (
+    <nav className="no-print sticky top-0 hidden h-screen w-52 shrink-0 flex-col border-r border-edge bg-surface px-3 py-6 lg:flex">
+      <div className="mb-6">
+        <Wordmark />
+      </div>
+      <NavContent />
     </nav>
+  );
+}
+
+/** Below lg: a slim sticky top bar and a slide-in sheet with the full nav. */
+export function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const { mode } = useMode();
+  const close = () => setOpen(false);
+
+  // Esc closes the sheet; body scroll locks while it is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  return (
+    <>
+      <header className="no-print sticky top-0 z-40 flex h-14 items-center justify-between border-b border-edge bg-surface px-4 lg:hidden">
+        <Wordmark />
+        <div className="flex items-center gap-3">
+          <ModeChip mode={mode} />
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={open}
+            className="focus-ring cursor-pointer rounded-md border border-edge p-2 text-sub transition-colors hover:border-mut hover:text-ink"
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+              <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {open && (
+        <div
+          className="no-print fixed inset-0 z-50 lg:hidden"
+          role="dialog"
+          aria-modal
+          aria-label="Navigation"
+        >
+          <div className="animate-fade-in absolute inset-0 bg-black/60" onClick={close} />
+          <div className="animate-fade-up absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-edge bg-surface px-3 py-6">
+            <div className="mb-6 flex items-center justify-between">
+              <Wordmark />
+              <button
+                autoFocus
+                onClick={close}
+                aria-label="Close menu"
+                className="focus-ring cursor-pointer rounded-md p-1.5 text-mut transition-colors hover:text-ink"
+              >
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4">
+                  <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <NavContent onNavigate={close} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

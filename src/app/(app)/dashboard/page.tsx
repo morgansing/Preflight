@@ -40,7 +40,7 @@ export default function DashboardPage() {
       ) : (
         <>
           <DemoStats />
-          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-4">
             {demoAgents.map((agent, i) => {
               const score = agent.scoreHistory[agent.scoreHistory.length - 1];
@@ -83,11 +83,13 @@ export default function DashboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-6">
-                      <Sparkline
-                        values={agent.scoreHistory}
-                        threshold={agent.threshold}
-                      />
+                    <div className="flex shrink-0 items-center gap-4 sm:gap-6">
+                      <span className="hidden sm:block">
+                        <Sparkline
+                          values={agent.scoreHistory}
+                          threshold={agent.threshold}
+                        />
+                      </span>
                       <div className="w-20 text-right">
                         <span className="numeral text-4xl text-ink">{score}</span>
                         <span className="text-lg text-mut">%</span>

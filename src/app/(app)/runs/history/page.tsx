@@ -57,8 +57,8 @@ export default function RunHistoryPage() {
       </div>
 
       {/* Ledger */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-edge">
-        <div className="hidden border-b border-edge bg-surface px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-mut md:grid md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_3.5rem_5.5rem_5rem_4.5rem_5rem]">
+      <div className="mt-6 rounded-xl border border-edge">
+        <div className="sticky top-14 z-10 hidden rounded-t-xl border-b border-edge bg-surface px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-mut md:grid md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_3.5rem_5.5rem_5rem_4.5rem_5rem] lg:top-0">
           <span>Run</span>
           <span>Agent</span>
           <span className="text-right">Score</span>
@@ -68,15 +68,16 @@ export default function RunHistoryPage() {
           <span className="text-right">Cost</span>
           <span className="text-right">When</span>
         </div>
-        <div className="divide-y divide-edge/60">
-          {rows.map((r) => {
+        <div className="divide-y divide-edge/60 [&>a:last-child]:rounded-b-xl">
+          {rows.map((r, i) => {
             const agent = demoAgents.find((a) => a.id === r.agentId);
             const above = agent ? r.score >= agent.threshold : false;
             return (
               <Link
                 key={r.id}
                 href={`/runs/${r.id}`}
-                className="focus-ring grid grid-cols-2 items-center gap-y-1 px-5 py-3 text-[13px] transition-colors hover:bg-surface md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_3.5rem_5.5rem_5rem_4.5rem_5rem]"
+                style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
+                className="animate-fade-up focus-ring grid grid-cols-2 items-center gap-y-1 px-5 py-3 text-[13px] transition-colors hover:bg-surface md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_3.5rem_5.5rem_5rem_4.5rem_5rem]"
               >
                 <span className="font-mono text-[12px] text-mut">{r.id}</span>
                 <span className="min-w-0 truncate text-ink">

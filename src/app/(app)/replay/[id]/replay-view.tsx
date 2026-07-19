@@ -378,6 +378,13 @@ export function ReplayView({
             ))}
           </div>
 
+          <span aria-hidden className="hidden items-center gap-1.5 font-mono text-[10px] tracking-wider text-mut md:flex">
+            <span className="rounded border border-edge px-1 py-0.5">␣</span>
+            PLAY
+            <span className="text-edge">·</span>
+            <span className="rounded border border-edge px-1 py-0.5">← →</span>
+            STEP
+          </span>
           <span className="font-mono text-[11px] tabular-nums text-mut">
             {String(current + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
           </span>

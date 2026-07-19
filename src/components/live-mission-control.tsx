@@ -652,7 +652,7 @@ export function LiveMissionControl() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4">
+      <div className="sticky top-14 z-10 border-b border-edge bg-raised/95 px-8 py-4 lg:top-0">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -670,8 +670,15 @@ export function LiveMissionControl() {
               <span className="ml-2 text-sub">· {suiteLabel(run.suite, n)}</span>
             </div>
           </div>
-          <div className="flex items-center gap-8 font-mono text-sm tabular-nums">
-            <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-sm tabular-nums">
+            {/* Keyed on completion so the settle animation replays once
+                the moment the run finishes. */}
+            <span
+              key={finished ? "done" : "running"}
+              className={finished ? "inline-block [animation:settle-in_.5s_var(--ease-out-quad)_both]" : ""}
+            >
+              <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
+            </span>
             <HeaderStat label="Complete" value={`${stats.resolved}/${n}`} />
             <HeaderStat
               label="Elapsed"

@@ -104,7 +104,7 @@ export function ReadinessCard({
           <span className="text-[40px] text-sub">%</span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <div className="flex items-center gap-1.5" aria-hidden>
             {Array.from({ length: SEGMENTS }).map((_, i) => (
               <span

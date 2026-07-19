@@ -128,8 +128,8 @@ function FailuresView() {
       </div>
 
       {/* The list */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-edge">
-        <div className="hidden border-b border-edge bg-surface px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-mut md:grid md:grid-cols-[5.5rem_minmax(0,1fr)_11rem_9rem_5.5rem_6.5rem_5.5rem]">
+      <div className="mt-6 rounded-xl border border-edge">
+        <div className="sticky top-14 z-10 hidden rounded-t-xl border-b border-edge bg-surface px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-mut md:grid md:grid-cols-[5.5rem_minmax(0,1fr)_11rem_9rem_5.5rem_6.5rem_5.5rem] lg:top-0">
           <span>ID</span>
           <span>Scenario</span>
           <span>Agent</span>
@@ -144,10 +144,11 @@ function FailuresView() {
               Nothing matches these filters.
             </p>
           )}
-          {rows.map((r) => (
+          {rows.map((r, i) => (
             <div
               key={`${r.agentId}:${r.scenarioId}`}
-              className="grid grid-cols-2 items-center gap-y-1 px-5 py-2.5 text-[13px] md:grid-cols-[5.5rem_minmax(0,1fr)_11rem_9rem_5.5rem_6.5rem_5.5rem]"
+              style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
+              className="animate-fade-up grid grid-cols-2 items-center gap-y-1 px-5 py-2.5 text-[13px] md:grid-cols-[5.5rem_minmax(0,1fr)_11rem_9rem_5.5rem_6.5rem_5.5rem]"
             >
               <Link
                 href={`/scenarios/${r.scenarioId}`}
