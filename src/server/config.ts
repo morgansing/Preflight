@@ -64,13 +64,16 @@ export const config = {
   retentionDays: int(process.env.PREFLIGHT_RETENTION_DAYS, 0) || null,
 
   auth: {
-    /** Supabase project URL (informational; verification is local). */
+    /** Supabase project URL — with it set, tokens verify against the
+     * project's published JWKS (the signing-keys default on new
+     * projects); no secret needed. */
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
-    /** Supabase JWT secret (Project Settings → API). Setting it flips
-     * every mutating route from open single-workspace mode to
-     * verified-user mode — no code change. */
+    /** Legacy HS256 JWT secret (JWT Keys → legacy secret). Optional —
+     * only needed for projects still signing with the shared secret. */
     jwtSecret: process.env.SUPABASE_JWT_SECRET ?? null,
-    enabled: !!process.env.SUPABASE_JWT_SECRET,
+    /** Either env var flips every mutating route from open
+     * single-workspace mode to verified-user mode — no code change. */
+    enabled: !!(process.env.SUPABASE_JWT_SECRET || process.env.NEXT_PUBLIC_SUPABASE_URL),
     /** Service token for headless callers (the CI gate Action) once
      * auth is active — machines can't do a browser login. */
     apiToken: process.env.PREFLIGHT_API_TOKEN ?? null,

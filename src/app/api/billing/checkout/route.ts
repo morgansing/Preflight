@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** Start a Checkout Session for a plan (subscription) or pack (payment). */
 export async function POST(request: NextRequest) {
   // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
-  const auth = requireUser(request);
+  const auth = await requireUser(request);
   if (auth.response) return auth.response;
   try {
     const body = (await request.json().catch(() => null)) as {

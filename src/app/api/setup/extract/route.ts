@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
-  const auth = requireUser(request);
+  const auth = await requireUser(request);
   if (auth.response) return auth.response;
   if (!providerKey()) {
     return NextResponse.json(

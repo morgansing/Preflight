@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { authHeaders } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
 import { ReadinessCard } from "./readiness-card";
 import { RegressionPanel } from "./regression-panel";
@@ -408,7 +409,10 @@ function SharePanel({ runId, score }: { runId: string; score: number }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/live/runs/${runId}/share`, { method: "POST" });
+      const res = await fetch(`/api/live/runs/${runId}/share`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
       const json = await res.json();
       if (res.ok) setToken(json.token);
       else setError(json.error ?? "Couldn't create the share link.");

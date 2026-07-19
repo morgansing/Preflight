@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { fetchRuns } from "./live-api";
+import { authHeaders } from "./supabase";
 
 /**
  * Billing model: the unit is the simulation — one scenario executed in
@@ -166,7 +167,7 @@ export function useBillingStatus() {
       try {
         const res = await fetch("/api/billing/prefs", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", ...(await authHeaders()) },
           body: JSON.stringify(input),
         });
         if (res.ok) setStatus((await res.json()) as BillingStatus);
@@ -181,7 +182,7 @@ export function useBillingStatus() {
   const checkout = useCallback(async (kind: "plan" | "pack", id: string) => {
     const res = await fetch("/api/billing/checkout", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify({ kind, id }),
     });
     const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };

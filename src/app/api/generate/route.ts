@@ -37,7 +37,7 @@ export async function GET() {
 /** POST { perRule } → start generating a new suite from the approved rulebook. */
 export async function POST(request: NextRequest) {
   // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
-  const auth = requireUser(request);
+  const auth = await requireUser(request);
   if (auth.response) return auth.response;
   try {
   const body = await request.json().catch(() => ({}));

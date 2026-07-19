@@ -89,26 +89,35 @@ What is deliberately *not* built until real auth lands: per-user Stripe
 customers, seats, entitlement middleware. The single `BillingAccount` row
 ("default") is the whole workspace.
 
-## 3. Auth (Supabase) — the enforcement is already wired
+## 3. Auth (Supabase) — wired end to end, two env vars
 
 Every mutating route (run/plan launch, setup, generate, billing, share
-minting, connection tests) already passes through `requireUser()`
-(`src/server/auth.ts`). Activation is one env var:
+minting, connection tests) passes through `requireUser()`
+(`src/server/auth.ts`), and the sign-in / sign-up / SSO pages are wired
+to Supabase Auth. Activation:
 
 ```
-SUPABASE_JWT_SECRET="…"        # Project Settings → API → JWT secret
-NEXT_PUBLIC_SUPABASE_URL="…"   # informational
+NEXT_PUBLIC_SUPABASE_URL="…"        # Project Settings → API
+NEXT_PUBLIC_SUPABASE_ANON_KEY="…"   # anon / publishable key
 ```
 
-With the secret set, those routes require
-`Authorization: Bearer <supabase access token>`, verified locally (HS256
-signature + expiry + "authenticated" audience — no SDK, no network).
-Without it, the app runs in open single-workspace mode, exactly as
-self-hosted today.
+With the URL set, mutating routes require
+`Authorization: Bearer <supabase access token>`. Tokens verify against
+the project's published JWKS (ES256/RS256 signing keys — the default on
+new projects), fetched once and cached; legacy projects can set
+`SUPABASE_JWT_SECRET` for local HS256 verification instead (both may be
+set during a key migration). Without either, the app runs in open
+single-workspace mode, exactly as self-hosted today.
 
-Remaining client-side work when you adopt Supabase:
-- Replace `src/lib/auth.ts`'s localStorage session with the Supabase
-  session, and attach its access token to mutating fetches.
+The client side is already done: email sign-in/sign-up (including the
+email-confirmation path), Google/GitHub OAuth buttons, a session bridge
+that mirrors the Supabase session into the workspace store, and access
+tokens attached to every mutating fetch. In the Supabase dashboard you
+still need to: enable the Google and GitHub providers (Auth →
+Providers) and add your domain + `/dashboard` to the redirect allowlist
+(Auth → URL Configuration).
+
+Remaining follow-on when multi-user matters:
 - Key `BillingAccount` and the `FreeGrant` ledger by `user.id` (the
   verified id is already returned by `requireUser`); the fingerprint
   heuristics become defence-in-depth only.

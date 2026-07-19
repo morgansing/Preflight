@@ -10,7 +10,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = requireUser(request);
+  const auth = await requireUser(request);
   if (auth.response) return auth.response;
   try {
     const { id } = await params;

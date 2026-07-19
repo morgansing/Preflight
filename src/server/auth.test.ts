@@ -1,6 +1,6 @@
-import { createHmac } from "node:crypto";
+import { createHmac, generateKeyPairSync, sign as cryptoSign, type KeyObject } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { isServiceToken, verifySupabaseJwt } from "./auth";
+import { isServiceToken, verifyJwtWithJwks, verifySupabaseJwt, type Jwks } from "./auth";
 
 const SECRET = "test-secret";
 
@@ -56,6 +56,79 @@ describe("verifySupabaseJwt", () => {
   it("rejects garbage", () => {
     expect(verifySupabaseJwt("not-a-jwt", SECRET)).toBeNull();
     expect(verifySupabaseJwt("", SECRET)).toBeNull();
+  });
+});
+
+function makeAsymJwt(
+  payload: Record<string, unknown>,
+  { alg, key, kid }: { alg: "ES256" | "RS256"; key: KeyObject; kid?: string },
+): string {
+  const enc = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const head = enc({ alg, typ: "JWT", kid });
+  const body = enc(payload);
+  const data = Buffer.from(`${head}.${body}`);
+  const sig =
+    alg === "ES256"
+      ? cryptoSign("sha256", data, { key, dsaEncoding: "ieee-p1363" })
+      : cryptoSign("sha256", data, key);
+  return `${head}.${body}.${sig.toString("base64url")}`;
+}
+
+describe("verifyJwtWithJwks", () => {
+  const future = Math.floor(Date.now() / 1000) + 3600;
+  const ec = generateKeyPairSync("ec", { namedCurve: "P-256" });
+  const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const jwks: Jwks = {
+    keys: [
+      { ...(ec.publicKey.export({ format: "jwk" }) as object), kid: "ec-1", alg: "ES256" } as Jwks["keys"][number],
+      { ...(rsa.publicKey.export({ format: "jwk" }) as object), kid: "rsa-1", alg: "RS256" } as Jwks["keys"][number],
+    ],
+  };
+
+  it("accepts a valid ES256 token (Supabase signing keys)", () => {
+    const token = makeAsymJwt(
+      { sub: "user-1", email: "a@b.c", exp: future, aud: "authenticated" },
+      { alg: "ES256", key: ec.privateKey, kid: "ec-1" },
+    );
+    expect(verifyJwtWithJwks(token, jwks)).toMatchObject({ sub: "user-1", email: "a@b.c" });
+  });
+
+  it("accepts a valid RS256 token", () => {
+    const token = makeAsymJwt(
+      { sub: "user-2", exp: future, aud: "authenticated" },
+      { alg: "RS256", key: rsa.privateKey, kid: "rsa-1" },
+    );
+    expect(verifyJwtWithJwks(token, jwks)).toMatchObject({ sub: "user-2" });
+  });
+
+  it("rejects a token signed by a different key", () => {
+    const other = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    const token = makeAsymJwt(
+      { sub: "user-1", exp: future },
+      { alg: "ES256", key: other.privateKey, kid: "ec-1" },
+    );
+    expect(verifyJwtWithJwks(token, jwks)).toBeNull();
+  });
+
+  it("rejects an HS256 token on the asymmetric path (alg confusion)", () => {
+    const token = makeJwt({ sub: "user-1", exp: future });
+    expect(verifyJwtWithJwks(token, jwks)).toBeNull();
+  });
+
+  it("rejects an unknown kid", () => {
+    const token = makeAsymJwt(
+      { sub: "user-1", exp: future },
+      { alg: "ES256", key: ec.privateKey, kid: "nope" },
+    );
+    expect(verifyJwtWithJwks(token, jwks)).toBeNull();
+  });
+
+  it("rejects an expired token", () => {
+    const token = makeAsymJwt(
+      { sub: "user-1", exp: Math.floor(Date.now() / 1000) - 10 },
+      { alg: "ES256", key: ec.privateKey, kid: "ec-1" },
+    );
+    expect(verifyJwtWithJwks(token, jwks)).toBeNull();
   });
 });
 

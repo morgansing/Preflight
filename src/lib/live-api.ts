@@ -1,5 +1,6 @@
 "use client";
 
+import { authHeaders } from "./supabase";
 import type {
   ClusterReport,
   LiveEvent,
@@ -63,7 +64,7 @@ export async function startRun(body: {
   try {
     const res = await fetch("/api/live/runs", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
@@ -96,7 +97,7 @@ export async function startPlan(body: {
   try {
     const res = await fetch("/api/live/plan", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
@@ -152,7 +153,7 @@ export async function fetchRegression(runId: string): Promise<{
 export async function pinBaseline(runId: string): Promise<boolean> {
   const res = await fetch("/api/live/baseline", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ runId }),
   });
   return res.ok;

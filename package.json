@@ -19,6 +19,7 @@
     "@anthropic-ai/sdk": "^0.111.0",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@supabase/supabase-js": "^2.110.7",
     "framer-motion": "^12.42.2",
     "jspdf": "^4.2.1",
     "next": "16.2.10",

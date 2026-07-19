@@ -11,7 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   // Minting is a workspace action — dormant-gated like every mutation.
-  const auth = requireUser(request);
+  const auth = await requireUser(request);
   if (auth.response) return auth.response;
   try {
     const { id } = await params;

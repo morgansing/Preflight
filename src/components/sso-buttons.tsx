@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { getSupabase } from "@/lib/supabase";
 
 /**
  * Google / GitHub SSO buttons — Preflight-dark, shared by sign-in and
- * sign-up. Design-complete: in V0 they explain that SSO arrives with
- * the hosted beta (Supabase Auth makes them real, no redesign needed).
+ * sign-up. With Supabase configured they start a real OAuth flow
+ * (redirecting back to the dashboard); while dormant they explain that
+ * SSO arrives with the hosted beta.
  */
 
 function SsoButton({
@@ -62,18 +64,30 @@ const githubIcon = (
 
 /** The button row + divider. `verb` reads "Sign in" or "Sign up". */
 export function SsoButtons({ verb = "Continue" }: { verb?: string }) {
-  const [note, setNote] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const start = async (provider: "google" | "github") => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      setNote("SSO lands with the hosted beta — use email below for now.");
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
+    // Success navigates away; an error usually means the provider isn't
+    // enabled yet in the Supabase dashboard.
+    if (error) setNote(error.message);
+  };
+
   return (
     <div>
       <div className="flex gap-3">
-        <SsoButton label={`${verb} with Google`} icon={googleIcon} onClick={() => setNote(true)} />
-        <SsoButton label={`${verb} with GitHub`} icon={githubIcon} onClick={() => setNote(true)} />
+        <SsoButton label={`${verb} with Google`} icon={googleIcon} onClick={() => void start("google")} />
+        <SsoButton label={`${verb} with GitHub`} icon={githubIcon} onClick={() => void start("github")} />
       </div>
-      {note && (
-        <p className="mt-2 text-[12px] text-warn">
-          SSO lands with the hosted beta — use email below for now.
-        </p>
-      )}
+      {note && <p className="mt-2 text-[12px] text-warn">{note}</p>}
       <div className="mt-6 flex items-center gap-3">
         <span className="h-px flex-1 bg-edge" />
         <span className="font-mono text-[10px] tracking-[0.14em] text-mut">OR</span>

@@ -7,6 +7,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { SsoButtons } from "@/components/sso-buttons";
 import { Button } from "@/components/ui";
 import { useSession } from "@/lib/auth";
+import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 
 const inputCls =
   "focus-ring w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 text-sm text-ink " +
@@ -17,6 +18,31 @@ export default function LoginPage() {
   const router = useRouter();
   const { session, signIn } = useSession();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      // Preview mode: restore the local session, or start one for this email.
+      if (!session || session.email !== email) {
+        signIn({ name: email.split("@")[0], email });
+      }
+      router.push("/dashboard");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) {
+      setError(err.message);
+      setBusy(false);
+      return;
+    }
+    // The auth bridge mirrors the session into the workspace store.
+    router.push("/dashboard");
+  };
 
   return (
     <AuthShell>
@@ -34,11 +60,7 @@ export default function LoginPage() {
         className="mt-6 space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          // V0: restore the local session, or start one for this email.
-          if (!session || session.email !== email) {
-            signIn({ name: email.split("@")[0], email });
-          }
-          router.push("/dashboard");
+          void submit();
         }}
       >
         <label className="block space-y-1.5">
@@ -53,13 +75,14 @@ export default function LoginPage() {
             autoComplete="email"
           />
         </label>
-        {/* Design-complete; V0 never stores or transmits this value. */}
         <label className="block space-y-1.5">
           <span className="text-[13px] text-sub">Password</span>
           <input
             className={inputCls}
             type="password"
             required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             autoComplete="current-password"
           />
@@ -73,14 +96,17 @@ export default function LoginPage() {
             Forgot password?
           </span>
         </div>
-        <Button type="submit" className="w-full">
-          Sign in
+        {error && <p className="text-[13px] leading-relaxed text-fail">{error}</p>}
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
-      <p className="mt-4 text-[12px] leading-relaxed text-mut">
-        V0 preview: your session lives in this browser; no password is stored.
-      </p>
+      {!supabaseConfigured() && (
+        <p className="mt-4 text-[12px] leading-relaxed text-mut">
+          V0 preview: your session lives in this browser; no password is stored.
+        </p>
+      )}
 
       <p className="mt-8 border-t border-edge pt-5 text-[13px] text-sub">
         New to Preflight?{" "}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { authHeaders } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, Card, Eyebrow } from "@/components/ui";
@@ -67,7 +68,7 @@ export default function ConnectAgentPage() {
     try {
       const res = await fetch("/api/live/test-connection", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ agentKind: kind, endpoint, model, authToken, systemPrompt }),
       });
       setProbe(await res.json());

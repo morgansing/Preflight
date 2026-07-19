@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { authHeaders } from "@/lib/supabase";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, ButtonLink, Card, Eyebrow } from "./ui";
 import { MockBadge } from "./live-mission-control";
@@ -159,7 +160,7 @@ export function SetupWizard() {
       }
       const res = await fetch("/api/setup/extract", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ input, content, source }),
       });
       const json = await res.json();
@@ -197,7 +198,7 @@ export function SetupWizard() {
       }
       const res = await fetch("/api/setup", {
         method: "PUT",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(payload),
       });
       if (res.ok) setSaved(rules.filter((r) => r.enabled).length);
@@ -233,7 +234,7 @@ export function SetupWizard() {
       await save(); // persist the rulebook the generator reads
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ perRule }),
       });
       const json = await res.json();

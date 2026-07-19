@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { authHeaders } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { Button, SeverityLabel } from "./ui";
 import { GauntletMark } from "./run-badges";
@@ -115,7 +116,10 @@ function RedteamCta({ runId, clusterCount }: { runId: string; clusterCount: numb
   const start = async () => {
     setState({ phase: "busy" });
     try {
-      const res = await fetch(`/api/live/runs/${runId}/redteam`, { method: "POST" });
+      const res = await fetch(`/api/live/runs/${runId}/redteam`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
       const json = await res.json();
       if (res.ok) setState({ phase: "started", version: json.version });
       else setState({ phase: "error", message: json.error ?? "Couldn't start generation." });
