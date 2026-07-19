@@ -62,7 +62,10 @@ describe("fmtEstimate", () => {
   it("reproduces the launcher's historical numbers at default pace", () => {
     expect(fmtEstimate(24, DEFAULT_PACE)).toBe("~$5 · ~4 min");
     expect(fmtEstimate(200, DEFAULT_PACE)).toBe("~$40 · ~33 min");
-    expect(fmtEstimate(10_000, DEFAULT_PACE)).toBe("~$2k · ~27.8 h");
+    expect(fmtEstimate(500, DEFAULT_PACE)).toBe("~$100 · ~1.5 h");
+    expect(fmtEstimate(1_000, DEFAULT_PACE)).toBe("~$200 · ~3 h");
+    expect(fmtEstimate(5_000, DEFAULT_PACE)).toBe("~$1,000 · ~14 h");
+    expect(fmtEstimate(10_000, DEFAULT_PACE)).toBe("~$2,000 · ~28 h");
   });
 
   it("scales with an empirical pace", () => {

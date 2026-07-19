@@ -59,21 +59,22 @@ export function paceFromHistory(runs: LiveRunListItem[]): Pace {
   };
 }
 
-/** "~$120 · ~2.1 h" for a suite of `size` at the given pace. */
+/** "~$2,000 · ~28 h" for a suite of `size` at the given pace. Rounded
+ * numbers on purpose — these are estimates, and they should read like
+ * estimates: full dollars with separators, hours to the nearest half. */
 export function fmtEstimate(size: number, pace: Pace): string {
   const cost = size * pace.costPerScenario;
   const mins = (size * pace.secsPerScenario) / 60;
   const c =
-    cost >= 1000
-      ? `~$${(+(cost / 1000).toFixed(1)).toLocaleString()}k`
-      : cost >= 10
-        ? `~$${Math.round(cost).toLocaleString()}`
-        : `~$${cost.toFixed(cost >= 1 ? 0 : 2)}`;
+    cost >= 10
+      ? `~$${Math.round(cost).toLocaleString()}`
+      : `~$${cost.toFixed(cost >= 1 ? 0 : 2)}`;
+  const halfHours = Math.round((mins / 60) * 2) / 2;
   const t =
     mins < 1
       ? "<1 min"
       : mins < 60
         ? `~${Math.round(mins)} min`
-        : `~${+(mins / 60).toFixed(1)} h`;
+        : `~${halfHours} h`;
   return `${c} · ${t}`;
 }
