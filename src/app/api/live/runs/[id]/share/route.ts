@@ -1,14 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { routeError } from "@/server/log";
+import { requireUser } from "@/server/auth";
 import { ensureShareToken } from "@/server/share";
 
 export const dynamic = "force-dynamic";
 
 /** Mint (or return) the public share token for a completed run. */
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Minting is a workspace action — dormant-gated like every mutation.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const token = await ensureShareToken(id);

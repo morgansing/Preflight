@@ -11,7 +11,8 @@
     "db:push": "prisma db push",
     "predev": "prisma db push",
     "prestart": "prisma db push",
-    "test": "vitest run"
+    "test": "vitest run",
+    "calibrate": "vitest run src/server/calibration.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

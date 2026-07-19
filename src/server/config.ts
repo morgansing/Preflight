@@ -48,4 +48,14 @@ export const config = {
     /** Optional full catalog override (JSON) — validated where parsed. */
     catalogJson: process.env.BILLING_CATALOG_JSON ?? null,
   },
+
+  auth: {
+    /** Supabase project URL (informational; verification is local). */
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
+    /** Supabase JWT secret (Project Settings → API). Setting it flips
+     * every mutating route from open single-workspace mode to
+     * verified-user mode — no code change. */
+    jwtSecret: process.env.SUPABASE_JWT_SECRET ?? null,
+    enabled: !!process.env.SUPABASE_JWT_SECRET,
+  },
 } as const;

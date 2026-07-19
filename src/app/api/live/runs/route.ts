@@ -3,15 +3,18 @@ import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
 import { config } from "@/server/config";
 import { debitRun, getAccount, precheckRun } from "@/server/billing";
-import { launchRun } from "@/server/harness";
+import { ensureBootRecovery, launchRun } from "@/server/harness";
 import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
 import { plannedSimCount, toRunListItems } from "@/server/run-list";
 import type { WorkspaceIdentity } from "@/lib/identity";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    // First read after a restart resumes any interrupted run.
+    void ensureBootRecovery();
     // Queued plan steps stay off the list — they surface through their
     // plan, not as phantom history rows.
     const runs = await prisma.liveRun.findMany({
@@ -26,6 +29,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   try {
   const body = await request.json().catch(() => ({}));
   const agentKind = body.agentKind as string;

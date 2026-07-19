@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
 import { latestSuite, startGeneration } from "@/server/generation";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,9 @@ export async function GET() {
 
 /** POST { perRule } → start generating a new suite from the approved rulebook. */
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   try {
   const body = await request.json().catch(() => ({}));
   const result = await startGeneration(Number(body.perRule ?? 6));

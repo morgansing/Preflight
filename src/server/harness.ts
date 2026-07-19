@@ -135,10 +135,104 @@ async function resolveSuite(
   };
 }
 
+/** Runs currently executing in THIS process. Survives dev hot-reload
+ * (globalThis), so boot recovery never double-executes a live run. */
+const activeRuns: Set<string> = ((globalThis as Record<string, unknown>).__preflightActive ??=
+  new Set<string>()) as Set<string>;
+
+type RunRow = NonNullable<Awaited<ReturnType<typeof prisma.liveRun.findFirst>>>;
+
+/** Rebuild launch options from a persisted row — null when the run
+ * used an auth token (secrets are never stored, so it can't resume). */
+function optsFromRow(row: RunRow): LaunchOptions | null {
+  if (row.authTokenUsed) return null;
+  return {
+    agentName: row.agentName,
+    agentKind: row.agentKind as LaunchOptions["agentKind"],
+    endpoint: row.endpoint ?? undefined,
+    model: row.model ?? undefined,
+    systemPrompt: row.systemPrompt ?? undefined,
+    suite: row.suite,
+    sandbox: row.sandbox,
+  };
+}
+
+/**
+ * Resume an interrupted run: skip every scenario that already has a
+ * result, execute the rest. The store keeps its seeded state in the
+ * database across restarts, so no reseed — the run continues where it
+ * stopped. Returns false when the run can't be resumed.
+ */
+async function resumeRun(row: RunRow): Promise<boolean> {
+  const opts = optsFromRow(row);
+  if (!opts) return false;
+  const validated = await validateLaunch(opts);
+  const resolved = await resolveSuite(row.suite);
+  if ("error" in validated || "error" in resolved) return false;
+
+  const done = await prisma.liveResult.findMany({
+    where: { runId: row.id },
+    select: { scenarioId: true },
+  });
+  const doneIds = new Set(done.map((r) => r.scenarioId));
+  const remaining = (JSON.parse(row.scenariosJson) as string[]).filter((id) => !doneIds.has(id));
+  log.warn("harness", "resuming interrupted run", {
+    runId: row.id,
+    done: doneIds.size,
+    remaining: remaining.length,
+  });
+
+  void executeRun(row.id, validated.provider, opts, remaining, resolved.scenarioMap).catch(
+    async (err) => {
+      log.error("harness", `resumed run ${row.id} crashed`, err);
+      await prisma.liveRun.update({
+        where: { id: row.id },
+        data: { status: "error", error: String(err), finishedAt: new Date() },
+      });
+      emit(row.id, { type: "run_finished", status: "error", error: String(err) });
+      void advanceQueue();
+    },
+  );
+  return true;
+}
+
+/** After a restart, orphaned "running" rows (not executing in this
+ * process) resume automatically; the queue drains after them. Called
+ * lazily from the launch and read paths — cheap after the first time. */
+let bootRecoveryStarted = false;
+export async function ensureBootRecovery(): Promise<void> {
+  if (bootRecoveryStarted) return;
+  bootRecoveryStarted = true;
+  try {
+    // A short grace period so we never race a run that just started.
+    const graceBefore = new Date(Date.now() - 30_000);
+    const running = await prisma.liveRun.findMany({ where: { status: "running" } });
+    for (const row of running) {
+      if (activeRuns.has(row.id)) continue;
+      if (row.startedAt >= graceBefore) continue;
+      const resumed = await resumeRun(row);
+      if (!resumed) {
+        await prisma.liveRun.update({
+          where: { id: row.id },
+          data: {
+            status: "error",
+            error:
+              "Run interrupted by a server restart and could not be resumed (its agent used a private auth token). Relaunch it.",
+            finishedAt: new Date(),
+          },
+        });
+      }
+    }
+    if (running.length === 0) void advanceQueue();
+  } catch (err) {
+    log.error("harness", "boot recovery failed", err);
+  }
+}
+
 /** One run at a time (the store is shared). A crashed or restarted
  * process must not deadlock this forever: a "running" run with no
- * recent progress is declared abandoned and closed out here. Returns
- * an error when a live run is genuinely still executing. */
+ * recent progress is resumed when possible, closed out when not.
+ * Returns an error when a live run is genuinely still executing. */
 async function guardSharedStore(): Promise<{ error: string; status: number } | null> {
   const staleBefore = new Date(Date.now() - STALE_RUN_MS);
   const running = await prisma.liveRun.findFirst({ where: { status: "running" } });
@@ -151,6 +245,14 @@ async function guardSharedStore(): Promise<{ error: string; status: number } | n
   const lastProgress = lastResult?.createdAt ?? running.startedAt;
   if (lastProgress >= staleBefore) {
     return { error: `Run ${running.id} is still executing — the store is shared, one run at a time.`, status: 409 };
+  }
+  // Stale. Resume it if we can (the launch attempt that found it waits);
+  // close it out only when resumption is impossible.
+  if (!activeRuns.has(running.id) && (await resumeRun(running))) {
+    return {
+      error: `Run ${running.id} was interrupted and is now resuming — the store is shared, one run at a time.`,
+      status: 409,
+    };
   }
   log.warn("harness", "recovering abandoned run", { runId: running.id });
   await prisma.liveRun.update({
@@ -196,6 +298,11 @@ export async function launchRun(
           suite: opts.suite,
           scenariosJson: JSON.stringify(scenarioIds),
           status: "running",
+          // Resume context — everything except secrets.
+          model: opts.model ?? null,
+          systemPrompt: opts.systemPrompt ?? null,
+          sandbox: opts.sandbox === true,
+          authTokenUsed: !!opts.authToken,
         },
       });
     });
@@ -286,6 +393,11 @@ export async function launchPlan(
             planId,
             planKind,
             planStep: i + 1,
+            // Resume context — a plan survives a restart, minus secrets.
+            model: base.model ?? null,
+            systemPrompt: base.systemPrompt ?? null,
+            sandbox: base.sandbox === true,
+            authTokenUsed: !!base.authToken,
           },
         });
       }
@@ -334,13 +446,20 @@ export async function advanceQueue(): Promise<void> {
     }
     if (!next) return;
 
-    const base = next.planId ? planOpts.get(next.planId) : undefined;
+    // Prefer the in-process launch options (they carry auth tokens);
+    // after a restart, rebuild from the persisted row instead so plans
+    // survive deploys. Token-authed steps are the one thing that can't.
+    const inProcess = next.planId ? planOpts.get(next.planId) : undefined;
+    const row = await prisma.liveRun.findUnique({ where: { id: next.id } });
+    const rebuilt = row ? optsFromRow(row) : null;
+    const base = inProcess ?? (rebuilt ? { ...rebuilt } : undefined);
     if (!base) {
       await prisma.liveRun.update({
         where: { id: next.id },
         data: {
           status: "error",
-          error: "Plan interrupted — the server restarted before this step started. Relaunch it individually.",
+          error:
+            "Plan interrupted — this step's agent used a private auth token, which is never stored. Relaunch it individually.",
           finishedAt: new Date(),
         },
       });
@@ -393,6 +512,7 @@ async function executeRun(
   scenarioIds: string[],
   scenarioMap: Map<string, Scenario>,
 ): Promise<void> {
+  activeRuns.add(runId);
   const queue = [...scenarioIds];
 
   const worker = async () => {
@@ -431,6 +551,7 @@ async function executeRun(
   };
 
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  activeRuns.delete(runId);
 
   await prisma.liveRun.update({
     where: { id: runId },

@@ -89,16 +89,29 @@ What is deliberately *not* built until real auth lands: per-user Stripe
 customers, seats, entitlement middleware. The single `BillingAccount` row
 ("default") is the whole workspace.
 
-## 3. Auth (Supabase Auth or any provider)
+## 3. Auth (Supabase) — the enforcement is already wired
 
-V0 identity is a localStorage session plus an abuse-resistant free-grant
-key (normalized email + coarse device fingerprint, enforced server-side in
-`/api/live/free-grant`). When real auth arrives:
+Every mutating route (run/plan launch, setup, generate, billing, share
+minting, connection tests) already passes through `requireUser()`
+(`src/server/auth.ts`). Activation is one env var:
 
-- Replace `src/lib/auth.ts`'s localStorage store with the provider session.
-- Key `BillingAccount` and the `FreeGrant` ledger by the real user/org id;
-  the fingerprint heuristics then become defence-in-depth only.
-- Gate the API routes (today they trust the single-workspace deployment).
+```
+SUPABASE_JWT_SECRET="…"        # Project Settings → API → JWT secret
+NEXT_PUBLIC_SUPABASE_URL="…"   # informational
+```
+
+With the secret set, those routes require
+`Authorization: Bearer <supabase access token>`, verified locally (HS256
+signature + expiry + "authenticated" audience — no SDK, no network).
+Without it, the app runs in open single-workspace mode, exactly as
+self-hosted today.
+
+Remaining client-side work when you adopt Supabase:
+- Replace `src/lib/auth.ts`'s localStorage session with the Supabase
+  session, and attach its access token to mutating fetches.
+- Key `BillingAccount` and the `FreeGrant` ledger by `user.id` (the
+  verified id is already returned by `requireUser`); the fingerprint
+  heuristics become defence-in-depth only.
 
 ## 4. LLM provider
 

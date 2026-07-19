@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
+import { ensureBootRecovery } from "@/server/harness";
 import type { LiveRunSummary } from "@/lib/live-types";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+  // First read after a restart resumes any interrupted run.
+  void ensureBootRecovery();
   const { id } = await params;
   const run = await prisma.liveRun.findUnique({
     where: { id },

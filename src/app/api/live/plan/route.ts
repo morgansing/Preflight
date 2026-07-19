@@ -7,6 +7,7 @@ import { launchPlan } from "@/server/harness";
 import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
 import { plannedSimCount } from "@/server/run-list";
 import type { WorkspaceIdentity } from "@/lib/identity";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,9 @@ export const dynamic = "force-dynamic";
  * decision, one price, exactly what the preset card displayed.
  */
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   try {
     const body = await request.json().catch(() => ({}));
     const agentKind = body.agentKind as string;

@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { badgeData } from "@/server/share";
+import { clientKey, rateLimit } from "@/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +9,12 @@ export const dynamic = "force-dynamic";
  * README. Public by design; the token is unguessable and read-only.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ) {
+  if (!rateLimit(`badge:${clientKey(request)}`)) {
+    return new Response("rate limited", { status: 429, headers: { "retry-after": "2" } });
+  }
   const { token } = await params;
   const data = await badgeData(token);
   if (!data) {

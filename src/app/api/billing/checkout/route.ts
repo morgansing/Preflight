@@ -1,11 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createCheckout } from "@/server/billing";
 import { routeError } from "@/server/log";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
 /** Start a Checkout Session for a plan (subscription) or pack (payment). */
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   try {
     const body = (await request.json().catch(() => null)) as {
       kind?: "plan" | "pack";

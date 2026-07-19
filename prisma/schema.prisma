@@ -203,6 +203,12 @@ model LiveRun {
   // Public share token — grants read-only access to this run's report
   // and score badge. Unguessable (crypto-random), revocable by null-ing.
   shareToken    String?      @unique
+  // Enough launch context to RESUME an interrupted run after a restart
+  // (auth tokens are never persisted — a token-authed run can't resume).
+  model         String?
+  systemPrompt  String?
+  sandbox       Boolean      @default(false)
+  authTokenUsed Boolean      @default(false)
   // Cached root-cause clustering (ClusterReport JSON) — failures don't
   // change after completion, so this is computed once on first request.
   clustersJson  String?
