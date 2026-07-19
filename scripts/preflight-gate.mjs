@@ -243,9 +243,15 @@ function numFlag(name) {
 
 async function api(method, path, body) {
   try {
+    // PREFLIGHT_API_TOKEN authenticates this headless caller once the
+    // server has auth enabled; without auth the header is ignored.
+    const apiToken = process.env.PREFLIGHT_API_TOKEN;
     const res = await fetch(`${cfg.url}${path}`, {
       method,
-      headers: body ? { "content-type": "application/json" } : undefined,
+      headers: {
+        ...(body ? { "content-type": "application/json" } : {}),
+        ...(apiToken ? { authorization: `Bearer ${apiToken}` } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
     const json = await res.json().catch(() => ({}));

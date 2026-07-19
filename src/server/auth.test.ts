@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { verifySupabaseJwt } from "./auth";
+import { isServiceToken, verifySupabaseJwt } from "./auth";
 
 const SECRET = "test-secret";
 
@@ -56,5 +56,14 @@ describe("verifySupabaseJwt", () => {
   it("rejects garbage", () => {
     expect(verifySupabaseJwt("not-a-jwt", SECRET)).toBeNull();
     expect(verifySupabaseJwt("", SECRET)).toBeNull();
+  });
+});
+
+describe("isServiceToken", () => {
+  it("accepts only an exact match", () => {
+    expect(isServiceToken("tok_abc123", "tok_abc123")).toBe(true);
+    expect(isServiceToken("tok_abc124", "tok_abc123")).toBe(false);
+    expect(isServiceToken("tok_abc", "tok_abc123")).toBe(false);
+    expect(isServiceToken("", "tok_abc123")).toBe(false);
   });
 });

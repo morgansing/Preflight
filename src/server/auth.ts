@@ -33,6 +33,11 @@ export function requireUser(request: Request): AuthResult {
   }
   const header = request.headers.get("authorization") ?? "";
   const token = header.replace(/^Bearer\s+/i, "").trim();
+  // Headless callers (the CI gate) authenticate with the service token —
+  // machines can't complete a browser login.
+  if (config.auth.apiToken && isServiceToken(token, config.auth.apiToken)) {
+    return { user: { id: "service:ci" } };
+  }
   const payload = token ? verifySupabaseJwt(token, config.auth.jwtSecret!) : null;
   if (!payload) {
     return {
@@ -43,6 +48,12 @@ export function requireUser(request: Request): AuthResult {
     };
   }
   return { user: { id: payload.sub, email: payload.email } };
+}
+
+/** Constant-time service-token comparison. */
+export function isServiceToken(given: string, expected: string): boolean {
+  if (!given || given.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
 interface JwtPayload {

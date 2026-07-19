@@ -71,5 +71,8 @@ export const config = {
      * verified-user mode — no code change. */
     jwtSecret: process.env.SUPABASE_JWT_SECRET ?? null,
     enabled: !!process.env.SUPABASE_JWT_SECRET,
+    /** Service token for headless callers (the CI gate Action) once
+     * auth is active — machines can't do a browser login. */
+    apiToken: process.env.PREFLIGHT_API_TOKEN ?? null,
   },
 } as const;

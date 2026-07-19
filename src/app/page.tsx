@@ -178,6 +178,56 @@ judge  ✗  refunded against signed delivery;
         />
       </section>
 
+      {/* What ships with it — the layers behind the verdict. */}
+      <section className="py-32">
+        <div className="text-center">
+          <Eyebrow>Beyond the score</Eyebrow>
+          <h2 className="font-display mt-3 text-4xl tracking-tight text-ink">
+            A score is only the beginning.
+          </h2>
+        </div>
+        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+          <div className="rounded-xl border border-edge bg-surface p-7 shadow-card">
+            <div className="font-mono text-[10px] tracking-[0.14em] text-mut">LAYERED VERDICT</div>
+            <h3 className="mt-3 text-[17px] font-medium text-ink">
+              Coverage · security · your policies
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-sub">
+              A production sign-off runs the scenario library, a prompt-injection
+              suite, and scenarios generated from <em>your</em>{" "}rulebook — one job,
+              one checklist verdict. Every report says out loud what it did and
+              didn&apos;t test.
+            </p>
+          </div>
+          <div className="rounded-xl border border-edge bg-surface p-7 shadow-card">
+            <div className="font-mono text-[10px] tracking-[0.14em] text-warn">ADAPTIVE RED-TEAM</div>
+            <h3 className="mt-3 text-[17px] font-medium text-ink">
+              Its failures become its next exam
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-sub">
+              One click turns a run&apos;s failure patterns into a suite of escalating
+              adversaries aimed at exactly what your agent got wrong. Fix, re-run,
+              and the attacks move to the next weakness.
+            </p>
+          </div>
+          <div className="rounded-xl border border-edge bg-surface p-7 shadow-card">
+            <div className="font-mono text-[10px] tracking-[0.14em] text-accent">PROOF YOU CAN SHARE</div>
+            <h3 className="mt-3 text-[17px] font-medium text-ink">
+              A badge that answers the question
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-sub">
+              Every run can mint a verified public result page and an embeddable
+              score badge — gate PRs on it in CI, put it in the README, attach the
+              PDF to the launch email.
+            </p>
+            <span className="mt-4 inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/api/badge/demo" alt="Preflight score badge: 97" className="h-5" />
+            </span>
+          </div>
+        </div>
+      </section>
+
       {/* Closing CTA */}
       <section className="py-32 text-center">
         <h2 className="font-display text-4xl tracking-tight text-ink">
