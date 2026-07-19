@@ -43,3 +43,7 @@ next-env.d.ts
 # Prisma SQLite database
 prisma/*.db
 prisma/*.db-journal
+
+# Playwright
+/test-results/
+/playwright-report/
