@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { SsoButtons } from "@/components/sso-buttons";
 import { Button } from "@/components/ui";
 import { useSession } from "@/lib/auth";
 
@@ -25,8 +26,12 @@ export default function LoginPage() {
         them.
       </p>
 
+      <div className="mt-8">
+        <SsoButtons verb="Sign in" />
+      </div>
+
       <form
-        className="mt-8 space-y-4"
+        className="mt-6 space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           // V0: restore the local session, or start one for this email.
