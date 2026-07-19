@@ -222,6 +222,7 @@ export async function ensureBootRecovery(): Promise<void> {
             finishedAt: new Date(),
           },
         });
+        scheduleStoreCleanup(row.id);
       }
     }
     if (running.length === 0) void advanceQueue();
@@ -511,6 +512,8 @@ export async function advanceQueue(): Promise<void> {
         where: { id: runId },
         data: { status: "error", error: "Store seeding failed for this step.", finishedAt: new Date() },
       });
+      // A failed seed may have written a partial slice — clear it.
+      scheduleStoreCleanup(runId);
       continue;
     }
 
@@ -575,8 +578,13 @@ async function executeRun(
     }
   };
 
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-  activeRuns.delete(runId);
+  try {
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  } finally {
+    // Crash or success, this process is no longer executing the run —
+    // a stale entry here would block future resume attempts.
+    activeRuns.delete(runId);
+  }
 
   await prisma.liveRun.update({
     where: { id: runId },
