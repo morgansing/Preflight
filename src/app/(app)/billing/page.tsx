@@ -9,6 +9,7 @@ import {
   PLANS,
   planById,
   useBillingPrefs,
+  useBillingStatus,
   useSimUsage,
 } from "@/lib/billing";
 import { fetchFreeAllowance, type FreeAllowance } from "@/lib/live-api";
@@ -23,8 +24,45 @@ import { computeFingerprint } from "@/lib/identity";
 export default function BillingPage() {
   const { session, setPlan } = useSession();
   const { prefs, addCredits, setAutoOverage } = useBillingPrefs();
+  const billing = useBillingStatus();
   const used = useSimUsage();
   const [freeGrant, setFreeGrant] = useState<FreeAllowance | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // Server truth when the billing API is reachable; localStorage
+  // preview otherwise (st === null after load = endpoint unavailable).
+  const st = billing.status ?? null;
+  const extraCredits = st ? st.balance.purchasedRemaining : prefs.extraCredits;
+  const autoTopUpOn = st ? st.autoTopUp : prefs.autoOverage;
+
+  const toggleAutoTopUp = () => {
+    if (st) void billing.setPrefs({ autoTopUp: !autoTopUpOn });
+    else setAutoOverage(!autoTopUpOn);
+  };
+
+  const buyPack = async (packId: string, sims: number) => {
+    setCheckoutError(null);
+    if (st?.enabled) {
+      const r = await billing.checkout("pack", packId);
+      if ("url" in r && r.url) window.location.assign(r.url);
+      else if ("error" in r) setCheckoutError(r.error ?? "Checkout failed.");
+    } else if (st) {
+      await billing.setPrefs({ mockPackId: packId });
+    } else {
+      addCredits(sims);
+    }
+  };
+
+  const choosePlan = async (planId: (typeof PLANS)[number]["id"]) => {
+    setCheckoutError(null);
+    if (st?.enabled && planId !== "free") {
+      const r = await billing.checkout("plan", planId);
+      if ("url" in r && r.url) window.location.assign(r.url);
+      else if ("error" in r) setCheckoutError(r.error ?? "Checkout failed.");
+    } else {
+      setPlan(planId);
+    }
+  };
 
   useEffect(() => {
     if (!session || session.plan !== "free") return;
@@ -52,10 +90,10 @@ export default function BillingPage() {
   }
 
   const plan = planById(session.plan);
-  const allowance = plan.simsIncluded + prefs.extraCredits;
-  const pct = used === undefined ? 0 : Math.min(100, Math.round((used / allowance) * 100));
-  const remaining = used === undefined ? undefined : Math.max(0, allowance - used);
-  const over = used !== undefined && used > allowance ? used - allowance : 0;
+  const allowance = plan.simsIncluded + extraCredits;
+  const pct = used == null ? 0 : Math.min(100, Math.round((used / allowance) * 100));
+  const remaining = used == null ? undefined : Math.max(0, allowance - used);
+  const over = used != null && used > allowance ? used - allowance : 0;
   const barTint = pct >= 100 ? "bg-fail" : pct >= 80 ? "bg-warn" : "bg-accent";
 
   return (
@@ -77,11 +115,11 @@ export default function BillingPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <Eyebrow>Simulations used</Eyebrow>
           <span className="font-mono text-[13px] tabular-nums text-sub">
-            {used === undefined ? "…" : used.toLocaleString()} /{" "}
+            {used === undefined ? "…" : used === null ? "—" : used.toLocaleString()} /{" "}
             {allowance.toLocaleString()}
             {plan.priceMonthly === null ? " one-time" : " this cycle"}
-            {prefs.extraCredits > 0 &&
-              ` (incl. ${prefs.extraCredits.toLocaleString()} pack credits)`}
+            {extraCredits > 0 &&
+              ` (incl. ${extraCredits.toLocaleString()} pack credits)`}
           </span>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-raised">
@@ -92,8 +130,10 @@ export default function BillingPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 text-[13px]">
           <span className="text-sub">
-            {remaining === undefined
-              ? "Counting…"
+            {used === null
+              ? "Usage unavailable — couldn\u2019t reach the server."
+              : remaining === undefined
+                ? "Counting…"
               : over > 0
                 ? `${over.toLocaleString()} simulations over allowance`
                 : `${remaining.toLocaleString()} remaining`}
@@ -105,12 +145,12 @@ export default function BillingPage() {
         {over > 0 && (
           <p
             className={`mt-3 rounded-lg border p-3 text-[13px] leading-relaxed ${
-              prefs.autoOverage
+              autoTopUpOn
                 ? "border-edge text-sub"
                 : "border-warn/40 bg-warn/8 text-warn"
             }`}
           >
-            {prefs.autoOverage && plan.overagePer1k
+            {autoTopUpOn && plan.overagePer1k
               ? `Auto-overage is on: the extra ${over.toLocaleString()} bills at $${plan.overagePer1k}/1,000 (≈ $${Math.ceil((over / 1000) * plan.overagePer1k)}).`
               : "You're past your allowance — new runs will ask you to add credits or enable auto-overage before starting."}
           </p>
@@ -147,16 +187,16 @@ export default function BillingPage() {
             <button
               type="button"
               role="switch"
-              aria-checked={prefs.autoOverage}
+              aria-checked={autoTopUpOn}
               disabled={!plan.overagePer1k}
-              onClick={() => setAutoOverage(!prefs.autoOverage)}
+              onClick={toggleAutoTopUp}
               className={`focus-ring relative mt-1 h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                prefs.autoOverage ? "bg-accent" : "bg-raised border border-edge"
+                autoTopUpOn ? "bg-accent" : "bg-raised border border-edge"
               }`}
             >
               <span
                 className={`absolute top-0.5 size-5 rounded-full bg-ink transition-all ${
-                  prefs.autoOverage ? "left-[22px] bg-[#08110b]" : "left-0.5"
+                  autoTopUpOn ? "left-[22px] bg-on-accent" : "left-0.5"
                 }`}
               />
             </button>
@@ -169,12 +209,12 @@ export default function BillingPage() {
           </p>
           <ul className="mt-3 space-y-2">
             {CREDIT_PACKS.map((p) => (
-              <li key={p.sims} className="flex items-center justify-between gap-3">
+              <li key={p.id} className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[13px] tabular-nums text-ink">
                   {p.sims.toLocaleString()} <span className="text-mut">· ${p.price}</span>
                 </span>
-                <Button variant="secondary" size="sm" onClick={() => addCredits(p.sims)}>
-                  Add
+                <Button variant="secondary" size="sm" onClick={() => void buyPack(p.id, p.sims)}>
+                  {st?.enabled ? "Buy" : "Add"}
                 </Button>
               </li>
             ))}
@@ -193,7 +233,7 @@ export default function BillingPage() {
                 key={p.id}
                 type="button"
                 disabled={current}
-                onClick={() => setPlan(p.id)}
+                onClick={() => void choosePlan(p.id)}
                 className={`focus-ring rounded-lg border p-4 text-left transition-colors ${
                   current
                     ? "border-accent/50 bg-raised"
@@ -216,9 +256,15 @@ export default function BillingPage() {
             );
           })}
         </div>
+        {checkoutError && (
+          <p className="mt-3 rounded-lg border border-warn/40 bg-warn/8 p-3 text-[13px] text-warn">
+            {checkoutError}
+          </p>
+        )}
         <p className="mt-3 text-[12px] leading-relaxed text-mut">
-          V0 preview: plan switches and credit packs apply to this workspace instantly and
-          nothing is charged — payments arrive with the hosted beta. Usage metering is real.{" "}
+          {st?.enabled
+            ? "Payments are live — plans and token packs check out through Stripe, and the usage meter is the same ledger the server enforces. "
+            : "V0 preview: plan switches and credit packs apply to this workspace instantly and nothing is charged — connecting Stripe activates real checkout with no code changes. Usage metering is real. "}{" "}
           <Link href="/pricing" className="focus-ring rounded text-accent hover:underline">
             Full pricing →
           </Link>

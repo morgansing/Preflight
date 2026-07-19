@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { use } from "react";
 import { ButtonLink, Card, Eyebrow } from "@/components/ui";
+import { LiveEmpty } from "@/components/live-empty";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
-import { getSuite } from "@/lib/fixtures/scenarios";
+import { categoryResults, runsByAgent, type PastRun } from "@/lib/fixtures/runs";
+import { toPastRun, useSessionRuns } from "@/lib/demo-runs";
+import { failingReplayId } from "@/lib/fixtures/scenarios";
+import { useMode } from "@/lib/mode";
 import { verdictFor } from "@/lib/types";
 
 /**
@@ -15,7 +19,11 @@ import { verdictFor } from "@/lib/types";
  */
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { mode } = useMode();
+  const sessionRuns = useSessionRuns();
   const agent = demoAgents.find((a) => a.id === id);
+
+  if (mode === "live") return <LiveEmpty surface="each agent's detail page" />;
 
   if (!agent) {
     return (
@@ -38,18 +46,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const worst = [...breakdown].filter((b) => b.pass < b.total).sort(
     (a, b) => a.pass / a.total - b.pass / b.total,
   );
-  const repScenario = (category: string) =>
-    getSuite(200).find((s) => s.category === category)?.id;
+  // A replay link should show the failure it advertises; categories
+  // with no failing replay on file get no link.
+  const repScenario = failingReplayId;
 
-  // Synthesize a run history from the score trend (newest first).
-  const history = agent.scoreHistory
-    .map((s, i) => ({ score: s, i }))
-    .reverse()
-    .map((r, idx) => ({
-      ...r,
-      label: idx === 0 ? agent.lastRun.agoLabel : `${idx * 3 + 2}d ago`,
-      delta: r.i > 0 ? r.score - agent.scoreHistory[r.i - 1] : 0,
-    }));
+  const fixtureHistory = runsByAgent.get(agent.id) ?? [];
+  // Fake tests from this browser lead the list; the category-trend grid
+  // stays fixture-only (per-category data isn't stored for fake runs).
+  const history = [
+    ...sessionRuns.filter((r) => r.agentId === agent.id).map((r) => toPastRun(r)),
+    ...fixtureHistory,
+  ];
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-10">
@@ -122,9 +129,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               const tint = pct === 100 ? "bg-accent" : pct >= 70 ? "bg-warn" : "bg-fail";
               const rep = b.pass < b.total ? repScenario(b.category) : undefined;
               const Row = (
-                <div className="flex items-center gap-4 px-5 py-3">
-                  <span className="w-44 shrink-0 text-[13px] text-ink">{b.category}</span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
+                  <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">{b.category}</span>
+                  <div className="h-1.5 min-w-36 flex-1 overflow-hidden rounded-full bg-raised">
                     <div className={`h-full rounded-full ${tint}`} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
@@ -135,9 +142,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       replay →
                     </span>
                   ) : (
-                    <span className="w-24 shrink-0 text-right font-mono text-[11px] text-accent/0">
-                      ok
-                    </span>
+                    <span aria-hidden className="w-24 shrink-0" />
                   )}
                 </div>
               );
@@ -188,36 +193,159 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
+      {/* Category trend — did each category actually get better, run over run? */}
+      {fixtureHistory.length > 1 && (
+        <section className="mt-12">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-xl text-ink">Category trend</h2>
+            <span className="flex items-center gap-4 font-mono text-[11px] text-mut">
+              <TrendLegend glyph="✓" colorClass="text-accent" label="clean" />
+              <TrendLegend glyph="◐" colorClass="text-warn" label="degraded" />
+              <TrendLegend glyph="✗" colorClass="text-fail" label="failing" />
+            </span>
+          </div>
+          <p className="mt-1.5 text-[13px] text-sub">
+            Every category across the last {fixtureHistory.length} runs, oldest to newest —
+            each cell opens its run.
+          </p>
+          <Card className="mt-4 overflow-x-auto">
+            <CategoryTrend history={fixtureHistory} />
+          </Card>
+        </section>
+      )}
+
       {/* Run history */}
       <section className="mt-12">
-        <h2 className="font-display text-xl text-ink">Run history</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-xl text-ink">Run history</h2>
+          <Link
+            href="/runs/history"
+            className="focus-ring rounded font-mono text-[11px] text-accent hover:underline"
+          >
+            all runs →
+          </Link>
+        </div>
         <Card className="mt-4 divide-y divide-edge p-0">
-          {history.map((r, idx) => {
+          {history.map((r) => {
             const above = r.score >= agent.threshold;
             return (
-              <div key={r.i} className="flex items-center gap-4 px-5 py-3">
+              <Link
+                key={r.id}
+                href={`/runs/${r.id}`}
+                className="focus-ring flex items-center gap-4 px-5 py-3 transition-colors hover:bg-surface"
+              >
                 <span className="w-24 shrink-0 font-mono text-[12px] text-mut">{r.label}</span>
                 <span className="numeral w-14 shrink-0 text-lg text-ink">{r.score}%</span>
                 <span
                   className={`w-16 shrink-0 font-mono text-[11px] tabular-nums ${
-                    r.delta > 0 ? "text-accent" : r.delta < 0 ? "text-fail" : "text-mut"
+                    r.delta !== undefined && r.delta > 0
+                      ? "text-accent"
+                      : r.delta !== undefined && r.delta < 0
+                        ? "text-fail"
+                        : "text-mut"
                   }`}
                 >
-                  {r.delta > 0 ? `+${r.delta}` : r.delta < 0 ? r.delta : "—"}
+                  {r.delta === undefined || r.delta === 0 ? "—" : r.delta > 0 ? `+${r.delta}` : r.delta}
                 </span>
                 <span className={`flex-1 text-[12px] ${above ? "text-sub" : "text-mut"}`}>
                   {above ? "cleared the bar" : "below threshold"}
                 </span>
-                {idx === 0 && (
-                  <Link href="/reports" className="focus-ring shrink-0 font-mono text-[11px] text-accent hover:underline">
-                    report →
-                  </Link>
-                )}
-              </div>
+                <span className="shrink-0 font-mono text-[11px] text-accent">
+                  {r.id} →
+                </span>
+              </Link>
             );
           })}
         </Card>
       </section>
+    </div>
+  );
+}
+
+const trendTint = (pct: number) =>
+  pct === 100
+    ? { cell: "bg-accent/15 text-accent", glyph: "✓" }
+    : pct >= 70
+      ? { cell: "bg-warn/15 text-warn", glyph: "◐" }
+      : { cell: "bg-fail/18 text-fail", glyph: "✗" };
+
+function TrendLegend({
+  glyph,
+  colorClass,
+  label,
+}: {
+  glyph: string;
+  colorClass: string;
+  label: string;
+}) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden className={colorClass}>
+        {glyph}
+      </span>
+      {label}
+    </span>
+  );
+}
+
+/** Category × run grid: each row a category, each cell one run's
+ * pass/total for it — the regression story at a glance. */
+function CategoryTrend({ history }: { history: PastRun[] }) {
+  const chrono = [...history].reverse();
+  const perRun = chrono.map(
+    (r) => new Map(categoryResults(r.id).map((c) => [c.category, c])),
+  );
+  const latest = perRun[perRun.length - 1];
+  const cats = [...latest.keys()].sort((a, b) => {
+    const A = latest.get(a)!;
+    const B = latest.get(b)!;
+    return A.pass / A.total - B.pass / B.total;
+  });
+
+  return (
+    <div className="min-w-[560px]">
+      <div className="flex items-center gap-4">
+        <span className="w-44 shrink-0" aria-hidden />
+        <div className="flex gap-1">
+          {chrono.map((r) => (
+            <span
+              key={r.id}
+              title={`${r.id} · ${r.label}`}
+              className="w-6 text-center font-mono text-[9px] text-mut"
+            >
+              {r.id.slice(-2)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {cats.map((cat) => (
+          <div key={cat} className="flex items-center gap-4">
+            <span className="w-44 shrink-0 truncate text-[13px] text-ink">{cat}</span>
+            <div className="flex gap-1">
+              {chrono.map((r, i) => {
+                const c = perRun[i].get(cat)!;
+                const pct = Math.round((c.pass / c.total) * 100);
+                const tint = trendTint(pct);
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/runs/${r.id}`}
+                    title={`${r.id} · ${cat} · ${c.pass}/${c.total}`}
+                    className="focus-ring rounded-[3px]"
+                  >
+                    <span
+                      className={`flex size-6 items-center justify-center rounded-[3px] text-[9px] leading-none ${tint.cell}`}
+                    >
+                      {tint.glyph}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

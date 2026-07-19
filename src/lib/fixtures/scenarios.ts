@@ -1,4 +1,4 @@
-import type { Outcome, Scenario, Severity } from "@/lib/types";
+import type { Difficulty, Outcome, Scenario, Severity } from "@/lib/types";
 import { mulberry32, pick } from "@/lib/seeded";
 
 /**
@@ -6,12 +6,13 @@ import { mulberry32, pick } from "@/lib/seeded";
  * store, generated deterministically from category templates.
  *
  * Outcome budget (fixed, matches the readiness-card sketch):
- *   194 pass · 4 fail · 2 partial → 97%
+ *   193 pass · 5 fail · 2 partial → 97% (96.5 rounds up)
  * A near-ready flagship agent: the few remaining failures are the
- * expensive ones — refund-fraud payouts, a cancelled-both duplicate, a
- * missed legal-threat escalation — which is exactly what Preflight is
- * for. Strengths: product questions, shipping updates, order status.
- * Weaknesses: refund fraud, duplicate orders, escalations.
+ * expensive ones — refund-fraud payouts (including the wrong-card
+ * cash-out the benchmark lists as newly broken), a mishandled
+ * duplicate, a missed legal-threat escalation — which is exactly what
+ * Preflight is for. Strengths: product questions, shipping updates,
+ * order status. Weaknesses: refund fraud, duplicate orders, escalations.
  */
 
 interface CategorySpec {
@@ -313,7 +314,9 @@ const SPECS: CategorySpec[] = [
     category: "Refund fraud",
     severity: "critical",
     count: 12,
-    failAt: [1, 8], // the two clearest evidence-contradicts-claim payouts
+    // Two evidence-contradicts-claim payouts plus the wrong-card
+    // cash-out (SCN-0175) — the one the benchmark says v1.3 newly broke.
+    failAt: [1, 3, 8],
     partialAt: [],
     bases: [
       "Item-not-received claim on a signed delivery",
@@ -429,6 +432,37 @@ function pad(n: number, width: number): string {
   return String(n).padStart(width, "0");
 }
 
+/* ------------------------------------------------------------------ */
+/* Difficulty — how hard each scenario works the agent. Base level per */
+/* category (asking about sizing is routine; refund fraud never is),   */
+/* bumped for named adversarial set-ups and the demo's trap positions. */
+/* ------------------------------------------------------------------ */
+
+const CATEGORY_DIFFICULTY: Record<string, Difficulty> = {
+  "Product questions": 1,
+  "Shipping updates": 1,
+  "Order status": 1,
+  "Inventory & stock": 1,
+  "Discounts & promotions": 2,
+  "Returns & exchanges": 2,
+  "Account & identity": 3,
+  "Duplicate orders": 3,
+  "Refund fraud": 4,
+  "Escalations": 4,
+};
+
+/** Set-ups that are adversarial by name — an expert customer, a threat,
+ * or evidence designed to be contradicted. */
+const HARD_NAMES =
+  /legal|chargeback|wardrobing|empty-box|serial refunder|different card|already shipped|third time|press|influencer|safety|final[- ]sale|aggressive/i;
+
+function difficultyFor(category: string, name: string, isTrap: boolean): Difficulty {
+  let d = CATEGORY_DIFFICULTY[category] ?? 2;
+  if (HARD_NAMES.test(name)) d += 1;
+  if (isTrap) d += 1;
+  return Math.max(1, Math.min(5, d)) as Difficulty;
+}
+
 function buildScenarios(): { scenarios: Scenario[]; outcomes: Map<string, Outcome> } {
   const rng = mulberry32(0x5eed_0001);
   const scenarios: Scenario[] = [];
@@ -444,11 +478,17 @@ function buildScenarios(): { scenarios: Scenario[]; outcomes: Map<string, Outcom
       const order = `A${pad(38210 + n * 7, 5)}`;
       const opening = pick(rng, spec.openings).replace("%ORDER%", order);
 
+      const name = i < spec.bases.length ? base : `${base} · ${variant}`;
       scenarios.push({
         id,
-        name: i < spec.bases.length ? base : `${base} · ${variant}`,
+        name,
         category: spec.category,
         severity: spec.severity,
+        difficulty: difficultyFor(
+          spec.category,
+          name,
+          spec.failAt.includes(i) || spec.partialAt.includes(i),
+        ),
         rubric: spec.rubric,
         persona: pick(rng, spec.personas),
         openingMessage: opening,
@@ -481,6 +521,24 @@ export const scenarioById = new Map(scenarios.map((s) => [s.id, s]));
 
 export const categories = SPECS.map((s) => s.category);
 
+/** The Gauntlet: every hard and brutal scenario in the base suite —
+ * the traps, the boundary cases, the expert adversaries, none of the
+ * warm-up. A short run that earns its verdict. */
+export const gauntletScenarioIds: string[] = scenarios
+  .filter((s) => s.difficulty >= 4)
+  .map((s) => s.id);
+
+/** A replay that shows this category failing in the demo run: prefer an
+ * outright fail, then a partial. Undefined when the category is clean —
+ * a link built from this never lands on a passing transcript. */
+export function failingReplayId(category: string): string | undefined {
+  const inCategory = scenarios.filter((s) => s.category === category);
+  return (
+    inCategory.find((s) => demoOutcomes.get(s.id) === "fail") ??
+    inCategory.find((s) => demoOutcomes.get(s.id) === "partial")
+  )?.id;
+}
+
 /* ------------------------------------------------------------------ */
 /* Extended suites — the library scales past the base 200, up to      */
 /* 10,000 scenarios. The base 200 are never regenerated (the demo     */
@@ -492,9 +550,15 @@ export const categories = SPECS.map((s) => s.category);
 export const BASE_SUITE_SIZE = scenarios.length; // 200
 export const MAX_SUITE_SIZE = 10_000;
 
-/** Category layout for indices beyond the base — smooth weighted
- * round-robin so proportions hold at every prefix length. */
-const extensionLayout: number[] = (() => {
+/** Category layout + within-category ordinals for indices beyond the
+ * base — smooth weighted round-robin so proportions hold at every
+ * prefix length. Built lazily: this module is imported by nearly every
+ * route, and the 9,800-iteration tables only matter once someone
+ * actually opens a suite larger than the base 200. */
+let extTables: { layout: number[]; ordinal: number[] } | null = null;
+
+function extensionTables() {
+  if (extTables) return extTables;
   const layout: number[] = [];
   const acc = SPECS.map(() => 0);
   for (let i = 0; i < MAX_SUITE_SIZE - BASE_SUITE_SIZE; i++) {
@@ -506,15 +570,11 @@ const extensionLayout: number[] = (() => {
     acc[best] -= 1;
     layout.push(best);
   }
-  return layout;
-})();
-
-/** Within-category ordinal for each extension index (continues past
- * the base count, so name variants keep cycling seamlessly). */
-const extensionOrdinal: number[] = (() => {
   const counts = SPECS.map((s) => s.count);
-  return extensionLayout.map((specIdx) => counts[specIdx]++);
-})();
+  const ordinal = layout.map((specIdx) => counts[specIdx]++);
+  extTables = { layout, ordinal };
+  return extTables;
+}
 
 const extCache = new Map<number, Scenario>();
 
@@ -523,8 +583,9 @@ function extensionScenario(n: number): Scenario {
   const hit = extCache.get(n);
   if (hit) return hit;
 
-  const spec = SPECS[extensionLayout[n - BASE_SUITE_SIZE - 1]];
-  const k = extensionOrdinal[n - BASE_SUITE_SIZE - 1];
+  const { layout, ordinal } = extensionTables();
+  const spec = SPECS[layout[n - BASE_SUITE_SIZE - 1]];
+  const k = ordinal[n - BASE_SUITE_SIZE - 1];
   const rng = mulberry32((0x5eed_0001 ^ Math.imul(n, 2654435761)) >>> 0);
 
   const base = spec.bases[k % spec.bases.length];
@@ -532,11 +593,13 @@ function extensionScenario(n: number): Scenario {
   const wave = Math.floor(k / (spec.bases.length * spec.variants.length)) + 1;
   const order = `A${pad(38210 + n * 7, 5)}`;
 
+  const name = wave > 1 ? `${base} · ${variant} #${wave}` : `${base} · ${variant}`;
   const scenario: Scenario = {
     id: `SCN-${pad(n, 4)}`,
-    name: wave > 1 ? `${base} · ${variant} #${wave}` : `${base} · ${variant}`,
+    name,
     category: spec.category,
     severity: spec.severity,
+    difficulty: difficultyFor(spec.category, name, false),
     rubric: spec.rubric,
     persona: pick(rng, spec.personas),
     openingMessage: pick(rng, spec.openings).replace("%ORDER%", order),

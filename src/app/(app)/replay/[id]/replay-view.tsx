@@ -68,9 +68,12 @@ export function ReplayView({
     return () => clearInterval(id);
   }, [playing, total]);
 
-  // ←/→ scrubbing, space toggles play.
+  // ←/→ scrubbing, space toggles play — unless focus is on something
+  // interactive (button, link, input), which keeps its own keys.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("button, a, input, select, textarea, [contenteditable]")) return;
       if (e.key === "ArrowRight") {
         setPlaying(false);
         step(1);
@@ -253,13 +256,33 @@ export function ReplayView({
               );
             })}
           </div>
-          {replay.failureReason && diverged && (
+          {replay.diagnosis && (diverged || finished) ? (
             <div className="animate-fade-up mt-5 border-t border-edge pt-4">
-              <Eyebrow>Judge&apos;s note</Eyebrow>
-              <p className="mt-2 text-[13px] leading-relaxed text-sub">
-                {replay.failureReason}
-              </p>
+              <div className="flex items-baseline justify-between gap-3">
+                <Eyebrow>Diagnosis</Eyebrow>
+                <span
+                  className="font-mono text-[11px] tabular-nums text-mut"
+                  title="Judge confidence in this verdict"
+                >
+                  {Math.round(replay.diagnosis.confidence * 100)}% CONFIDENCE
+                </span>
+              </div>
+              <div className="mt-3 space-y-3">
+                <DiagnosisRow label="Root cause" text={replay.diagnosis.rootCause} />
+                <DiagnosisRow label="Impact" text={replay.diagnosis.impact} />
+                <DiagnosisRow label="Recommended fix" text={replay.diagnosis.fix} accent />
+              </div>
             </div>
+          ) : (
+            replay.failureReason &&
+            diverged && (
+              <div className="animate-fade-up mt-5 border-t border-edge pt-4">
+                <Eyebrow>Judge&apos;s note</Eyebrow>
+                <p className="mt-2 text-[13px] leading-relaxed text-sub">
+                  {replay.failureReason}
+                </p>
+              </div>
+            )
           )}
 
           {/* The judge's work: verbatim quotes, each jumping to its step. */}
@@ -382,6 +405,33 @@ function ScrubButton({
     >
       {children}
     </button>
+  );
+}
+
+function DiagnosisRow({
+  label,
+  text,
+  accent = false,
+}: {
+  label: string;
+  text: string;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-3.5 ${
+        accent ? "border-accent/25 bg-accent/5" : "border-edge bg-surface"
+      }`}
+    >
+      <div
+        className={`font-mono text-[10px] uppercase tracking-wider ${
+          accent ? "text-accent/80" : "text-mut"
+        }`}
+      >
+        {label}
+      </div>
+      <p className="mt-1 text-[13px] leading-relaxed text-ink">{text}</p>
+    </div>
   );
 }
 

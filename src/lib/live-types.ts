@@ -28,12 +28,16 @@ export interface LiveRunSummary {
   agentKind: string;
   provider: "anthropic" | "mock";
   suite: string; // tier id: smoke | standard | extended | scale | exhaustive | max
-  status: "running" | "complete" | "error";
+  status: "queued" | "running" | "complete" | "error";
   error?: string;
   startedAt: string;
   finishedAt?: string;
   scenarioIds: string[];
   results: LiveCellResult[];
+  /** Present when this run is one step of a flight plan. */
+  planId?: string;
+  planKind?: string;
+  planStep?: number;
 }
 
 /** Lightweight run listing — aggregates only, no per-scenario results.
@@ -44,13 +48,29 @@ export interface LiveRunListItem {
   agentKind: string;
   provider: "anthropic" | "mock";
   suite: string;
-  status: "running" | "complete" | "error";
+  status: "queued" | "running" | "complete" | "error";
   error?: string;
   startedAt: string;
   finishedAt?: string;
   total: number;
   counts: { pass: number; fail: number; partial: number; error: number };
   score: number;
+  /** Total run cost — powers workspace-specific pace estimates. */
+  costUsd?: number;
+  planId?: string;
+  planKind?: string;
+}
+
+/** A flight plan: several runs launched as one job, executed
+ * sequentially against the shared store. */
+export interface LivePlan {
+  planId: string;
+  planKind: string;
+  agentName: string;
+  runs: LiveRunListItem[];
+  /** complete = every step finished (errors included — a failed step
+   * doesn't block the next). */
+  done: boolean;
 }
 
 export type LiveEvent =

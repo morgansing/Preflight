@@ -1,3 +1,4 @@
+import { CommandPalette } from "@/components/command-palette";
 import { NavRail } from "@/components/nav-rail";
 
 export default function AppLayout({
@@ -9,6 +10,7 @@ export default function AppLayout({
     <div className="flex min-h-screen">
       <NavRail />
       <main className="min-w-0 flex-1">{children}</main>
+      <CommandPalette />
     </div>
   );
 }

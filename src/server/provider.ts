@@ -1,4 +1,5 @@
 import type { ReplayStep, Scenario, Severity } from "@/lib/types";
+import { config } from "./config";
 
 /**
  * Provider boundary for the three LLM roles in a live run: the
@@ -104,7 +105,7 @@ export interface Provider {
 }
 
 export function providerKey(): string | undefined {
-  return process.env.PREFLIGHT_LLM_KEY ?? process.env.ANTHROPIC_API_KEY;
+  return config.llmKey ?? undefined;
 }
 
 export async function getProvider(): Promise<Provider | null> {

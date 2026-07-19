@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ButtonLink, Card, EmptyState, Eyebrow } from "./ui";
+import { ButtonLink, Card, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
+import { ActivationChecklist } from "./activation-checklist";
 import { ReadinessCard } from "./readiness-card";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
@@ -11,26 +12,50 @@ import { strengthsAndWeaknesses } from "@/lib/live-analyze";
 import { suiteLabel } from "@/lib/suite-tiers";
 
 export function LiveDashboard() {
-  const [runs, setRuns] = useState<LiveRunListItem[] | null>(null);
+  // undefined = loading · null = fetch failed · [] = empty workspace.
+  const [runs, setRuns] = useState<LiveRunListItem[] | null | undefined>(undefined);
   const [latest, setLatest] = useState<LiveRunSummary | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let alive = true;
     (async () => {
       const list = await fetchRuns();
+      if (!list) return { list: null, full: null };
       const latestComplete = list.find((r) => r.status === "complete");
       const full = latestComplete ? await fetchRun(latestComplete.id) : null;
       return { list, full };
     })().then(({ list, full }) => {
+      if (!alive) return;
       setRuns(list);
       setLatest(full);
     });
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [attempt]);
 
-  if (!runs) return null;
+  if (runs === undefined) {
+    return (
+      <div className="mt-16 space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+  if (runs === null) {
+    return (
+      <div className="mt-16">
+        <LoadError what="live runs" onRetry={() => setAttempt((a) => a + 1)} />
+      </div>
+    );
+  }
 
   if (runs.length === 0) {
     return (
-      <div className="mt-16">
+      <div className="mt-6">
+        <ActivationChecklist runs={runs} />
+        <div className="mt-10" />
         <EmptyState
           icon={
             <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-8">
@@ -56,6 +81,8 @@ export function LiveDashboard() {
   const sw = latest ? strengthsAndWeaknesses(latest) : null;
 
   return (
+    <>
+    <ActivationChecklist runs={runs} />
     <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-4">
         {runs.slice(0, 6).map((run) => {
@@ -116,10 +143,12 @@ export function LiveDashboard() {
           score={scoreOf(latest.results)}
           strengths={sw.strengths}
           weaknesses={sw.weaknesses}
+          wallHref={`/runs/${latest.id}`}
           meta={`Run ${latest.id} · ${latest.results.length} scenarios · provider ${latest.provider}`}
           className="h-fit"
         />
       )}
     </div>
+    </>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { openPalette } from "@/components/command-palette";
 import { useMode } from "@/lib/mode";
 import { useSession } from "@/lib/auth";
 import { planById } from "@/lib/billing";
@@ -70,10 +71,26 @@ export function NavRail() {
 
   return (
     <nav className="no-print sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-edge bg-surface px-3 py-6">
-      <Link href="/" className="focus-ring mb-8 flex items-center gap-2 rounded-md px-2">
+      <Link href="/" className="focus-ring mb-6 flex items-center gap-2 rounded-md px-2">
         <span aria-hidden className="inline-block size-2 rounded-full bg-accent" />
         <span className="font-mono text-xs tracking-[0.18em] text-ink">PREFLIGHT</span>
       </Link>
+
+      <button
+        onClick={openPalette}
+        className="focus-ring mb-4 flex h-9 cursor-pointer items-center justify-between rounded-lg border border-edge px-2.5 text-[13px] text-mut transition-colors hover:border-mut hover:text-sub"
+      >
+        <span className="flex items-center gap-2.5">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-3.5">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="M10.5 10.5L14 14" strokeLinecap="round" />
+          </svg>
+          Search
+        </span>
+        <span className="rounded border border-edge px-1 py-0.5 font-mono text-[9px] tracking-wider">
+          ⌘K
+        </span>
+      </button>
 
       <div className="flex flex-1 flex-col gap-1">
         {items.map((item) => {
@@ -136,7 +153,7 @@ export function NavRail() {
               DEMO
             </span>
           ) : (
-            <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-[#08110b]">
+            <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-on-accent">
               LIVE
             </span>
           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, ButtonLink, Card, Eyebrow } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { useMode } from "@/lib/mode";
@@ -69,10 +69,20 @@ export function SetupWizard() {
   const [tone, setTone] = useState("Friendly");
   const [riskTolerance, setRiskTolerance] = useState("low");
   const [rules, setRules] = useState<LocalRule[]>([]);
-  const [provider, setProvider] = useState<"anthropic" | "mock" | null>(null);
+  // "unreachable" (status fetch failed) renders like unknown — no badge.
+  const [provider, setProvider] = useState<"anthropic" | "mock" | null | "unreachable">(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [saved, setSaved] = useState<null | number>(null);
+
+  // Guards every async setState (load + generation poll) after unmount.
+  const cancelled = useRef(false);
+  useEffect(() => {
+    cancelled.current = false;
+    return () => {
+      cancelled.current = true;
+    };
+  }, []);
 
   // Load existing setup.
   useEffect(() => {
@@ -95,7 +105,7 @@ export function SetupWizard() {
         }
       }
       const [status, res] = await Promise.all([fetchProviderStatus(), fetch("/api/setup")]);
-      setProvider(status);
+      if (!cancelled.current) setProvider(status);
       if (!res.ok) return null;
       const data = await res.json();
       if (!data.profile) return null;
@@ -112,16 +122,20 @@ export function SetupWizard() {
         })),
       };
     };
-    load().then((existing) => {
-      if (!existing) return;
-      setRole(existing.role);
-      setAgentRef(existing.agentRef);
-      setTools(existing.tools);
-      if (existing.platform) setPlatform(existing.platform);
-      if (existing.tone) setTone(existing.tone);
-      if (existing.riskTolerance) setRiskTolerance(existing.riskTolerance);
-      setRules(existing.rules);
-    });
+    load()
+      .then((existing) => {
+        if (!existing || cancelled.current) return;
+        setRole(existing.role);
+        setAgentRef(existing.agentRef);
+        setTools(existing.tools);
+        if (existing.platform) setPlatform(existing.platform);
+        if (existing.tone) setTone(existing.tone);
+        if (existing.riskTolerance) setRiskTolerance(existing.riskTolerance);
+        setRules(existing.rules);
+      })
+      .catch(() => {
+        // Offline first load — the wizard still works from its defaults.
+      });
   }, [mode]);
 
   const addDrafts = (drafts: DraftRule[], label: string) => {
@@ -154,6 +168,8 @@ export function SetupWizard() {
         return;
       }
       addDrafts(json.rules as DraftRule[], label);
+    } catch {
+      setNotice("Couldn't reach the server — check your connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -186,6 +202,8 @@ export function SetupWizard() {
       });
       if (res.ok) setSaved(rules.filter((r) => r.enabled).length);
       else setNotice("Saving failed — try again.");
+    } catch {
+      setNotice("Couldn't reach the server — the rulebook wasn't saved. Try again.");
     } finally {
       setBusy(false);
     }
@@ -211,34 +229,51 @@ export function SetupWizard() {
       return;
     }
     setGen({ status: "generating", progress: 0, ruleCount: enabled.length });
-    await save(); // persist the rulebook the generator reads
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ perRule }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setGen({ status: "error", error: json.error ?? `HTTP ${res.status}` });
+    try {
+      await save(); // persist the rulebook the generator reads
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ perRule }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setGen({ status: "error", error: json.error ?? `HTTP ${res.status}` });
+        return;
+      }
+    } catch {
+      setGen({ status: "error", error: "Couldn't reach the server — try again." });
       return;
     }
-    // Poll until ready.
+    // Poll until ready — stops on unmount, tolerates transient fetch
+    // errors, and gives up after ~10 minutes rather than spinning forever.
+    let attempts = 0;
     const poll = async () => {
-      const r = await fetch("/api/generate");
-      const d = await r.json();
-      if (!d.suite) return;
-      if (d.suite.status === "generating") {
-        setGen({
-          status: "generating",
-          progress: d.suite.progress,
-          ruleCount: d.suite.ruleCount,
-          total: d.suite.scenarioCount,
-        });
-        setTimeout(poll, 1200);
-      } else if (d.suite.status === "ready") {
-        setGen({ status: "ready", version: d.suite.version, total: d.suite.scenarioCount });
-      } else {
-        setGen({ status: "error", error: d.suite.error ?? "Generation failed" });
+      if (cancelled.current) return;
+      if (++attempts > 500) {
+        setGen({ status: "error", error: "Generation timed out — check back on the Runs page." });
+        return;
+      }
+      try {
+        const r = await fetch("/api/generate");
+        const d = await r.json();
+        if (cancelled.current || !d.suite) return;
+        if (d.suite.status === "generating") {
+          setGen({
+            status: "generating",
+            progress: d.suite.progress,
+            ruleCount: d.suite.ruleCount,
+            total: d.suite.scenarioCount,
+          });
+          setTimeout(poll, 1200);
+        } else if (d.suite.status === "ready") {
+          setGen({ status: "ready", version: d.suite.version, total: d.suite.scenarioCount });
+        } else {
+          setGen({ status: "error", error: d.suite.error ?? "Generation failed" });
+        }
+      } catch {
+        // Transient network blip mid-generation — keep polling.
+        setTimeout(poll, 2400);
       }
     };
     poll();
@@ -371,7 +406,7 @@ export function SetupWizard() {
                           on ? prev.filter((x) => x !== t.name) : [...prev, t.name],
                         )
                       }
-                      className="accent-[#3ddc84]"
+                      className="accent-accent"
                     />
                     <span className="text-[13px] text-ink">{t.label}</span>
                     <span className="ml-auto font-mono text-[10px] text-mut">{t.name}</span>
@@ -471,18 +506,20 @@ function PolicyStep({
   onQuestionnaire: (answers: QuestionnaireAnswers) => void;
   onSkip: () => void;
 }) {
-  const [tab, setTab] = useState<"url" | "docs" | "prompt" | "questions">(
+  const [tab, setTab] = useState<"url" | "docs" | "prompt" | "transcripts" | "questions">(
     mode === "demo" ? "docs" : "url",
   );
   const [url, setUrl] = useState("");
   const [docText, setDocText] = useState(mode === "demo" ? SAMPLE_POLICY : "");
   const [promptText, setPromptText] = useState("");
+  const [transcriptText, setTranscriptText] = useState("");
   const [answers, setAnswers] = useState<QuestionnaireAnswers>(DEFAULT_ANSWERS);
 
   const tabs = [
     { id: "url" as const, label: "Help-centre URL" },
     { id: "docs" as const, label: "Paste / upload docs" },
     { id: "prompt" as const, label: "Agent's system prompt" },
+    { id: "transcripts" as const, label: "Real conversations" },
     { id: "questions" as const, label: "Answer 7 questions" },
   ];
 
@@ -588,6 +625,43 @@ function PolicyStep({
           >
             {busy ? "Extracting…" : "Extract rules"}
           </Button>
+        </div>
+      )}
+
+      {tab === "transcripts" && (
+        <div className="space-y-3">
+          <p className="text-[13px] leading-relaxed text-sub">
+            Paste real customer conversations — a support-ticket export, chat logs,
+            even one bad thread. Preflight mines them for the rules your agent should
+            have followed, so every real-world incident becomes a permanent
+            regression test.
+          </p>
+          <textarea
+            className="focus-ring h-48 w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 font-mono text-[12px] leading-relaxed text-ink outline-none"
+            value={transcriptText}
+            onChange={(e) => setTranscriptText(e.target.value)}
+            placeholder={"Customer: I want a refund for order #A1234…\nAgent: Sure, I've processed that refund…"}
+          />
+          <div className="flex items-center gap-3">
+            <Button
+              disabled={busy || transcriptText.trim().length < 40}
+              onClick={() => onExtract("text", transcriptText, "transcript", "your real conversations")}
+            >
+              {busy ? "Mining…" : "Mine rules from conversations"}
+            </Button>
+            <label className="focus-ring cursor-pointer rounded-lg border border-edge px-3.5 py-2 text-[13px] text-sub transition-colors hover:border-mut hover:text-ink">
+              Upload .txt / .csv
+              <input
+                type="file"
+                accept=".txt,.csv,.md,text/plain,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void f.text().then((t) => setTranscriptText((prev) => (prev ? prev + "\n\n" : "") + t));
+                }}
+              />
+            </label>
+          </div>
         </div>
       )}
 

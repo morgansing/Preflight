@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SeverityLabel } from "./ui";
+import { Button, SeverityLabel } from "./ui";
+import { GauntletMark } from "./run-badges";
 import { fetchClusters } from "@/lib/live-api";
 import type { ClusterReport } from "@/lib/live-types";
 
@@ -92,6 +93,66 @@ export function RootCauses({ runId }: { runId: string }) {
           </article>
         ))}
       </div>
+
+      <RedteamCta runId={runId} clusterCount={report.clusters.length} />
     </section>
+  );
+}
+
+/**
+ * The adaptive loop: turn this run's failure clusters into a suite that
+ * attacks exactly those weaknesses. Generation runs server-side; the
+ * suite appears in the launcher's Rulebook slot when ready.
+ */
+function RedteamCta({ runId, clusterCount }: { runId: string; clusterCount: number }) {
+  const [state, setState] = useState<
+    | { phase: "idle" }
+    | { phase: "busy" }
+    | { phase: "started"; version: number }
+    | { phase: "error"; message: string }
+  >({ phase: "idle" });
+
+  const start = async () => {
+    setState({ phase: "busy" });
+    try {
+      const res = await fetch(`/api/live/runs/${runId}/redteam`, { method: "POST" });
+      const json = await res.json();
+      if (res.ok) setState({ phase: "started", version: json.version });
+      else setState({ phase: "error", message: json.error ?? "Couldn't start generation." });
+    } catch {
+      setState({ phase: "error", message: "Couldn't reach the server — try again." });
+    }
+  };
+
+  return (
+    <div className="no-print mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-warn/30 bg-warn/5 px-6 py-5">
+      <div className="flex min-w-0 items-center gap-4">
+        <GauntletMark />
+        <div className="min-w-0">
+          <div className="text-[14px] font-medium text-ink">Attack these weaknesses</div>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-sub">
+            Generate a red-team suite from {clusterCount === 1 ? "this failure pattern" : `these ${clusterCount} failure patterns`} —
+            escalating variants of exactly what this agent got wrong.
+          </p>
+        </div>
+      </div>
+      {state.phase === "started" ? (
+        <span className="shrink-0 text-[13px] text-accent">
+          Generating v{state.version} — it appears in the run launcher when ready ✓
+        </span>
+      ) : (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={start}
+          disabled={state.phase === "busy"}
+        >
+          {state.phase === "busy" ? "Starting…" : "Generate red-team suite"}
+        </Button>
+      )}
+      {state.phase === "error" && (
+        <p className="w-full text-[13px] text-warn">{state.message}</p>
+      )}
+    </div>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Button, Eyebrow, SeverityLabel } from "@/components/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, DifficultyLabel, Eyebrow, SeverityLabel } from "@/components/ui";
+import { ScenarioDetail } from "@/components/scenario-detail";
 import { demoOutcomes, getSuite } from "@/lib/fixtures/scenarios";
 import { LIBRARY_SIZES } from "@/lib/suite-tiers";
 import { useLibrarySize } from "@/lib/library-size";
-import type { Scenario, Severity } from "@/lib/types";
+import { DIFFICULTY_LABELS, type Difficulty, type Scenario, type Severity } from "@/lib/types";
 import { useMode } from "@/lib/mode";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { LiveEmpty } from "@/components/live-empty";
 
 const PAGE_SIZE = 100;
@@ -18,13 +20,19 @@ export default function ScenariosPage() {
   const [creating, setCreating] = useState(false);
   const [drafts, setDrafts] = useState<Scenario[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [page, setPage] = useState(0);
 
   const all = useMemo(() => [...drafts, ...getSuite(librarySize)], [drafts, librarySize]);
   const cats = useMemo(() => [...new Set(all.map((s) => s.category))], [all]);
   const filtered = useMemo(
-    () => (filter ? all.filter((s) => s.category === filter) : all),
-    [all, filter],
+    () =>
+      all.filter(
+        (s) =>
+          (!filter || s.category === filter) &&
+          (!difficulty || s.difficulty === difficulty),
+      ),
+    [all, filter, difficulty],
   );
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -57,6 +65,7 @@ export default function ScenariosPage() {
               setLibrarySize(n);
               setPage(0);
             }}
+            aria-pressed={librarySize === n}
             className={`focus-ring h-8 rounded-md border px-3 font-mono text-[12px] tabular-nums transition-colors duration-150 cursor-pointer ${
               librarySize === n
                 ? "border-accent/50 bg-accent/10 text-accent"
@@ -94,6 +103,30 @@ export default function ScenariosPage() {
         ))}
       </div>
 
+      {/* Difficulty filter — routine warm-ups to brutal adversaries */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Eyebrow className="mr-2">Difficulty</Eyebrow>
+        <FilterChip
+          label="All"
+          active={difficulty === null}
+          onClick={() => {
+            setDifficulty(null);
+            setPage(0);
+          }}
+        />
+        {([1, 2, 3, 4, 5] as const).map((d) => (
+          <FilterChip
+            key={d}
+            label={`${d} · ${DIFFICULTY_LABELS[d]}`}
+            active={difficulty === d}
+            onClick={() => {
+              setDifficulty(difficulty === d ? null : d);
+              setPage(0);
+            }}
+          />
+        ))}
+      </div>
+
       {/* Table */}
       <div className="mt-6 overflow-hidden rounded-xl border border-edge">
         <table className="w-full text-left text-[13px]">
@@ -103,12 +136,21 @@ export default function ScenariosPage() {
               <th className="h-10 px-4 font-medium">Scenario</th>
               <th className="h-10 px-4 font-medium">Category</th>
               <th className="h-10 px-4 font-medium">Severity</th>
+              <th className="hidden h-10 px-4 font-medium lg:table-cell">Difficulty</th>
               <th className="hidden h-10 px-4 font-medium xl:table-cell">
                 Correct outcome
               </th>
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-mut">
+                  No scenarios match these filters — try clearing the category or
+                  difficulty.
+                </td>
+              </tr>
+            )}
             {rows.map((s) => (
               <tr
                 key={s.id}
@@ -120,6 +162,9 @@ export default function ScenariosPage() {
                 <td className="px-4 text-sub">{s.category}</td>
                 <td className="px-4">
                   <SeverityLabel severity={s.severity} />
+                </td>
+                <td className="hidden px-4 lg:table-cell">
+                  <DifficultyLabel level={s.difficulty} />
                 </td>
                 <td className="hidden max-w-96 truncate px-4 text-sub xl:table-cell">
                   {s.rubric}
@@ -167,6 +212,8 @@ export default function ScenariosPage() {
           <ScenarioDetail
             scenario={selected}
             outcome={demoOutcomes.get(selected.id)}
+            // Drafts live in this tab only — no page to link to.
+            permalinkHref={drafts.includes(selected) ? undefined : `/scenarios/${selected.id}`}
           />
         </Drawer>
       )}
@@ -199,6 +246,7 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`focus-ring h-8 rounded-full border px-3.5 text-[12px] transition-colors duration-150 cursor-pointer ${
         active
           ? "border-accent/50 bg-accent/10 text-accent"
@@ -219,8 +267,26 @@ function Drawer({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
+  // Escape closes; focus moves in on open and back out on close.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal>
+    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal aria-label={title}>
       <div
         className="animate-fade-in absolute inset-0 bg-black/50"
         onClick={onClose}
@@ -229,6 +295,7 @@ function Drawer({
         <div className="flex items-start justify-between gap-4">
           <h2 className="text-lg font-medium text-ink">{title}</h2>
           <button
+            ref={closeRef}
             onClick={onClose}
             aria-label="Close"
             className="focus-ring rounded-md p-1 text-mut transition-colors hover:text-ink cursor-pointer"
@@ -240,74 +307,6 @@ function Drawer({
         </div>
         <div className="mt-6">{children}</div>
       </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <Eyebrow>{label}</Eyebrow>
-      <div className="mt-2 text-sm leading-relaxed text-ink">{children}</div>
-    </div>
-  );
-}
-
-function ScenarioDetail({
-  scenario,
-  outcome,
-}: {
-  scenario: Scenario;
-  outcome?: string;
-}) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 font-mono text-[12px] text-mut">
-        {scenario.id} · {scenario.category}
-        <SeverityLabel severity={scenario.severity} />
-        {outcome && (
-          <a
-            href={`/replay/${scenario.id}`}
-            className="focus-ring rounded text-accent hover:underline"
-          >
-            last replay →
-          </a>
-        )}
-      </div>
-      <Field label="Correct outcome">{scenario.rubric}</Field>
-      <Field label="Customer persona">{scenario.persona}</Field>
-      <Field label="Opening message">
-        <p className="rounded-lg border border-edge bg-surface p-4 text-sub">
-          “{scenario.openingMessage}”
-        </p>
-      </Field>
-      <Field label="Hidden facts">
-        <ul className="list-inside space-y-1.5 text-sub">
-          {scenario.hiddenFacts.map((f) => (
-            <li key={f}>· {f}</li>
-          ))}
-        </ul>
-      </Field>
-      <Field label="Pass criteria">
-        <ul className="space-y-1.5">
-          {scenario.passCriteria.map((c) => (
-            <li key={c} className="flex gap-2 text-sub">
-              <span aria-hidden className="font-mono text-accent">✓</span>
-              {c}
-            </li>
-          ))}
-        </ul>
-      </Field>
-      <Field label="Must not">
-        <ul className="space-y-1.5">
-          {scenario.mustNot.map((c) => (
-            <li key={c} className="flex gap-2 text-sub">
-              <span aria-hidden className="font-mono text-mut">⊘</span>
-              {c}
-            </li>
-          ))}
-        </ul>
-      </Field>
     </div>
   );
 }
@@ -328,6 +327,7 @@ function NewScenarioForm({
     name: "",
     category: "Refund fraud",
     severity: "high" as Severity,
+    difficulty: 3 as Difficulty,
     rubric: "",
     persona: "",
     openingMessage: "",
@@ -349,6 +349,7 @@ function NewScenarioForm({
           name: form.name || "Untitled scenario",
           category: form.category,
           severity: form.severity,
+          difficulty: form.difficulty,
           rubric: form.rubric,
           persona: form.persona,
           openingMessage: form.openingMessage,
@@ -362,7 +363,7 @@ function NewScenarioForm({
         <Eyebrow>Name</Eyebrow>
         <input className={inputCls} value={form.name} onChange={set("name")} placeholder="Refund demanded for a gift card purchase" required />
       </label>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <label className="block space-y-2">
           <Eyebrow>Category</Eyebrow>
           <input className={inputCls} value={form.category} onChange={set("category")} />
@@ -374,6 +375,22 @@ function NewScenarioForm({
             <option value="high">high</option>
             <option value="medium">medium</option>
             <option value="low">low</option>
+          </select>
+        </label>
+        <label className="block space-y-2">
+          <Eyebrow>Difficulty</Eyebrow>
+          <select
+            className={inputCls}
+            value={form.difficulty}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, difficulty: Number(e.target.value) as Difficulty }))
+            }
+          >
+            {([1, 2, 3, 4, 5] as const).map((d) => (
+              <option key={d} value={d}>
+                {d} · {DIFFICULTY_LABELS[d]}
+              </option>
+            ))}
           </select>
         </label>
       </div>

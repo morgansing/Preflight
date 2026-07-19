@@ -16,7 +16,7 @@ export function UpgradeNudge({ simsThisRun }: { simsThisRun: number }) {
 
   if (session && session.plan !== "free") return null;
   const allowance = FREE_SIMS + prefs.extraCredits;
-  const remaining = used === undefined ? undefined : Math.max(0, allowance - used);
+  const remaining = used == null ? undefined : Math.max(0, allowance - used);
 
   return (
     <aside className="no-print mt-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-accent/30 bg-accent/5 p-5">

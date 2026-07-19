@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { config } from "./config";
 import type { DraftRule, RuleSource } from "@/lib/rulebook-types";
 import { RULE_CATEGORIES } from "@/lib/rulebook-types";
+import { assertFetchableUrl } from "./net-guard";
 import { providerKey } from "./provider";
 
 /**
@@ -25,10 +27,7 @@ export async function extractRules(
 
 /** Fetch a public policy/help-centre page and reduce it to plain text. */
 export async function fetchPolicyPage(url: string): Promise<string> {
-  const parsed = new URL(url);
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    throw new Error("Only http(s) URLs are supported.");
-  }
+  const parsed = assertFetchableUrl(url);
   const res = await fetch(parsed.toString(), {
     signal: AbortSignal.timeout(20_000),
     headers: { "user-agent": "PreflightBot/0.1 (+policy rule extraction)" },
@@ -49,7 +48,7 @@ export async function fetchPolicyPage(url: string): Promise<string> {
 
 /* ----------------------------- Anthropic ---------------------------- */
 
-const MODEL = process.env.PREFLIGHT_MODEL ?? "claude-opus-4-8";
+const MODEL = config.model;
 
 const SUBMIT_RULES_TOOL: Anthropic.Tool = {
   name: "submit_rules",
@@ -102,7 +101,13 @@ async function anthropicExtract(text: string, source: RuleSource): Promise<Draft
     messages: [
       {
         role: "user",
-        content: `Source type: ${source}\n\nPOLICY TEXT:\n${text}`,
+        content:
+          source === "transcript"
+            ? // Real conversations: mine incidents, not prose. Every place
+              // the agent went wrong (or nearly did) becomes a rule — so
+              // real-world failures turn into permanent regression tests.
+              `Source type: real support conversations.\n\nThese are transcripts of actual customer conversations. Extract the rules the agent SHOULD follow — especially wherever these conversations show a mistake, a dispute, an over-generous concession, a missed identity check, or an escalation that came too late. Phrase each as a testable constraint.\n\nTRANSCRIPTS:\n${text}`
+            : `Source type: ${source}\n\nPOLICY TEXT:\n${text}`,
       },
     ],
   });

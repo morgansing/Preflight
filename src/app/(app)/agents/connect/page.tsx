@@ -126,7 +126,7 @@ export default function ConnectAgentPage() {
                     setKind(o.kind);
                     setProbe(null);
                   }}
-                  className="focus-ring mt-1 size-3.5 accent-[#3ddc84]"
+                  className="focus-ring mt-1 size-3.5 accent-accent"
                 />
                 <div>
                   <div className="flex items-center gap-2 text-sm font-medium text-ink">
@@ -200,8 +200,12 @@ export default function ConnectAgentPage() {
                 className={`${inputCls} h-28 font-mono text-[12px]`}
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="Your agent's system prompt — the thing that defines its behaviour. Paste it here so Preflight reproduces your agent, not a blank model."
+                placeholder="Only needed if this endpoint is a bare model API. Model providers don't expose your prompt, so Preflight can't fetch it — paste it here and it tests your agent, not a blank model."
               />
+              <p className="text-[12px] leading-relaxed text-mut">
+                If the endpoint is your own agent service, its prompt is already inside
+                it — leave this blank.
+              </p>
             </label>
           </>
         )}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Severity } from "@/lib/types";
+import { DIFFICULTY_LABELS, type Difficulty, type Severity } from "@/lib/types";
 import type { LiveOutcome } from "@/lib/live-types";
 
 /* Base components. Every one of these leans on the Part 2 rules:
@@ -14,7 +14,7 @@ const buttonBase =
   "disabled:opacity-40 disabled:pointer-events-none select-none cursor-pointer";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-[#08110b] hover:bg-[#54e294]",
+  primary: "bg-accent text-on-accent hover:bg-accent-hover",
   secondary: "border border-edge text-ink hover:border-mut hover:bg-raised",
   ghost: "text-sub hover:text-ink hover:bg-raised",
 };
@@ -76,7 +76,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-edge p-6 shadow-[0_1px_2px_rgba(0,0,0,0.3)] ${
+      className={`rounded-xl border border-edge p-6 shadow-card ${
         raised ? "bg-raised" : "bg-surface"
       } ${className}`}
     >
@@ -143,6 +143,29 @@ export function SeverityLabel({ severity }: { severity: Severity }) {
   );
 }
 
+/** Difficulty 1–5 as a five-tick meter plus its name — always both, so
+ * the ticks never carry the meaning alone. */
+export function DifficultyLabel({ level }: { level: Difficulty }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5"
+      title={`Difficulty ${level}/5 — ${DIFFICULTY_LABELS[level]}`}
+    >
+      <span aria-hidden className="flex items-center gap-[3px]">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={`h-2 w-1 rounded-[1px] ${i <= level ? "bg-sub" : "bg-edge"}`}
+          />
+        ))}
+      </span>
+      <span className="font-mono text-[11px] uppercase tracking-wider text-sub">
+        {DIFFICULTY_LABELS[level]}
+      </span>
+    </span>
+  );
+}
+
 export function Eyebrow({
   children,
   className = "",
@@ -159,6 +182,30 @@ export function Skeleton({ className = "" }: { className?: string }) {
       className={`animate-pulse rounded-md bg-raised ${className}`}
       aria-hidden
     />
+  );
+}
+
+/** Fetch-failure state — distinct from "empty workspace", with a retry.
+ * A transient network error must never masquerade as no data. */
+export function LoadError({
+  what,
+  onRetry,
+}: {
+  what: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="animate-fade-up mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl border border-warn/30 bg-warn/5 px-8 py-10 text-center">
+      <span aria-hidden className="font-mono text-warn">!</span>
+      <p className="text-sm leading-relaxed text-sub">
+        Couldn&apos;t load {what} — the server didn&apos;t respond.
+      </p>
+      {onRetry && (
+        <Button variant="secondary" size="sm" onClick={onRetry}>
+          Try again
+        </Button>
+      )}
+    </div>
   );
 }
 

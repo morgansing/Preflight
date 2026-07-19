@@ -3,22 +3,37 @@
 import type {
   ClusterReport,
   LiveEvent,
+  LivePlan,
   LiveReplayPayload,
   LiveRunListItem,
   LiveRunSummary,
   RegressionReport,
 } from "./live-types";
 
-export async function fetchProviderStatus(): Promise<"anthropic" | "mock" | null> {
-  const res = await fetch("/api/live/status");
-  if (!res.ok) return null;
-  return (await res.json()).provider;
+/** "unreachable" is distinct from null (no provider configured) — a
+ * failed status fetch must not silently masquerade as sandbox mode. */
+export async function fetchProviderStatus(): Promise<
+  "anthropic" | "mock" | null | "unreachable"
+> {
+  try {
+    const res = await fetch("/api/live/status");
+    if (!res.ok) return "unreachable";
+    return (await res.json()).provider;
+  } catch {
+    return "unreachable";
+  }
 }
 
-export async function fetchRuns(): Promise<LiveRunListItem[]> {
-  const res = await fetch("/api/live/runs");
-  if (!res.ok) return [];
-  return res.json();
+/** null = the fetch failed (network/server) — callers show a retry
+ * state; an empty array means a genuinely empty workspace. */
+export async function fetchRuns(): Promise<LiveRunListItem[] | null> {
+  try {
+    const res = await fetch("/api/live/runs");
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchRun(id: string): Promise<LiveRunSummary | null> {
@@ -45,15 +60,62 @@ export async function startRun(body: {
   /** Sandbox run — deterministic mock provider, no key, no cost. */
   sandbox?: boolean;
 }): Promise<{ runId: string } | { error: string; freeGrantBlocked?: boolean }> {
-  const res = await fetch("/api/live/runs", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  return res.ok
-    ? json
-    : { error: json.error ?? `HTTP ${res.status}`, freeGrantBlocked: json.freeGrantBlocked };
+  try {
+    const res = await fetch("/api/live/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    return res.ok
+      ? json
+      : { error: json.error ?? `HTTP ${res.status}`, freeGrantBlocked: json.freeGrantBlocked };
+  } catch {
+    // Offline/network throw — without this the launcher spinner stuck.
+    return { error: "Couldn't reach the server — check your connection and try again." };
+  }
+}
+
+/** Launch a flight plan — several suites as one sequential job. */
+export async function startPlan(body: {
+  agentName: string;
+  agentKind: string;
+  endpoint?: string;
+  model?: string;
+  authToken?: string;
+  systemPrompt?: string;
+  suites: string[];
+  planKind: string;
+  plan?: string;
+  identity?: { email?: string; fingerprint?: string };
+  sandbox?: boolean;
+}): Promise<
+  | { planId: string; runIds: string[] }
+  | { error: string; freeGrantBlocked?: boolean }
+> {
+  try {
+    const res = await fetch("/api/live/plan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    return res.ok
+      ? json
+      : { error: json.error ?? `HTTP ${res.status}`, freeGrantBlocked: json.freeGrantBlocked };
+  } catch {
+    return { error: "Couldn't reach the server — check your connection and try again." };
+  }
+}
+
+export async function fetchPlan(planId: string): Promise<LivePlan | null> {
+  try {
+    const res = await fetch(`/api/live/plan/${planId}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 export interface FreeAllowance {

@@ -27,13 +27,15 @@ export const demoAgents: AgentUnderTest[] = [
     scoreHistory: [78, 82, 85, 87, 90, 89, 93, 95, 96, 97],
     lastRun: {
       runId: "run_0147",
-      passed: 194,
+      passed: 193,
       total: 200,
-      critical: 2,
+      // Critical-severity fails on the wall: three refund-fraud payouts
+      // plus the missed legal-threat escalation.
+      critical: 4,
       agoLabel: "2m ago",
     },
-    note: "Clears the 90% bar — two refund-fraud payouts left to fix before shipping.",
-    breakdown: breakdown([38, 30, 34, 23, 18, 14, 13, 10, 8, 6]), // 194
+    note: "Clears the 90% bar — three refund-fraud payouts left to fix before shipping.",
+    breakdown: breakdown([38, 30, 34, 23, 18, 14, 13, 9, 8, 6]), // 193
   },
   {
     id: "agent_aurora_12",
@@ -46,11 +48,15 @@ export const demoAgents: AgentUnderTest[] = [
       runId: "run_0139",
       passed: 168,
       total: 200,
-      critical: 7,
+      critical: 11,
       agoLabel: "3d ago",
     },
     note: "Six points short — refund fraud and escalations still failing.",
-    breakdown: breakdown([38, 30, 34, 20, 16, 14, 9, 3, 2, 2]), // 168
+    // Must leave room for every v1.2 failure on the benchmark's
+    // newly-passing list (2 shipping, 2 order status, 2 returns,
+    // 1 discount, 1 inventory, 1 identity, 2 refund fraud, 1 duplicate,
+    // 2 escalations) plus the three unchanged fails.
+    breakdown: breakdown([38, 28, 32, 20, 16, 13, 9, 3, 5, 4]), // 168
   },
   {
     id: "agent_checkout",
@@ -63,10 +69,10 @@ export const demoAgents: AgentUnderTest[] = [
       runId: "run_0141",
       passed: 136,
       total: 200,
-      critical: 11,
+      critical: 13,
       agoLabel: "1d ago",
     },
-    note: "Early build — over a third of scenarios still fail, 11 of them critical.",
+    note: "Early build — nearly a third of scenarios still fail, 13 of them critical.",
     breakdown: breakdown([36, 27, 30, 14, 10, 12, 4, 1, 1, 1]), // 136
   },
 ];

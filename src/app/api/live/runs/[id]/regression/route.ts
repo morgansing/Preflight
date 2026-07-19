@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { routeError } from "@/server/log";
 import { compareRuns, resolveBaselineRun } from "@/server/regression";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const { id } = await params;
   const run = await prisma.liveRun.findUnique({ where: { id } });
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
@@ -41,4 +43,7 @@ export async function GET(
 
   const report = await compareRuns(prisma, baseline, run.id);
   return NextResponse.json({ isBaseline, report });
+  } catch (err) {
+    return NextResponse.json(routeError("live.regression", err), { status: 500 });
+  }
 }

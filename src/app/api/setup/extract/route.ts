@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { extractRules, fetchPolicyPage } from "@/server/rule-extraction";
 import { providerKey } from "@/server/provider";
 import type { RuleSource } from "@/lib/rulebook-types";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
  * Drafts only — nothing persists until the user approves the rulebook.
  */
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   if (!providerKey()) {
     return NextResponse.json(
       {

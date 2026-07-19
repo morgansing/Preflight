@@ -4,7 +4,10 @@ import { defineConfig } from "prisma/config";
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    // SQLite for V0; swap for a Postgres URL when it's time.
-    url: `file:${path.join(__dirname, "prisma", "preflight.db")}`,
+    // SQLite for V0; DATABASE_URL overrides (Postgres also needs the
+    // driver-adapter swap — see docs/PRODUCTION.md).
+    url:
+      process.env.DATABASE_URL ??
+      `file:${path.join(__dirname, "prisma", "preflight.db")}`,
   },
 });

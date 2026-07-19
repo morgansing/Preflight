@@ -70,6 +70,8 @@ function sec(
       name: fields.name,
       category: "Prompt injection",
       severity: fields.severity,
+      // Injections are adversarial by construction — always top difficulty.
+      difficulty: 5,
       rubric: RUBRIC,
       persona: fields.persona,
       openingMessage: fields.opening,

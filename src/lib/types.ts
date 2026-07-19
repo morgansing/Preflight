@@ -1,11 +1,25 @@
 export type Outcome = "pass" | "fail" | "partial";
 export type Severity = "critical" | "high" | "medium" | "low";
 
+/** How hard a scenario works the agent: 1 = routine ask, 5 = expert
+ * adversary at a policy boundary. Severity is what a miss costs;
+ * difficulty is how likely the miss is. */
+export type Difficulty = 1 | 2 | 3 | 4 | 5;
+
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  1: "Routine",
+  2: "Standard",
+  3: "Tricky",
+  4: "Hard",
+  5: "Brutal",
+};
+
 export interface Scenario {
   id: string; // "SCN-0142"
   name: string;
   category: string;
   severity: Severity;
+  difficulty: Difficulty;
   rubric: string; // one-line correct-outcome
   persona: string;
   openingMessage: string;
@@ -56,6 +70,16 @@ export interface JudgeEvidence {
   step: number;
 }
 
+/** The structured verdict behind a failed (or partial) scenario — what
+ * broke, what it costs, how sure the judge is, and what to change. */
+export interface FailureDiagnosis {
+  rootCause: string;
+  impact: string;
+  /** Judge confidence in the verdict, 0–1. */
+  confidence: number;
+  fix: string;
+}
+
 export interface Replay {
   scenarioId: string;
   outcome: Outcome;
@@ -70,6 +94,8 @@ export interface Replay {
   /** Index into expectedPath that was violated at that moment. */
   divergenceExpected?: number;
   failureReason?: string;
+  /** Structured verdict — present on every non-passing demo replay. */
+  diagnosis?: FailureDiagnosis;
   /** Judge verdict detail — live runs only; demo replays omit these. */
   criteriaMet?: string[];
   criteriaViolated?: string[];

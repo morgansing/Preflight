@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { routeError } from "@/server/log";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +13,19 @@ export const dynamic = "force-dynamic";
  */
 
 export async function GET() {
+  try {
   const pins = await prisma.runBaseline.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(pins);
+  } catch (err) {
+    return NextResponse.json(routeError("live.baseline", err), { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
+  try {
   const body = (await request.json().catch(() => null)) as { runId?: string } | null;
   if (!body?.runId) {
     return NextResponse.json({ error: "Expected { runId }" }, { status: 400 });
@@ -34,9 +44,13 @@ export async function POST(request: NextRequest) {
     update: { runId: run.id, createdAt: new Date() },
   });
   return NextResponse.json(pin, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(routeError("live.baseline", err), { status: 500 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
+  try {
   const body = (await request.json().catch(() => null)) as {
     agentName?: string;
     suite?: string;
@@ -50,4 +64,7 @@ export async function DELETE(request: NextRequest) {
     })
     .catch(() => null);
   return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json(routeError("live.baseline", err), { status: 500 });
+  }
 }

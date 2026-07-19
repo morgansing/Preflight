@@ -6,15 +6,38 @@ import type { FixtureSpec } from "@/lib/scenario-generation";
 import type { Scenario } from "@/lib/types";
 
 /**
- * The simulated store, seeded deterministically. Every run starts from a
- * reset + reseed so initial conditions are identical run-to-run — the
- * same philosophy as the demo's fixed fixtures.
+ * The simulated store, seeded deterministically. Every run seeds its
+ * own isolated slice of the store — identical initial conditions per
+ * run, several runs at once — the same philosophy as the demo's fixed
+ * fixtures.
+ *
+ * Isolation is by run-prefixed identity: every row id is written as
+ * `<runId>~<logical id>` (orders, customers, product SKUs, seeded
+ * refunds), so concurrent runs never collide and Prisma relations stay
+ * intact. The tool layer translates at the boundary — the agent only
+ * ever sees logical ids. A run's slice is deleted when it finishes.
  *
  * Every scenario's referenced order exists here with the state its
  * hidden facts describe (signed delivery for the not-received claim,
  * a duplicate pair for the double order, the review flag on the $1,900
  * refund), plus ~300 background orders full of realistic mess.
  */
+
+/** Run-scoped row id. The `~` never appears in logical ids. */
+export function runScopedId(runId: string, id: string): string {
+  return `${runId}~${id}`;
+}
+
+/** Delete one run's store slice (audit rows — ToolAction, Escalation —
+ * are kept; they're run history, not store state). FK order matters. */
+export async function cleanupRunStore(prisma: PrismaClient, runId: string): Promise<void> {
+  const startsWith = `${runId}~`;
+  await prisma.refund.deleteMany({ where: { orderId: { startsWith } } });
+  await prisma.shippingEvent.deleteMany({ where: { orderId: { startsWith } } });
+  await prisma.order.deleteMany({ where: { id: { startsWith } } });
+  await prisma.product.deleteMany({ where: { sku: { startsWith } } });
+  await prisma.customer.deleteMany({ where: { id: { startsWith } } });
+}
 
 const PRODUCTS: Array<[sku: string, name: string, price: number, finalSale?: boolean]> = [
   ["EH-1001", "Alpine parka", 218.4, false],
@@ -95,24 +118,19 @@ async function createManyChunked<T>(
 
 export async function resetAndSeed(
   prisma: PrismaClient,
+  runId: string,
   scenarioIds: string[],
 ): Promise<void> {
-  // Reset store state, in FK order. Run history (LiveRun + LiveResult
-  // transcripts) is deliberately kept — replays and benchmarks must
-  // survive later runs; only the store itself resets.
-  await prisma.toolAction.deleteMany({});
-  await prisma.escalation.deleteMany({});
-  await prisma.refund.deleteMany({});
-  await prisma.shippingEvent.deleteMany({});
-  await prisma.order.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.customer.deleteMany({});
+  // Idempotent for this run's slice; other runs' slices are untouched.
+  // Run history (LiveRun + LiveResult transcripts) is deliberately kept.
+  await cleanupRunStore(prisma, runId);
+  const p = (id: string) => runScopedId(runId, id);
 
   const rng = mulberry32(0x5eed_0100);
 
   await prisma.product.createMany({
     data: PRODUCTS.map(([sku, name, price, finalSale]) => ({
-      sku,
+      sku: p(sku),
       name,
       price,
       stock: intBetween(rng, 0, 40),
@@ -367,10 +385,45 @@ export async function resetAndSeed(
     }
   }
 
-  await createManyChunked((args) => prisma.customer.createMany(args), customers);
-  await createManyChunked((args) => prisma.order.createMany(args), orders);
-  await createManyChunked((args) => prisma.shippingEvent.createMany(args), events);
-  await createManyChunked((args) => prisma.refund.createMany(args), refunds);
+  await writeSlice(prisma, runId, { customers, orders, events, refunds });
+}
+
+/** Apply run-scoped identity at the write boundary — construction code
+ * above stays in logical ids; only stored rows carry the prefix. */
+async function writeSlice(
+  prisma: PrismaClient,
+  runId: string,
+  slice: {
+    customers: Array<{ id: string } & Record<string, unknown>>;
+    orders: OrderSeed[];
+    events: EventSeed[];
+    refunds?: Array<{ id: string; orderId: string } & Record<string, unknown>>;
+  },
+): Promise<void> {
+  const p = (id: string) => runScopedId(runId, id);
+  await createManyChunked(
+    (args) => prisma.customer.createMany(args as never),
+    slice.customers.map((c) => ({ ...c, id: p(c.id) })),
+  );
+  await createManyChunked(
+    (args) => prisma.order.createMany(args as never),
+    slice.orders.map((o) => ({
+      ...o,
+      id: p(o.id),
+      customerId: p(o.customerId),
+      duplicateOf: o.duplicateOf ? p(o.duplicateOf) : null,
+    })),
+  );
+  await createManyChunked(
+    (args) => prisma.shippingEvent.createMany(args as never),
+    slice.events.map((e) => ({ ...e, orderId: p(e.orderId) })),
+  );
+  if (slice.refunds && slice.refunds.length > 0) {
+    await createManyChunked(
+      (args) => prisma.refund.createMany(args as never),
+      slice.refunds.map((r) => ({ ...r, id: p(r.id), orderId: p(r.orderId) })),
+    );
+  }
 }
 
 /**
@@ -382,13 +435,14 @@ export async function resetAndSeed(
  */
 export async function resetAndSeedSecurity(
   prisma: PrismaClient,
+  runId: string,
   scenarios: SecurityScenario[],
 ): Promise<void> {
-  await clearStore(prisma);
+  await cleanupRunStore(prisma, runId);
   const rng = mulberry32(0x5eed_0300);
 
   const products = PRODUCTS.map(([sku, name, price, finalSale]) => ({
-    sku,
+    sku: runScopedId(runId, sku),
     name,
     price,
     stock: intBetween(rng, 4, 40),
@@ -500,19 +554,7 @@ export async function resetAndSeedSecurity(
     });
   }
 
-  await createManyChunked((args) => prisma.customer.createMany(args), customers);
-  await createManyChunked((args) => prisma.order.createMany(args), orders);
-  await createManyChunked((args) => prisma.shippingEvent.createMany(args), events);
-}
-
-async function clearStore(prisma: PrismaClient): Promise<void> {
-  await prisma.toolAction.deleteMany({});
-  await prisma.escalation.deleteMany({});
-  await prisma.refund.deleteMany({});
-  await prisma.shippingEvent.deleteMany({});
-  await prisma.order.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.customer.deleteMany({});
+  await writeSlice(prisma, runId, { customers, orders, events });
 }
 
 function orderIdOf(scenario: Scenario): string {
@@ -528,14 +570,15 @@ function orderIdOf(scenario: Scenario): string {
  */
 export async function resetAndSeedCustom(
   prisma: PrismaClient,
+  runId: string,
   scenarios: Array<{ scenario: Scenario; fixture: FixtureSpec }>,
 ): Promise<void> {
-  await clearStore(prisma);
+  await cleanupRunStore(prisma, runId);
   const rng = mulberry32(0x5eed_0200);
 
   await prisma.product.createMany({
     data: PRODUCTS.map(([sku, name, price, finalSale]) => ({
-      sku,
+      sku: runScopedId(runId, sku),
       name,
       price,
       stock: intBetween(rng, 0, 40),
@@ -685,8 +728,5 @@ export async function resetAndSeedCustom(
     });
   }
 
-  await createManyChunked((args) => prisma.customer.createMany(args), customers);
-  await createManyChunked((args) => prisma.order.createMany(args), orders);
-  await createManyChunked((args) => prisma.shippingEvent.createMany(args), events);
-  await createManyChunked((args) => prisma.refund.createMany(args), refunds);
+  await writeSlice(prisma, runId, { customers, orders, events, refunds });
 }

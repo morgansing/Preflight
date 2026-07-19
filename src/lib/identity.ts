@@ -42,13 +42,17 @@ function hashString(s: string): string {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
+let fingerprintCache: string | null = null;
+
 /**
  * Coarse device fingerprint from stable, non-invasive signals. Browser
  * only — returns "" on the server. Deliberately NOT canvas/font
  * fingerprinting: this is grant-cycling friction, not surveillance.
+ * Computed once per page — every signal is stable for the page's life.
  */
 export function computeFingerprint(): string {
   if (typeof window === "undefined" || typeof navigator === "undefined") return "";
+  if (fingerprintCache !== null) return fingerprintCache;
   const nav = navigator as Navigator & { deviceMemory?: number };
   const parts = [
     nav.userAgent ?? "",
@@ -60,7 +64,8 @@ export function computeFingerprint(): string {
     `${window.screen?.width ?? ""}x${window.screen?.height ?? ""}x${window.screen?.colorDepth ?? ""}`,
     Intl.DateTimeFormat().resolvedOptions().timeZone ?? "",
   ];
-  return hashString(parts.join("|"));
+  fingerprintCache = hashString(parts.join("|"));
+  return fingerprintCache;
 }
 
 export interface WorkspaceIdentity {

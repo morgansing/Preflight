@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { routeError } from "@/server/log";
 import type { AgentProfile, PolicyRule } from "@/lib/rulebook-types";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
 const PROFILE_ID = "default"; // single-workspace V0
 
 export async function GET() {
+  try {
   const profile = await prisma.agentProfile.findUnique({ where: { id: PROFILE_ID } });
   const rules = await prisma.policyRule.findMany({
     where: { profileId: PROFILE_ID },
@@ -30,10 +33,17 @@ export async function GET() {
       enabled: r.enabled,
     })),
   });
+  } catch (err) {
+    return NextResponse.json(routeError("setup", err), { status: 500 });
+  }
 }
 
 /** Save the whole setup atomically: profile + the approved rulebook. */
 export async function PUT(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
+  try {
   const body = (await request.json().catch(() => null)) as {
     profile: AgentProfile;
     rules: Array<Omit<PolicyRule, "id">>;
@@ -75,4 +85,7 @@ export async function PUT(request: NextRequest) {
   ]);
 
   return NextResponse.json({ ok: true, ruleCount: body.rules.length });
+  } catch (err) {
+    return NextResponse.json(routeError("setup", err), { status: 500 });
+  }
 }

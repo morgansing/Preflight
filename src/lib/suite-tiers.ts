@@ -1,3 +1,5 @@
+import { gauntletScenarioIds } from "@/lib/fixtures/scenarios";
+
 /**
  * Suite tiers — how big a live run is. Cost and duration estimates are
  * for the default models (claude-opus-4-8 for agent, persona and judge)
@@ -71,11 +73,15 @@ export function tierById(id: string): SuiteTier | undefined {
 /** Number of scenarios in the fixed Security (prompt-injection) suite. */
 export const SECURITY_SUITE_SIZE = 16;
 
+/** The Gauntlet: every difficulty 4–5 scenario in the base suite. */
+export const GAUNTLET_SUITE_SIZE = gauntletScenarioIds.length;
+
 /** Human label for a run's suite (tolerates legacy "full" and custom runs). */
 export function suiteLabel(suiteId: string, scenarioCount: number): string {
   const custom = suiteId.match(/^custom:(\d+)$/);
   if (custom) return `Rulebook suite v${custom[1]} · ${scenarioCount.toLocaleString()} scenarios`;
   if (suiteId === "security") return `Security suite · ${scenarioCount.toLocaleString()} scenarios`;
+  if (suiteId === "gauntlet") return `Gauntlet · ${scenarioCount.toLocaleString()} hard scenarios`;
   const tier = tierById(suiteId);
   if (tier) return `${tier.name} suite · ${tier.size.toLocaleString()} scenarios`;
   return `${scenarioCount.toLocaleString()} scenarios`;

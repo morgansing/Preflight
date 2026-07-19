@@ -10,17 +10,19 @@ datasource db {
 }
 
 model Customer {
-  id         String  @id
-  name       String
-  email      String
-  address    String
-  claims90d  Int     @default(0) // refund claims in the last 90 days
-  flagsJson  String  @default("[]")
+  id        String  @id
+  name      String
+  email     String
+  address   String
+  claims90d Int     @default(0) // refund claims in the last 90 days
+  flagsJson String  @default("[]")
   // Free-text account note surfaced by get_customer. In the Security
   // suite this is a poison vector — untrusted text the agent must not
   // obey as if it were an instruction.
-  noteText   String?
-  orders     Order[]
+  noteText  String?
+  orders    Order[]
+
+  @@index([email])
 }
 
 model Product {
@@ -51,6 +53,9 @@ model Order {
   noteText      String?
   events        ShippingEvent[]
   refunds       Refund[]
+
+  @@index([customerId, createdAt])
+  @@index([status])
 }
 
 model ShippingEvent {
@@ -60,17 +65,22 @@ model ShippingEvent {
   ts         String
   status     String
   detailJson String @default("{}")
+
+  @@index([orderId])
 }
 
 model Refund {
-  id              String  @id
+  id              String   @id
   orderId         String
-  order           Order   @relation(fields: [orderId], references: [id])
+  order           Order    @relation(fields: [orderId], references: [id])
   runId           String? // which live run created it (null = seeded history)
   amount          Float
   reason          String
   destinationJson String?
   createdAt       DateTime @default(now())
+
+  @@index([orderId])
+  @@index([runId])
 }
 
 model Escalation {
@@ -113,23 +123,28 @@ model CustomSuite {
   scenarioCount Int      @default(0)
   provider      String // anthropic | mock
   createdAt     DateTime @default(now())
+
+  @@index([status])
 }
 
 model CustomScenario {
-  id            String @id // CUS-<version>-0001
-  suiteVersion  Int
-  ruleText      String
-  name          String
-  category      String
-  severity      String
-  rubric        String
-  persona       String
-  opening       String
-  hiddenJson    String @default("[]")
-  passJson      String @default("[]")
-  mustNotJson   String @default("[]")
-  pressureJson  String @default("{}")
-  fixtureJson   String @default("{}")
+  id           String @id // CUS-<version>-0001
+  suiteVersion Int
+  ruleText     String
+  name         String
+  category     String
+  severity     String
+  difficulty   Int    @default(3)
+  rubric       String
+  persona      String
+  opening      String
+  hiddenJson   String @default("[]")
+  passJson     String @default("[]")
+  mustNotJson  String @default("[]")
+  pressureJson String @default("{}")
+  fixtureJson  String @default("{}")
+
+  @@index([suiteVersion])
 }
 
 model PolicyRule {
@@ -142,6 +157,8 @@ model PolicyRule {
   source    String // help_centre | document | agent_prompt | questionnaire | manual | starter
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  @@index([profileId, enabled])
 }
 
 // Free-grant ledger: how many free simulations an identity has already
@@ -149,11 +166,11 @@ model PolicyRule {
 // a coarse device fingerprint (fp:<hash>) — so cycling accounts from the
 // same person or browser can't reset the 250-simulation free grant.
 model FreeGrant {
-  key        String   @id // "email:<normalized>" or "fp:<hash>"
-  kind       String // email | fingerprint
-  simsUsed   Int      @default(0)
-  firstSeen  DateTime @default(now())
-  lastSeen   DateTime @updatedAt
+  key       String   @id // "email:<normalized>" or "fp:<hash>"
+  kind      String // email | fingerprint
+  simsUsed  Int      @default(0)
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @updatedAt
 }
 
 // Pinned regression baseline: the run every later run of the same
@@ -176,14 +193,32 @@ model LiveRun {
   provider      String // anthropic | mock
   suite         String // smoke | full
   scenariosJson String // ordered scenario ids in this run
-  status        String // running | complete | error
+  status        String // queued | running | complete | error
   error         String?
+  // Flight plan membership: a preset launches several runs as one job.
+  // Queued runs start automatically when the store frees up.
+  planId        String?
+  planKind      String? // quick | deep | signoff
+  planStep      Int? // 1-based position within the plan
+  // Public share token — grants read-only access to this run's report
+  // and score badge. Unguessable (crypto-random), revocable by null-ing.
+  shareToken    String?      @unique
+  // Enough launch context to RESUME an interrupted run after a restart
+  // (auth tokens are never persisted — a token-authed run can't resume).
+  model         String?
+  systemPrompt  String?
+  sandbox       Boolean      @default(false)
+  authTokenUsed Boolean      @default(false)
   // Cached root-cause clustering (ClusterReport JSON) — failures don't
   // change after completion, so this is computed once on first request.
   clustersJson  String?
   startedAt     DateTime     @default(now())
   finishedAt    DateTime?
   results       LiveResult[]
+
+  @@index([status])
+  @@index([agentName, suite, status, startedAt])
+  @@index([planId])
 }
 
 model LiveResult {
@@ -209,4 +244,46 @@ model LiveResult {
   createdAt          DateTime @default(now())
 
   @@unique([runId, scenarioId])
+}
+
+// ── Billing ──────────────────────────────────────────────────────────
+// Single-workspace V0: one account row ("default"). Multi-tenancy later
+// adds a workspace FK. Dormant until Stripe keys exist; the ledger is
+// real in both modes so preview numbers match production math.
+
+model BillingAccount {
+  id                   String    @id @default("default")
+  planId               String    @default("free")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  subscriptionStatus   String? // active | past_due | canceled | …
+  currentPeriodEnd     DateTime?
+  autoTopUp            Boolean   @default(false)
+  autoTopUpPackId      String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+// Signed token (simulation-credit) movements. Balance is always
+// recomputed from entries — no counter to drift. See credit-math.ts.
+model CreditLedgerEntry {
+  id        Int      @id @default(autoincrement())
+  accountId String   @default("default")
+  delta     Int // + credit, − debit
+  kind      String // allowance_grant | pack_purchase | auto_topup | run_debit | adjustment
+  periodKey String? // billing period for grants/debits
+  runId     String?
+  stripeRef String? // session / payment-intent / event id
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([accountId, kind, periodKey])
+}
+
+// Processed Stripe webhook events — the PK is the idempotency check.
+model StripeEvent {
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
 }

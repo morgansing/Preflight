@@ -1,3 +1,4 @@
+import { demoAgents } from "./agents";
 import { demoOutcomes, scenarioById } from "./scenarios";
 
 /**
@@ -57,3 +58,32 @@ export const demoBenchmark = {
     .filter(([id, o]) => o === "fail" && !NEWLY_BROKEN.includes(id))
     .map(([id]) => entry(id)),
 };
+
+export interface CategoryComparison {
+  category: string;
+  aPass: number;
+  bPass: number;
+  total: number;
+  /** Newly-broken scenarios hiding inside this category's net change. */
+  regressions: number;
+}
+
+/** The score delta unpacked per category: both versions' pass counts
+ * (from the agents' breakdowns) plus how many of the newly-broken
+ * scenarios each category contains. */
+export const categoryComparison: CategoryComparison[] = (() => {
+  const v12 = demoAgents.find((a) => a.id === "agent_aurora_12")?.breakdown ?? [];
+  const v13 = demoAgents.find((a) => a.id === "agent_aurora")?.breakdown ?? [];
+  return v13.map((b) => {
+    const a = v12.find((row) => row.category === b.category);
+    return {
+      category: b.category,
+      aPass: a?.pass ?? b.total,
+      bPass: b.pass,
+      total: b.total,
+      regressions: NEWLY_BROKEN.filter(
+        (id) => scenarioById.get(id)?.category === b.category,
+      ).length,
+    };
+  });
+})();

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { config } from "./config";
 import type { ReplayStep, Scenario, Severity } from "@/lib/types";
 import {
   JUDGE_SYSTEM,
@@ -20,7 +21,7 @@ import {
   providerKey,
 } from "./provider";
 
-const MODEL = process.env.PREFLIGHT_MODEL ?? "claude-opus-4-8";
+const MODEL = config.model;
 
 // $/MTok input, output — used for the live cost ticker.
 const PRICING: Record<string, [number, number]> = {

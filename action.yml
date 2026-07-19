@@ -1,0 +1,181 @@
+name: "Preflight Gate"
+description: >-
+  Run your agent through the Preflight simulator and gate the build on
+  readiness: launches a run, waits for the verdict, posts a sticky PR
+  comment with the score and scenario-level regressions, and fails the
+  job if the agent isn't ready to ship.
+author: "Preflight"
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  url:
+    description: "Preflight server base URL (e.g. https://preflight.yourco.com)"
+    required: true
+  agent-name:
+    description: "Agent name — regression baselines key on this + suite"
+    required: false
+    default: "Reference agent"
+  agent-kind:
+    description: "reference | http | openai | mcp"
+    required: false
+    default: "reference"
+  endpoint:
+    description: "Agent endpoint URL (http/openai/mcp kinds)"
+    required: false
+    default: ""
+  model:
+    description: "Model name (openai kind)"
+    required: false
+    default: ""
+  system-prompt:
+    description: "The agent's system prompt (openai kind)"
+    required: false
+    default: ""
+  auth-token:
+    description: "Bearer token Preflight sends to your agent endpoint (use a secret)"
+    required: false
+    default: ""
+  api-token:
+    description: "Preflight service token (PREFLIGHT_API_TOKEN on the server) — required once auth is enabled"
+    required: false
+    default: ""
+  suite:
+    description: "smoke | standard | extended | scale | exhaustive | max | security | custom:<version>"
+    required: false
+    default: "smoke"
+  min-score:
+    description: "Gate: fail if the pass-rate % is below this"
+    required: false
+    default: ""
+  max-regressions:
+    description: "Gate: fail if more scenarios regressed vs the baseline"
+    required: false
+    default: ""
+  max-run-errors:
+    description: "Gate: fail on too many infra errors (default: never)"
+    required: false
+    default: ""
+  set-baseline:
+    description: "Pin this run as the new baseline when the gate passes (main-branch job)"
+    required: false
+    default: "false"
+  sandbox:
+    description: "Deterministic sandbox run — verifies CI wiring without a provider key"
+    required: false
+    default: "false"
+  timeout-mins:
+    description: "Give up after this long"
+    required: false
+    default: "60"
+  comment:
+    description: "Post/update the sticky PR comment with the verdict"
+    required: false
+    default: "true"
+  github-token:
+    description: "Token used to post the PR comment"
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  pass:
+    description: "true when every gate check passed"
+    value: ${{ steps.gate.outputs.pass }}
+  score:
+    description: "The run's pass-rate %"
+    value: ${{ steps.gate.outputs.score }}
+  run-id:
+    description: "The Preflight run id"
+    value: ${{ steps.gate.outputs.run-id }}
+  report-url:
+    description: "Link to the readiness report"
+    value: ${{ steps.gate.outputs.report-url }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: gate
+      shell: bash
+      # Let the comment step run on a failed gate; the last step enforces
+      # the verdict after the comment is posted.
+      continue-on-error: true
+      env:
+        IN_URL: ${{ inputs.url }}
+        IN_AGENT_NAME: ${{ inputs.agent-name }}
+        IN_AGENT_KIND: ${{ inputs.agent-kind }}
+        IN_ENDPOINT: ${{ inputs.endpoint }}
+        IN_MODEL: ${{ inputs.model }}
+        IN_SYSTEM_PROMPT: ${{ inputs.system-prompt }}
+        IN_SUITE: ${{ inputs.suite }}
+        IN_MIN_SCORE: ${{ inputs.min-score }}
+        IN_MAX_REGRESSIONS: ${{ inputs.max-regressions }}
+        IN_MAX_RUN_ERRORS: ${{ inputs.max-run-errors }}
+        IN_SET_BASELINE: ${{ inputs.set-baseline }}
+        IN_SANDBOX: ${{ inputs.sandbox }}
+        IN_TIMEOUT_MINS: ${{ inputs.timeout-mins }}
+        PREFLIGHT_AGENT_TOKEN: ${{ inputs.auth-token }}
+        PREFLIGHT_API_TOKEN: ${{ inputs.api-token }}
+      run: |
+        args=(
+          --url "$IN_URL"
+          --agent-name "$IN_AGENT_NAME"
+          --agent-kind "$IN_AGENT_KIND"
+          --suite "$IN_SUITE"
+          --timeout-mins "$IN_TIMEOUT_MINS"
+          --comment-file "$RUNNER_TEMP/preflight-comment.md"
+        )
+        [ -n "$IN_ENDPOINT" ] && args+=( --endpoint "$IN_ENDPOINT" )
+        [ -n "$IN_MODEL" ] && args+=( --model "$IN_MODEL" )
+        [ -n "$IN_SYSTEM_PROMPT" ] && args+=( --system-prompt "$IN_SYSTEM_PROMPT" )
+        [ -n "$IN_MIN_SCORE" ] && args+=( --min-score "$IN_MIN_SCORE" )
+        [ -n "$IN_MAX_REGRESSIONS" ] && args+=( --max-regressions "$IN_MAX_REGRESSIONS" )
+        [ -n "$IN_MAX_RUN_ERRORS" ] && args+=( --max-run-errors "$IN_MAX_RUN_ERRORS" )
+        [ "$IN_SET_BASELINE" = "true" ] && args+=( --set-baseline )
+        [ "$IN_SANDBOX" = "true" ] && args+=( --sandbox )
+        node "${{ github.action_path }}/scripts/preflight-gate.mjs" "${args[@]}"
+
+    - name: Post the verdict on the pull request
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      env:
+        COMMENT_FILE: ${{ runner.temp }}/preflight-comment.md
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require("fs");
+          const file = process.env.COMMENT_FILE;
+          if (!fs.existsSync(file)) {
+            core.info("No comment file (run never launched) — skipping PR comment.");
+            return;
+          }
+          const body = fs.readFileSync(file, "utf8");
+          const marker = body.split("\n").find((l) => l.startsWith("<!-- preflight-gate"));
+          const { data: comments } = await github.rest.issues.listComments({
+            ...context.repo,
+            issue_number: context.issue.number,
+            per_page: 100,
+          });
+          const existing = marker && comments.find((c) => c.body && c.body.includes(marker));
+          if (existing) {
+            await github.rest.issues.updateComment({
+              ...context.repo,
+              comment_id: existing.id,
+              body,
+            });
+            core.info(`Updated Preflight gate comment ${existing.id}.`);
+          } else {
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+            core.info("Posted Preflight gate comment.");
+          }
+
+    - name: Enforce the gate verdict
+      if: ${{ steps.gate.outcome == 'failure' }}
+      shell: bash
+      run: |
+        echo "Preflight gate failed — see the checks above and the PR comment."
+        exit 1

@@ -17,6 +17,7 @@ import { fetchRuns } from "./live-api";
  */
 
 import { FREE_SIMS } from "./plan-constants";
+import { DEFAULT_CATALOG, type BillingStatus } from "./billing-catalog";
 
 export type PlanId = "free" | "starter" | "team" | "scale";
 
@@ -35,79 +36,34 @@ export interface Plan {
   features: string[];
 }
 
-export const PLANS: Plan[] = [
-  {
-    id: "free",
-    name: "Free",
-    priceMonthly: null,
-    simsIncluded: FREE_SIMS,
-    overagePer1k: null,
-    tagline: "See your agent fail before you pay a thing.",
-    features: [
-      "First 250 simulations free — one-time, no card",
-      "Connect one agent (OpenAI-compatible, HTTP, or reference)",
-      "Build a Rulebook + generate a custom suite",
-      "Full replays, readiness report, benchmark",
-    ],
-  },
-  {
-    id: "starter",
-    name: "Starter",
-    priceMonthly: 99,
-    simsIncluded: 2_000,
-    overagePer1k: 60,
-    tagline: "Test every meaningful change.",
-    features: [
-      "2,000 simulations / month (~10 Standard runs)",
-      "Unlimited agents & Rulebook suites",
-      "Regression baselines + CI gate",
-      "Overage: credit packs or $60 per extra 1,000",
-    ],
-  },
-  {
-    id: "team",
-    name: "Team",
-    priceMonthly: 399,
-    simsIncluded: 10_000,
-    overagePer1k: 50,
-    tagline: "Preflight on every pull request.",
-    features: [
-      "10,000 simulations / month",
-      "Everything in Starter",
-      "Higher run concurrency (faster walls)",
-      "Overage: credit packs or $50 per extra 1,000",
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    priceMonthly: 1_499,
-    simsIncluded: 50_000,
-    overagePer1k: 40,
-    tagline: "Sign-off depth, nightly.",
-    features: [
-      "50,000 simulations / month",
-      "Everything in Team",
-      "Exhaustive & Max tiers on tap",
-      "Overage: credit packs or $40 per extra 1,000",
-    ],
-  },
-];
+/** Derived from the config-driven catalog — single source of truth for
+ * prices, token allowances, and limits (see billing-catalog.ts; the
+ * server can override the whole catalog via BILLING_CATALOG_JSON). */
+export const PLANS: Plan[] = DEFAULT_CATALOG.plans.map((p) => ({
+  id: p.id as PlanId,
+  name: p.name,
+  priceMonthly: p.priceMonthly,
+  simsIncluded: p.monthlyTokens,
+  overagePer1k: p.overagePer1k,
+  tagline: p.tagline,
+  features: p.features,
+}));
 
 export function planById(id: PlanId): Plan {
   return PLANS.find((p) => p.id === id) ?? PLANS[0];
 }
 
 export interface CreditPack {
+  id: string;
   sims: number;
   price: number;
 }
 
-export const CREDIT_PACKS: CreditPack[] = [
-  { sims: 1_000, price: 60 },
-  { sims: 5_000, price: 250 },
-  { sims: 25_000, price: 1_000 },
-];
+export const CREDIT_PACKS: CreditPack[] = DEFAULT_CATALOG.packs.map((p) => ({
+  id: p.id,
+  sims: p.tokens,
+  price: p.price,
+}));
 
 // ---------------------------------------------------------------- state
 /** Locally persisted billing prefs: purchased packs + auto-overage. */
@@ -174,19 +130,83 @@ export function useBillingPrefs() {
 }
 
 /**
- * Real usage: simulations executed by live runs on this workspace.
- * undefined while loading.
+ * Server-truth billing status: the effective catalog, plan, token
+ * balance and prefs from GET /api/billing. `status === null` after
+ * load means the endpoint was unreachable — callers show an
+ * unavailable state, never fake numbers.
  */
-export function useSimUsage(): number | undefined {
-  const [used, setUsed] = useState<number | undefined>(undefined);
+async function fetchBillingStatus(): Promise<BillingStatus | null> {
+  try {
+    const res = await fetch("/api/billing");
+    return res.ok ? ((await res.json()) as BillingStatus) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function useBillingStatus() {
+  const [status, setStatus] = useState<BillingStatus | null | undefined>(undefined);
+
+  useEffect(() => {
+    let alive = true;
+    fetchBillingStatus().then((s) => {
+      if (alive) setStatus(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setStatus(await fetchBillingStatus());
+  }, []);
+
+  const setPrefs = useCallback(
+    async (input: { autoTopUp?: boolean; autoTopUpPackId?: string | null; mockPackId?: string }) => {
+      try {
+        const res = await fetch("/api/billing/prefs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        if (res.ok) setStatus((await res.json()) as BillingStatus);
+      } catch {
+        // leave current status; the UI keeps its last known truth
+      }
+    },
+    [],
+  );
+
+  /** Start checkout; resolves the redirect URL or an error message. */
+  const checkout = useCallback(async (kind: "plan" | "pack", id: string) => {
+    const res = await fetch("/api/billing/checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind, id }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    if (res.ok && json.url) return { url: json.url };
+    return { error: json.error ?? `HTTP ${res.status}` };
+  }, []);
+
+  return { status, refresh, setPrefs, checkout };
+}
+
+/**
+ * Real usage: simulations executed by live runs on this workspace.
+ * undefined while loading; null when the fetch failed — callers show
+ * an unavailable state instead of a wrong "0 used".
+ */
+export function useSimUsage(): number | undefined | null {
+  const [used, setUsed] = useState<number | undefined | null>(undefined);
   useEffect(() => {
     let alive = true;
     fetchRuns()
       .then((runs) => {
-        if (alive) setUsed(runs.reduce((a, r) => a + r.total, 0));
+        if (alive) setUsed(runs ? runs.reduce((a, r) => a + r.total, 0) : null);
       })
       .catch(() => {
-        if (alive) setUsed(0);
+        if (alive) setUsed(null);
       });
     return () => {
       alive = false;

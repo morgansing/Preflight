@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { STORE_TOOLS } from "@/server/store-tools";
 import { chatCompletionsUrl, openAiTools } from "@/server/openai-agent";
+import { assertFetchableUrl } from "@/server/net-guard";
+import { requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,9 @@ const redact = (h: Record<string, string>) => {
 };
 
 export async function POST(request: NextRequest) {
+  // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
+  const auth = requireUser(request);
+  if (auth.response) return auth.response;
   const body = (await request.json().catch(() => null)) as {
     agentKind: "http" | "openai";
     endpoint: string;
@@ -33,6 +38,14 @@ export async function POST(request: NextRequest) {
   if (!body?.endpoint || !["http", "openai"].includes(body.agentKind)) {
     return NextResponse.json(
       { error: "Expected { agentKind: http|openai, endpoint, … }" },
+      { status: 400 },
+    );
+  }
+  try {
+    assertFetchableUrl(body.endpoint);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
       { status: 400 },
     );
   }
