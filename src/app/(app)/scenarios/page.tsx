@@ -218,7 +218,11 @@ export default function ScenariosPage() {
                   className={styles.scenarioRow}
                 >
                   <td className={styles.scenarioId}>{scenario.id}</td>
-                  <td><span className={styles.scenarioName}>{scenario.name}</span></td>
+                  <td>
+                    <span className={styles.scenarioName} title={scenario.name}>
+                      {scenario.name}
+                    </span>
+                  </td>
                   <td><span className={styles.scenarioCategory}>{scenario.category}</span></td>
                   <td>
                     <SeverityLabel severity={scenario.severity} />
@@ -227,7 +231,9 @@ export default function ScenariosPage() {
                     <DifficultyLabel level={scenario.difficulty} />
                   </td>
                   <td>
-                    <span className={styles.scenarioRubric}>{scenario.rubric}</span>
+                    <span className={styles.scenarioRubric} title={scenario.rubric}>
+                      {scenario.rubric}
+                    </span>
                   </td>
                 </tr>
               ))}

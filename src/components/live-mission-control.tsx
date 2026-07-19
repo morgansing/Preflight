@@ -751,8 +751,15 @@ export function LiveMissionControl() {
             </div>
           </div>
           <div className={`${shellStyles.headerControls} flex flex-wrap items-center justify-end gap-x-5 gap-y-2`}>
-            <div className={`${shellStyles.headerStats} flex items-center gap-5 font-mono text-sm tabular-nums`}>
-              <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
+            <div className={`${shellStyles.headerStats} flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-sm tabular-nums`}>
+              {/* Keyed on completion so the settle animation replays once
+                  the moment the run finishes. */}
+              <span
+                key={finished ? "done" : "running"}
+                className={finished ? "inline-block [animation:settle-in_.5s_var(--ease-out-quad)_both]" : ""}
+              >
+                <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
+              </span>
               <HeaderStat label="Complete" value={`${stats.resolved}/${n}`} />
               <HeaderStat
                 className={shellStyles.secondaryStat}

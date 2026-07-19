@@ -98,14 +98,15 @@ export default function RunHistoryPage() {
           <span className={styles.ledgerMetric}>When</span>
         </div>
         <div className={styles.ledgerRows}>
-          {rows.map((r) => {
+          {rows.map((r, i) => {
             const agent = demoAgents.find((a) => a.id === r.agentId);
             const above = agent ? r.score >= agent.threshold : false;
             return (
               <Link
                 key={r.id}
                 href={`/runs/${r.id}`}
-                className={`focus-ring ${styles.ledgerRow} ${styles.demoGrid}`}
+                style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
+                className={`animate-fade-up focus-ring ${styles.ledgerRow} ${styles.demoGrid}`}
               >
                 <span className={styles.ledgerPrimary}>
                   <span className={styles.ledgerAgent}>

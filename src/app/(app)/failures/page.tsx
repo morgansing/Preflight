@@ -205,10 +205,11 @@ function FailuresView() {
               Nothing matches these filters.
             </p>
           )}
-          {rows.map((r) => (
+          {rows.map((r, i) => (
             <div
               key={`${r.agentId}:${r.scenarioId}`}
-              className={styles.failureRow}
+              style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
+              className={`animate-fade-up ${styles.failureRow}`}
             >
               <Link
                 href={`/scenarios/${r.scenarioId}`}

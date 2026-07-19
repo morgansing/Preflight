@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppGuide } from "@/components/app-guide";
 import { openPalette } from "@/components/command-palette";
 import { useMode } from "@/lib/mode";
@@ -81,119 +81,67 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function NavRail() {
+function Brand({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Link
+      href="/"
+      className={styles.brand}
+      aria-label="Preflight home"
+      onClick={onNavigate}
+    >
+      <span className={styles.brandSignal} aria-hidden="true" />
+      <span className={styles.brandText}>PREFLIGHT</span>
+      <span className={styles.brandMeta} aria-hidden="true">CONTROL</span>
+    </Link>
+  );
+}
+
+function ModeChip({ mode }: { mode: "demo" | "live" }) {
+  return (
+    <span className={`${styles.modeIndicator} ${mode === "live" ? styles.modeLive : ""}`}>
+      <span className={styles.modeDot} aria-hidden="true" />
+      <span className={styles.modeWord}>{mode.toUpperCase()}</span>
+    </span>
+  );
+}
+
+/** Everything below the wordmark — shared by the desktop rail and the
+ * mobile sheet. `onNavigate` lets the sheet close itself on any jump. */
+function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode, setMode } = useMode();
   const { session, signOut } = useSession();
   const { open: guideOpen, showGuide } = useAppGuide();
   const accountActive = pathname.startsWith("/billing");
-  const navGroupsRef = useRef<HTMLDivElement>(null);
-  const accountButtonRef = useRef<HTMLButtonElement>(null);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  const [accountOpen, setAccountOpen] = useState(false);
 
   const logOut = () => {
-    setAccountOpen(false);
+    onNavigate?.();
     signOut();
     router.replace("/login");
   };
 
-  const openQuickJump = useCallback(() => {
-    setAccountOpen(false);
-    window.requestAnimationFrame(() => {
-      accountButtonRef.current?.focus();
-      openPalette();
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!accountOpen) return;
-    const mobileRail = window.matchMedia("(max-width: 760px)");
-    const frame = window.requestAnimationFrame(() => {
-      accountMenuRef.current?.querySelector<HTMLElement>("a, button")?.focus();
-    });
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (
-        !accountMenuRef.current?.contains(target) &&
-        !accountButtonRef.current?.contains(target)
-      ) {
-        setAccountOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        openQuickJump();
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        setAccountOpen(false);
-        accountButtonRef.current?.focus();
-      }
-    };
-    const onBreakpointChange = (event: MediaQueryListEvent) => {
-      if (!event.matches) setAccountOpen(false);
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown, true);
-    mobileRail.addEventListener("change", onBreakpointChange);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown, true);
-      mobileRail.removeEventListener("change", onBreakpointChange);
-    };
-  }, [accountOpen, openQuickJump]);
-
-  useEffect(() => {
-    const navGroups = navGroupsRef.current;
-    if (!navGroups) return;
-
-    let updateFrame = 0;
-    const updateOverflow = () => {
-      cancelAnimationFrame(updateFrame);
-      updateFrame = requestAnimationFrame(() => {
-        const maxScroll = navGroups.scrollWidth - navGroups.clientWidth;
-        navGroups.dataset.overflowLeft = String(navGroups.scrollLeft > 2);
-        navGroups.dataset.overflowRight = String(navGroups.scrollLeft < maxScroll - 2);
-      });
-    };
-
-    const revealActiveRoute = () => {
-      if (!window.matchMedia("(max-width: 760px)").matches) {
-        updateOverflow();
-        return;
-      }
-      navGroups
-        .querySelector<HTMLElement>('[aria-current="page"]')
-        ?.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
-      updateOverflow();
-    };
-
-    revealActiveRoute();
-    navGroups.addEventListener("scroll", updateOverflow, { passive: true });
-    const resizeObserver = new ResizeObserver(revealActiveRoute);
-    resizeObserver.observe(navGroups);
-
-    return () => {
-      cancelAnimationFrame(updateFrame);
-      navGroups.removeEventListener("scroll", updateOverflow);
-      resizeObserver.disconnect();
-    };
-  }, [pathname]);
-
   return (
-    <nav className={`no-print ${styles.rail}`} aria-label="Application navigation">
-      <Link href="/" className={styles.brand} aria-label="Preflight home">
-        <span className={styles.brandSignal} aria-hidden="true" />
-        <span className={styles.brandText}>PREFLIGHT</span>
-        <span className={styles.brandMeta} aria-hidden="true">CONTROL</span>
-      </Link>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          onNavigate?.();
+          openPalette();
+        }}
+        className={styles.searchButton}
+      >
+        <span className={styles.searchLabel}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className={styles.searchIcon} aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="M10.5 10.5L14 14" strokeLinecap="round" />
+          </svg>
+          <span className={styles.searchText}>Search</span>
+        </span>
+        <span className={styles.searchKbd}>⌘K</span>
+      </button>
 
-      <div className={styles.navGroups} ref={navGroupsRef}>
+      <div className={styles.navGroups}>
         {groups.map((group, groupIndex) => {
           const groupId = `nav-group-${groupIndex}`;
           return (
@@ -206,6 +154,7 @@ export function NavRail() {
                     <li key={item.href}>
                       <Link
                         href={item.href}
+                        onClick={onNavigate}
                         className={`${styles.navLink} ${active ? styles.active : ""}`}
                         aria-current={active ? "page" : undefined}
                         aria-label={item.label}
@@ -225,75 +174,29 @@ export function NavRail() {
       </div>
 
       <div className={styles.railFooter}>
-        <div
-          className={styles.accountArea}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false);
-          }}
-        >
+        <div className={styles.accountArea}>
           {session ? (
-            <>
-              <Link
-                href="/billing"
-                className={`${styles.account} ${styles.desktopAccount} ${accountActive ? styles.accountActive : ""}`}
-                aria-current={accountActive ? "page" : undefined}
-                aria-label={`${session.name}, billing and usage`}
-                title={`${session.name} - Billing & usage`}
-              >
-                <span className={styles.avatar} aria-hidden="true">
-                  {session.name.trim().charAt(0).toUpperCase() || "P"}
-                </span>
-                <span className={styles.accountCopy}>
-                  <span className={styles.accountName}>{session.name}</span>
-                  <span className={styles.accountDetail}>Billing &amp; usage</span>
-                </span>
-                <span className={styles.planBadge}>{planById(session.plan).name.toUpperCase()}</span>
-              </Link>
-              <button
-                ref={accountButtonRef}
-                type="button"
-                className={`${styles.account} ${styles.mobileAccount} ${accountOpen ? styles.accountActive : ""}`}
-                onClick={() => setAccountOpen((current) => !current)}
-                aria-label={`Account actions for ${session.name}`}
-                aria-haspopup="dialog"
-                aria-expanded={accountOpen}
-                aria-controls="mobile-account-actions"
-              >
-                <span className={styles.avatar} aria-hidden="true">
-                  {session.name.trim().charAt(0).toUpperCase() || "P"}
-                </span>
-              </button>
-              {accountOpen && (
-                <div
-                  id="mobile-account-actions"
-                  ref={accountMenuRef}
-                  className={styles.accountMenu}
-                  role="dialog"
-                  aria-label="Account actions"
-                >
-                  <div className={styles.accountMenuHeader}>
-                    <strong>{session.name}</strong>
-                    <span>{session.email}</span>
-                    <small>{planById(session.plan).name} workspace</small>
-                  </div>
-                  <Link href="/billing" onClick={() => setAccountOpen(false)}>
-                    <span aria-hidden="true">01</span>
-                    <span><strong>Billing &amp; usage</strong><small>Plan and allowance</small></span>
-                  </Link>
-                  <button type="button" onClick={openQuickJump}>
-                    <span aria-hidden="true">02</span>
-                    <span><strong>Jump anywhere</strong><small>Ctrl / Cmd + K</small></span>
-                  </button>
-                  <button type="button" onClick={logOut}>
-                    <span aria-hidden="true">03</span>
-                    <span><strong>Log out</strong><small>End this browser session</small></span>
-                  </button>
-                </div>
-              )}
-            </>
+            <Link
+              href="/billing"
+              onClick={onNavigate}
+              className={`${styles.account} ${accountActive ? styles.accountActive : ""}`}
+              aria-current={accountActive ? "page" : undefined}
+              aria-label={`${session.name}, billing and usage`}
+              title={`${session.name} - Billing & usage`}
+            >
+              <span className={styles.avatar} aria-hidden="true">
+                {session.name.trim().charAt(0).toUpperCase() || "P"}
+              </span>
+              <span className={styles.accountCopy}>
+                <span className={styles.accountName}>{session.name}</span>
+                <span className={styles.accountDetail}>Billing &amp; usage</span>
+              </span>
+              <span className={styles.planBadge}>{planById(session.plan).name.toUpperCase()}</span>
+            </Link>
           ) : (
             <Link
               href="/signup"
+              onClick={onNavigate}
               className={styles.account}
               aria-label="Create a Preflight workspace"
               title="Create workspace - 250 scenarios free"
@@ -336,10 +239,7 @@ export function NavRail() {
               aria-label={`${mode === "demo" ? "Demo" : "Live"} mode. Switch to ${mode === "demo" ? "live" : "demo"} mode`}
               title={`Switch to ${mode === "demo" ? "Live" : "Demo"} mode`}
             >
-              <span className={`${styles.modeIndicator} ${mode === "live" ? styles.modeLive : ""}`}>
-                <span className={styles.modeDot} aria-hidden="true" />
-                <span className={styles.modeWord}>{mode.toUpperCase()}</span>
-              </span>
+              <ModeChip mode={mode} />
               <span className={styles.modeCopy}>switch environment</span>
             </button>
           </div>
@@ -359,6 +259,88 @@ export function NavRail() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+/** The desktop rail — hidden below lg, where MobileNav takes over. */
+export function NavRail() {
+  return (
+    <nav className={`no-print ${styles.rail}`} aria-label="Application navigation">
+      <Brand />
+      <NavContent />
     </nav>
+  );
+}
+
+/** Below lg: a slim sticky top bar and a slide-in sheet with the full nav. */
+export function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const { mode } = useMode();
+  const close = () => setOpen(false);
+
+  // Esc closes the sheet; body scroll locks while it is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  return (
+    <>
+      <header className={`no-print ${styles.mobileBar}`}>
+        <Brand />
+        <div className={styles.mobileBarActions}>
+          <ModeChip mode={mode} />
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={open}
+            className={styles.menuButton}
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className={styles.menuIcon} aria-hidden="true">
+              <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {open && (
+        <div
+          className={`no-print ${styles.sheetRoot}`}
+          role="dialog"
+          aria-modal
+          aria-label="Navigation"
+        >
+          <div className={`animate-fade-in ${styles.sheetBackdrop}`} onClick={close} />
+          <div className={`animate-fade-up ${styles.sheetPanel}`}>
+            <div className={styles.sheetHeader}>
+              <Brand onNavigate={close} />
+              <button
+                type="button"
+                autoFocus
+                onClick={close}
+                aria-label="Close menu"
+                className={styles.closeButton}
+              >
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.menuIcon} aria-hidden="true">
+                  <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <NavContent onNavigate={close} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

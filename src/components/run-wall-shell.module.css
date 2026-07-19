@@ -8,9 +8,9 @@
   min-width: 0;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1023px) {
   .stickyHeader {
-    top: 3.6rem;
+    top: 3.5rem;
     padding: 0.65rem 0.75rem !important;
   }
 
