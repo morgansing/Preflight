@@ -1,8 +1,22 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { config } from "@/server/config";
 
 export const dynamic = "force-dynamic";
+
+// Read once per process — the deploy's identity for uptime dashboards.
+let version = "unknown";
+try {
+  version = (
+    JSON.parse(readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as {
+      version?: string;
+    }
+  ).version ?? "unknown";
+} catch {
+  // leave "unknown"
+}
 
 /**
  * Health check for uptime monitors and deploy verification. Reports
@@ -19,6 +33,7 @@ export async function GET() {
   return NextResponse.json(
     {
       ok: db,
+      version,
       db,
       provider: config.llmKey ? (config.llmKey === "mock" ? "mock" : "configured") : "sandbox-only",
       billing: config.billing.enabled ? "active" : "dormant",

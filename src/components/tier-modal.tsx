@@ -8,6 +8,7 @@ import { SMOKE_SUITE } from "@/lib/suites";
 import { DIFFICULTY_LABELS, type Difficulty, type Scenario } from "@/lib/types";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { GAUNTLET_SUITE_SIZE, type SuiteTier } from "@/lib/suite-tiers";
+import { fmtEstimate, type Pace } from "@/lib/estimates";
 
 /** Per-tier one-liner: what question this depth actually answers. */
 const TIER_ANSWERS: Record<string, string> = {
@@ -29,10 +30,12 @@ const TIER_ANSWERS: Record<string, string> = {
  */
 export function TierModal({
   tier,
+  pace,
   onSelect,
   onClose,
 }: {
   tier: SuiteTier;
+  pace: Pace;
   onSelect: () => void;
   onClose: () => void;
 }) {
@@ -146,7 +149,10 @@ export function TierModal({
           <div className="flex items-baseline justify-between border-t border-edge pt-4 text-[13px]">
             <span className="text-sub">Estimated cost · duration</span>
             <span className="font-mono tabular-nums text-ink">
-              {tier.estCost} · {tier.estTime}
+              {fmtEstimate(tier.size, pace)}
+              {pace.samples > 0 && (
+                <span className="ml-2 text-[10px] text-mut">from your runs</span>
+              )}
             </span>
           </div>
         </div>

@@ -34,6 +34,9 @@ export interface SharedReport {
 
 /** The public read-only view of a shared run. Null = bad token. */
 export async function sharedReport(token: string): Promise<SharedReport | null> {
+  // The demo token shows the fixture world's run — the page the README
+  // badge links to before any real run exists.
+  if (token === "demo") return demoSharedReport();
   const run = await prisma.liveRun.findFirst({
     where: { shareToken: token, status: "complete" },
     include: {
@@ -70,6 +73,31 @@ export async function sharedReport(token: string): Promise<SharedReport | null> 
     outcomes: run.results.map((r) => ({
       scenarioId: r.scenarioId,
       outcome: r.outcome as LiveCellResult["outcome"],
+    })),
+  };
+}
+
+async function demoSharedReport(): Promise<SharedReport> {
+  const [{ demoRun }, { runStats }, { categoryResults }, { demoOutcomes, scenarios }] =
+    await Promise.all([
+      import("@/lib/fixtures/run"),
+      import("@/lib/fixtures/run"),
+      import("@/lib/fixtures/runs"),
+      import("@/lib/fixtures/scenarios"),
+    ]);
+  return {
+    agentName: `${demoRun.agent} ${demoRun.agentVersion}`,
+    suite: "standard",
+    scenarioCount: runStats.total,
+    score: 97,
+    startedAt: "2026-07-14T09:00:00.000Z",
+    counts: { pass: runStats.pass, fail: runStats.fail, partial: runStats.partial, error: 0 },
+    categories: categoryResults(demoRun.id)
+      .map((c) => ({ category: c.category, pass: c.pass, total: c.total }))
+      .sort((a, b) => a.pass / a.total - b.pass / b.total),
+    outcomes: scenarios.map((s) => ({
+      scenarioId: s.id,
+      outcome: (demoOutcomes.get(s.id) ?? "pass") as LiveCellResult["outcome"],
     })),
   };
 }

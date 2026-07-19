@@ -55,6 +55,8 @@ export interface LiveRunListItem {
   total: number;
   counts: { pass: number; fail: number; partial: number; error: number };
   score: number;
+  /** Total run cost — powers workspace-specific pace estimates. */
+  costUsd?: number;
   planId?: string;
   planKind?: string;
 }

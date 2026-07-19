@@ -18,11 +18,19 @@ export async function plannedSimCount(suite: string): Promise<number> {
 /** Build lightweight list items (aggregate counts, no per-scenario
  * results) for a set of runs. Shared by the run list and plan routes. */
 export async function toRunListItems(runs: LiveRun[]): Promise<LiveRunListItem[]> {
-  const grouped = await prisma.liveResult.groupBy({
-    by: ["runId", "outcome"],
-    _count: { _all: true },
-    where: { runId: { in: runs.map((r) => r.id) } },
-  });
+  const [grouped, costs] = await Promise.all([
+    prisma.liveResult.groupBy({
+      by: ["runId", "outcome"],
+      _count: { _all: true },
+      where: { runId: { in: runs.map((r) => r.id) } },
+    }),
+    prisma.liveResult.groupBy({
+      by: ["runId"],
+      _sum: { costUsd: true },
+      where: { runId: { in: runs.map((r) => r.id) } },
+    }),
+  ]);
+  const costBy = new Map(costs.map((c) => [c.runId, c._sum.costUsd ?? 0]));
 
   return runs.map((run) => {
     const counts = { pass: 0, fail: 0, partial: 0, error: 0 };
@@ -45,6 +53,7 @@ export async function toRunListItems(runs: LiveRun[]): Promise<LiveRunListItem[]
       total: (JSON.parse(run.scenariosJson) as string[]).length,
       counts,
       score: scored ? Math.round((counts.pass / scored) * 100) : 0,
+      costUsd: +(costBy.get(run.id) ?? 0).toFixed(2),
       planId: run.planId ?? undefined,
       planKind: run.planKind ?? undefined,
     };
