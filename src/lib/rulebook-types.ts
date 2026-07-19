@@ -12,6 +12,7 @@ export type RuleSource =
   | "help_centre"
   | "document"
   | "agent_prompt"
+  | "transcript"
   | "questionnaire"
   | "manual"
   | "starter";
@@ -61,6 +62,7 @@ export const RULE_SOURCE_LABELS: Record<RuleSource, string> = {
   help_centre: "Help centre",
   document: "Document",
   agent_prompt: "Agent prompt",
+  transcript: "Real conversations",
   questionnaire: "Questionnaire",
   manual: "Added by you",
   starter: "Starter pack",

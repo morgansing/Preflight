@@ -506,18 +506,20 @@ function PolicyStep({
   onQuestionnaire: (answers: QuestionnaireAnswers) => void;
   onSkip: () => void;
 }) {
-  const [tab, setTab] = useState<"url" | "docs" | "prompt" | "questions">(
+  const [tab, setTab] = useState<"url" | "docs" | "prompt" | "transcripts" | "questions">(
     mode === "demo" ? "docs" : "url",
   );
   const [url, setUrl] = useState("");
   const [docText, setDocText] = useState(mode === "demo" ? SAMPLE_POLICY : "");
   const [promptText, setPromptText] = useState("");
+  const [transcriptText, setTranscriptText] = useState("");
   const [answers, setAnswers] = useState<QuestionnaireAnswers>(DEFAULT_ANSWERS);
 
   const tabs = [
     { id: "url" as const, label: "Help-centre URL" },
     { id: "docs" as const, label: "Paste / upload docs" },
     { id: "prompt" as const, label: "Agent's system prompt" },
+    { id: "transcripts" as const, label: "Real conversations" },
     { id: "questions" as const, label: "Answer 7 questions" },
   ];
 
@@ -623,6 +625,43 @@ function PolicyStep({
           >
             {busy ? "Extracting…" : "Extract rules"}
           </Button>
+        </div>
+      )}
+
+      {tab === "transcripts" && (
+        <div className="space-y-3">
+          <p className="text-[13px] leading-relaxed text-sub">
+            Paste real customer conversations — a support-ticket export, chat logs,
+            even one bad thread. Preflight mines them for the rules your agent should
+            have followed, so every real-world incident becomes a permanent
+            regression test.
+          </p>
+          <textarea
+            className="focus-ring h-48 w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 font-mono text-[12px] leading-relaxed text-ink outline-none"
+            value={transcriptText}
+            onChange={(e) => setTranscriptText(e.target.value)}
+            placeholder={"Customer: I want a refund for order #A1234…\nAgent: Sure, I've processed that refund…"}
+          />
+          <div className="flex items-center gap-3">
+            <Button
+              disabled={busy || transcriptText.trim().length < 40}
+              onClick={() => onExtract("text", transcriptText, "transcript", "your real conversations")}
+            >
+              {busy ? "Mining…" : "Mine rules from conversations"}
+            </Button>
+            <label className="focus-ring cursor-pointer rounded-lg border border-edge px-3.5 py-2 text-[13px] text-sub transition-colors hover:border-mut hover:text-ink">
+              Upload .txt / .csv
+              <input
+                type="file"
+                accept=".txt,.csv,.md,text/plain,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void f.text().then((t) => setTranscriptText((prev) => (prev ? prev + "\n\n" : "") + t));
+                }}
+              />
+            </label>
+          </div>
         </div>
       )}
 

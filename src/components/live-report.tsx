@@ -9,6 +9,7 @@ import { UpgradeNudge } from "./upgrade-nudge";
 import { Button, ButtonLink, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
 import { GauntletMark, MockBadge, planKindLabel } from "./live-mission-control";
 import { fetchPlan, fetchRun, fetchRuns } from "@/lib/live-api";
+import { generateReportPdf } from "@/lib/report-pdf";
 import {
   scoreOf,
   type LivePlan,
@@ -179,9 +180,13 @@ export function LiveReport() {
           </p>
         </div>
         <div className="no-print flex shrink-0 items-center gap-2">
-          <ButtonLink href={`/runs/${run.id}`} variant="secondary" size="sm">
-            Open the run wall →
-          </ButtonLink>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => downloadReportPdf(run, report, counts)}
+          >
+            Download PDF
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => window.print()}>
             Print / share
           </Button>
@@ -193,9 +198,12 @@ export function LiveReport() {
           score={report.score}
           strengths={report.strengths}
           weaknesses={report.weaknesses}
+          wallHref={`/runs/${run.id}`}
           meta={`${run.results.length} scenarios · ${counts.pass} passed · ${counts.fail} failed · ${counts.partial} partial${report.errors.length ? ` · ${report.errors.length} run error` : ""} · ${report.tokens.toLocaleString()} tok · $${report.cost.toFixed(2)}`}
         />
       </div>
+
+      <SharePanel runId={run.id} score={report.score} />
 
       <CoveragePanel run={run} allRuns={allRuns} />
 
@@ -337,6 +345,134 @@ function CoveragePanel({ run, allRuns }: { run: LiveRunSummary; allRuns: LiveRun
         </p>
       )}
     </section>
+  );
+}
+
+/** Build and save the PDF artefact for a live run's report. */
+function downloadReportPdf(
+  run: LiveRunSummary,
+  report: {
+    score: number;
+    strengths: string[];
+    weaknesses: string[];
+    risks: LiveRunSummary["results"];
+    tokens: number;
+    cost: number;
+  },
+  counts: { pass: number; fail: number; partial: number },
+) {
+  void generateReportPdf({
+    agentName: run.agentName,
+    runId: run.id,
+    suiteLine: suiteLabel(run.suite, run.scenarioIds.length),
+    dateLine: new Date(run.startedAt).toLocaleDateString("en-US", { dateStyle: "long" }),
+    score: report.score,
+    metaLine: `${run.results.length} scenarios · ${counts.pass} passed · ${counts.fail} failed · ${counts.partial} partial · ${report.tokens.toLocaleString()} tokens · $${report.cost.toFixed(2)}`,
+    strengths: report.strengths,
+    weaknesses: report.weaknesses,
+    risks: report.risks.map((r) => ({
+      title: r.name ?? getScenarioById(r.scenarioId)?.name ?? r.scenarioId,
+      severity: r.severity,
+      body: r.failureReason ?? "",
+    })),
+  });
+}
+
+/**
+ * Share this result — mint the public link + badge. The token is
+ * unguessable and read-only: score, category shape, and the miniature
+ * wall go public; transcripts never do.
+ */
+function SharePanel({ runId, score }: { runId: string; score: number }) {
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const mint = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/live/runs/${runId}/share`, { method: "POST" });
+      const json = await res.json();
+      if (res.ok) setToken(json.token);
+      else setError(json.error ?? "Couldn't create the share link.");
+    } catch {
+      setError("Couldn't reach the server — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = (label: string, text: string) => {
+    void navigator.clipboard?.writeText(text).then(() => {
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1600);
+    });
+  };
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const shareUrl = token ? `${origin}/share/${token}` : "";
+  const badgeUrl = token ? `${origin}/api/badge/${token}` : "";
+  const markdown = token ? `[![Preflight](${badgeUrl})](${shareUrl})` : "";
+
+  return (
+    <section className="no-print mt-6 rounded-xl border border-edge bg-surface p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <Eyebrow>Share this result</Eyebrow>
+          <p className="mt-2 max-w-md text-[13px] leading-relaxed text-sub">
+            A public, read-only page plus an embeddable score badge — proof this agent
+            went through Preflight. Transcripts stay private.
+          </p>
+        </div>
+        {!token && (
+          <Button variant="secondary" size="sm" onClick={mint} disabled={busy}>
+            {busy ? "Creating…" : "Create public link"}
+          </Button>
+        )}
+      </div>
+      {error && <p className="mt-3 text-[13px] text-warn">{error}</p>}
+      {token && (
+        <div className="mt-5 space-y-3 border-t border-edge pt-5">
+          <div className="flex items-center gap-3">
+            {/* The badge itself, live from the endpoint. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={badgeUrl} alt={`Preflight score badge: ${score}`} className="h-5" />
+            <span className="font-mono text-[11px] text-mut">← this badge is live at the URL below</span>
+          </div>
+          <ShareRow label="Public page" value={shareUrl} copied={copied} onCopy={copy} />
+          <ShareRow label="Badge image" value={badgeUrl} copied={copied} onCopy={copy} />
+          <ShareRow label="README markdown" value={markdown} copied={copied} onCopy={copy} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ShareRow({
+  label,
+  value,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  copied: string | null;
+  onCopy: (label: string, text: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-32 shrink-0 font-mono text-[10px] uppercase tracking-wider text-mut">
+        {label}
+      </span>
+      <code className="min-w-0 flex-1 truncate rounded-md border border-edge bg-raised px-2.5 py-1.5 font-mono text-[11px] text-sub">
+        {value}
+      </code>
+      <Button variant="ghost" size="sm" onClick={() => onCopy(label, value)}>
+        {copied === label ? "Copied ✓" : "Copy"}
+      </Button>
+    </div>
   );
 }
 

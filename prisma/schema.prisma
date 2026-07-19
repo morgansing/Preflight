@@ -200,6 +200,9 @@ model LiveRun {
   planId        String?
   planKind      String? // quick | deep | signoff
   planStep      Int? // 1-based position within the plan
+  // Public share token — grants read-only access to this run's report
+  // and score badge. Unguessable (crypto-random), revocable by null-ing.
+  shareToken    String?      @unique
   // Cached root-cause clustering (ClusterReport JSON) — failures don't
   // change after completion, so this is computed once on first request.
   clustersJson  String?

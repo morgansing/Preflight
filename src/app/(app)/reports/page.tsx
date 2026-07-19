@@ -2,12 +2,28 @@
 
 import Link from "next/link";
 import { ReadinessCard } from "@/components/readiness-card";
-import { Button, ButtonLink, Eyebrow } from "@/components/ui";
+import { Button, Eyebrow } from "@/components/ui";
 import { LiveReport } from "@/components/live-report";
 import { demoReport } from "@/lib/fixtures/report";
 import { readiness, runStats } from "@/lib/fixtures/run";
 import { failingReplayId } from "@/lib/fixtures/scenarios";
+import { generateReportPdf } from "@/lib/report-pdf";
 import { useMode } from "@/lib/mode";
+
+function downloadDemoReportPdf() {
+  const r = demoReport;
+  void generateReportPdf({
+    agentName: `${r.agent} ${r.agentVersion}`,
+    runId: r.runId,
+    suiteLine: r.suite,
+    dateLine: r.date,
+    score: readiness.score,
+    metaLine: `${runStats.total} scenarios · ${runStats.pass} passed · ${runStats.fail} failed · ${runStats.partial} partial`,
+    strengths: readiness.strengths,
+    weaknesses: readiness.weaknesses,
+    risks: r.risks.map((risk) => ({ title: risk.title, body: risk.body })),
+  });
+}
 
 const weaknessHrefs = Object.fromEntries(
   readiness.weaknesses.map((w) => {
@@ -40,9 +56,9 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="no-print flex shrink-0 items-center gap-2">
-          <ButtonLink href={`/runs/${r.runId}`} variant="secondary" size="sm">
-            Open the run wall →
-          </ButtonLink>
+          <Button variant="secondary" size="sm" onClick={() => downloadDemoReportPdf()}>
+            Download PDF
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => window.print()}>
             Print / share
           </Button>
@@ -54,6 +70,7 @@ export default function ReportsPage() {
           score={readiness.score}
           strengths={readiness.strengths}
           weaknesses={readiness.weaknesses}
+          wallHref={`/runs/${r.runId}`}
           meta={`Run ${r.runId} · ${runStats.total} scenarios · ${runStats.pass} passed · ${runStats.fail} failed · ${runStats.partial} partial`}
           hrefs={weaknessHrefs}
         />

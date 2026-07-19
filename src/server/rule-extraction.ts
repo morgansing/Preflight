@@ -101,7 +101,13 @@ async function anthropicExtract(text: string, source: RuleSource): Promise<Draft
     messages: [
       {
         role: "user",
-        content: `Source type: ${source}\n\nPOLICY TEXT:\n${text}`,
+        content:
+          source === "transcript"
+            ? // Real conversations: mine incidents, not prose. Every place
+              // the agent went wrong (or nearly did) becomes a rule — so
+              // real-world failures turn into permanent regression tests.
+              `Source type: real support conversations.\n\nThese are transcripts of actual customer conversations. Extract the rules the agent SHOULD follow — especially wherever these conversations show a mistake, a dispute, an over-generous concession, a missed identity check, or an escalation that came too late. Phrase each as a testable constraint.\n\nTRANSCRIPTS:\n${text}`
+            : `Source type: ${source}\n\nPOLICY TEXT:\n${text}`,
       },
     ],
   });

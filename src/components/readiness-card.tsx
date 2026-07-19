@@ -56,6 +56,7 @@ export function ReadinessCard({
   threshold = 90,
   hrefs,
   reportHref,
+  wallHref,
   className = "",
 }: {
   score: number;
@@ -68,6 +69,8 @@ export function ReadinessCard({
   hrefs?: Record<string, string | undefined>;
   /** Optional link rendered on the meta line ("full report →"). */
   reportHref?: string;
+  /** Optional link to the settled run wall, top right of the panel. */
+  wallHref?: string;
   className?: string;
 }) {
   const shown = useCountUp(score);
@@ -80,7 +83,17 @@ export function ReadinessCard({
     <div
       className={`rounded-xl border border-edge bg-surface p-8 shadow-card ${className}`}
     >
-      <Eyebrow>Agent readiness</Eyebrow>
+      <div className="flex items-baseline justify-between">
+        <Eyebrow>Agent readiness</Eyebrow>
+        {wallHref && (
+          <Link
+            href={wallHref}
+            className="focus-ring no-print rounded font-mono text-[11px] text-accent hover:underline"
+          >
+            Open the run wall →
+          </Link>
+        )}
+      </div>
 
       <div className="mt-8 flex flex-col items-center gap-4">
         <div
