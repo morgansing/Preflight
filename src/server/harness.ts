@@ -50,6 +50,8 @@ export interface LaunchOptions {
    * configured key — offline, no cost, not a real evaluation. Lets a
    * first-time visitor watch a real run without any setup. */
   sandbox?: boolean;
+  /** Verified owner of the run ("default" while auth is dormant). */
+  ownerId?: string;
 }
 
 /** Validate provider + agent transport for a launch. Shared by single
@@ -154,6 +156,7 @@ function optsFromRow(row: RunRow): LaunchOptions | null {
     systemPrompt: row.systemPrompt ?? undefined,
     suite: row.suite,
     sandbox: row.sandbox,
+    ownerId: row.ownerId,
   };
 }
 
@@ -307,6 +310,7 @@ export async function launchRun(
       await tx.liveRun.create({
         data: {
           id: runId,
+          ownerId: opts.ownerId ?? "default",
           agentName: opts.agentName,
           agentKind: opts.agentKind,
           endpoint: opts.endpoint ?? null,
@@ -401,6 +405,7 @@ export async function launchPlan(
         await tx.liveRun.create({
           data: {
             id: runIds[i],
+            ownerId: base.ownerId ?? "default",
             agentName: base.agentName,
             agentKind: base.agentKind,
             endpoint: base.endpoint ?? null,

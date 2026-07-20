@@ -138,7 +138,7 @@ export function useBillingPrefs() {
  */
 async function fetchBillingStatus(): Promise<BillingStatus | null> {
   try {
-    const res = await fetch("/api/billing");
+    const res = await fetch("/api/billing", { headers: await authHeaders() });
     return res.ok ? ((await res.json()) as BillingStatus) : null;
   } catch {
     return null;

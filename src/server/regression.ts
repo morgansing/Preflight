@@ -28,10 +28,16 @@ interface ResultRow {
 /** Find the run to compare `run` against, or null if there is none. */
 export async function resolveBaselineRun(
   prisma: PrismaClient,
-  run: { id: string; agentName: string; suite: string; startedAt: Date },
+  run: { id: string; ownerId: string; agentName: string; suite: string; startedAt: Date },
 ): Promise<{ id: string; startedAt: Date; pinned: boolean } | null> {
   const pin = await prisma.runBaseline.findUnique({
-    where: { agentName_suite: { agentName: run.agentName, suite: run.suite } },
+    where: {
+      ownerId_agentName_suite: {
+        ownerId: run.ownerId,
+        agentName: run.agentName,
+        suite: run.suite,
+      },
+    },
   });
   if (pin && pin.runId !== run.id) {
     const pinned = await prisma.liveRun.findUnique({ where: { id: pin.runId } });
@@ -41,6 +47,7 @@ export async function resolveBaselineRun(
   }
   const previous = await prisma.liveRun.findFirst({
     where: {
+      ownerId: run.ownerId,
       agentName: run.agentName,
       suite: run.suite,
       status: "complete",

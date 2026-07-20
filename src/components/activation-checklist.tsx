@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { authHeaders } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { Eyebrow } from "./ui";
 import { useLiveAgents } from "@/lib/live";
@@ -26,13 +27,13 @@ export function ActivationChecklist({ runs }: { runs: LiveRunListItem[] }) {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/setup")
+    void authHeaders().then((h) => fetch("/api/setup", { headers: h }))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (alive && d?.rules) setRulesCount(d.rules.length);
       })
       .catch(() => {});
-    fetch("/api/generate")
+    void authHeaders().then((h) => fetch("/api/generate", { headers: h }))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (alive && d?.suite?.status === "ready") setSuiteReady(true);

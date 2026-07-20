@@ -29,7 +29,7 @@ export async function fetchProviderStatus(): Promise<
  * state; an empty array means a genuinely empty workspace. */
 export async function fetchRuns(): Promise<LiveRunListItem[] | null> {
   try {
-    const res = await fetch("/api/live/runs");
+    const res = await fetch("/api/live/runs", { headers: await authHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -38,7 +38,7 @@ export async function fetchRuns(): Promise<LiveRunListItem[] | null> {
 }
 
 export async function fetchRun(id: string): Promise<LiveRunSummary | null> {
-  const res = await fetch(`/api/live/runs/${id}`);
+  const res = await fetch(`/api/live/runs/${id}`, { headers: await authHeaders() });
   if (!res.ok) return null;
   return res.json();
 }
@@ -111,7 +111,7 @@ export async function startPlan(body: {
 
 export async function fetchPlan(planId: string): Promise<LivePlan | null> {
   try {
-    const res = await fetch(`/api/live/plan/${planId}`);
+    const res = await fetch(`/api/live/plan/${planId}`, { headers: await authHeaders() });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -134,7 +134,7 @@ export async function fetchFreeAllowance(identity: {
   const q = new URLSearchParams();
   if (identity.email) q.set("email", identity.email);
   if (identity.fingerprint) q.set("fp", identity.fingerprint);
-  const res = await fetch(`/api/live/free-grant?${q}`);
+  const res = await fetch(`/api/live/free-grant?${q}`, { headers: await authHeaders() });
   if (!res.ok) return null;
   return res.json();
 }
@@ -144,7 +144,7 @@ export async function fetchRegression(runId: string): Promise<{
   report: RegressionReport | null;
   reason?: string;
 } | null> {
-  const res = await fetch(`/api/live/runs/${runId}/regression`);
+  const res = await fetch(`/api/live/runs/${runId}/regression`, { headers: await authHeaders() });
   if (!res.ok) return null;
   return res.json();
 }
@@ -161,7 +161,7 @@ export async function pinBaseline(runId: string): Promise<boolean> {
 
 /** Root-cause clusters for a completed run (null while running/missing). */
 export async function fetchClusters(runId: string): Promise<ClusterReport | null> {
-  const res = await fetch(`/api/live/runs/${runId}/clusters`);
+  const res = await fetch(`/api/live/runs/${runId}/clusters`, { headers: await authHeaders() });
   if (!res.ok || res.status === 202) return null;
   return res.json();
 }
@@ -170,20 +170,35 @@ export async function fetchLiveReplay(
   runId: string,
   scenarioId: string,
 ): Promise<LiveReplayPayload | null> {
-  const res = await fetch(`/api/live/results/${runId}/${scenarioId}`);
+  const res = await fetch(`/api/live/results/${runId}/${scenarioId}`, { headers: await authHeaders() });
   if (!res.ok) return null;
   return res.json();
 }
 
-/** Subscribe to a run's SSE stream. Returns a cleanup function. */
+/** Subscribe to a run's SSE stream. Returns a cleanup function.
+ * EventSource can't send headers, so with auth active the access token
+ * rides in a query parameter (the server accepts either). */
 export function subscribeRun(runId: string, onEvent: (e: LiveEvent) => void): () => void {
-  const source = new EventSource(`/api/live/runs/${runId}/events`);
-  source.onmessage = (msg) => {
-    try {
-      onEvent(JSON.parse(msg.data));
-    } catch {
-      /* ignore malformed frames */
-    }
+  let source: EventSource | null = null;
+  let closed = false;
+  void (async () => {
+    const headers = await authHeaders();
+    if (closed) return;
+    const token = headers.authorization?.replace(/^Bearer\s+/i, "");
+    const url = `/api/live/runs/${runId}/events${
+      token ? `?access_token=${encodeURIComponent(token)}` : ""
+    }`;
+    source = new EventSource(url);
+    source.onmessage = (msg) => {
+      try {
+        onEvent(JSON.parse(msg.data));
+      } catch {
+        /* ignore malformed frames */
+      }
+    };
+  })();
+  return () => {
+    closed = true;
+    source?.close();
   };
-  return () => source.close();
 }

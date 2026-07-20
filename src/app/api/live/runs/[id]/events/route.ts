@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { subscribe } from "@/server/bus";
+import { ownerWhere, requireUser } from "@/server/auth";
 import type { LiveCellResult, LiveEvent } from "@/lib/live-types";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +15,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
   const { id } = await params;
-  const run = await prisma.liveRun.findUnique({
-    where: { id },
+  const run = await prisma.liveRun.findFirst({
+    where: { id, ...ownerWhere(auth.user) },
     // Cheap columns only — transcript/judge JSON stays on the replay route.
     include: {
       results: {

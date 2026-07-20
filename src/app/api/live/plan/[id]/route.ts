@@ -2,18 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
 import { toRunListItems } from "@/server/run-list";
+import { ownerWhere, requireUser } from "@/server/auth";
 import type { LivePlan } from "@/lib/live-types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
     const runs = await prisma.liveRun.findMany({
-      where: { planId: id },
+      where: { planId: id, ...ownerWhere(auth.user) },
       orderBy: { planStep: "asc" },
     });
     if (runs.length === 0) {

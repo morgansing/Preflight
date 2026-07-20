@@ -18,8 +18,15 @@ export interface FreeAllowance {
   blocked: boolean;
 }
 
-function keysFor(identity: WorkspaceIdentity): Array<{ key: string; kind: string }> {
+function keysFor(
+  identity: WorkspaceIdentity,
+  userId?: string,
+): Array<{ key: string; kind: string }> {
   const keys: Array<{ key: string; kind: string }> = [];
+  // The verified account is the strongest dimension once auth is live.
+  if (userId && userId !== "default") {
+    keys.push({ key: `user:${userId}`, kind: "user" });
+  }
   if (identity.email && identity.email.includes("@")) {
     keys.push({ key: `email:${normalizeEmail(identity.email)}`, kind: "email" });
   }
@@ -38,8 +45,9 @@ function keysFor(identity: WorkspaceIdentity): Array<{ key: string; kind: string
 export async function checkFreeAllowance(
   prisma: PrismaClient,
   identity: WorkspaceIdentity,
+  userId?: string,
 ): Promise<FreeAllowance> {
-  const keys = keysFor(identity);
+  const keys = keysFor(identity, userId);
   let used = 0;
   if (keys.length > 0) {
     const rows = await prisma.freeGrant.findMany({
@@ -57,8 +65,9 @@ export async function recordFreeUsage(
   prisma: PrismaClient,
   identity: WorkspaceIdentity,
   sims: number,
+  userId?: string,
 ): Promise<void> {
-  const keys = keysFor(identity);
+  const keys = keysFor(identity, userId);
   for (const { key, kind } of keys) {
     await prisma.freeGrant.upsert({
       where: { key },

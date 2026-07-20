@@ -1,19 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
+import { ownerWhere, requireUser } from "@/server/auth";
 import type { LiveReplayPayload, ScenarioSnapshot } from "@/lib/live-types";
 import type { Scenario } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ runId: string; scenarioId: string }> },
 ) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
   const { runId, scenarioId } = await params;
   const result = await prisma.liveResult.findUnique({
     where: { runId_scenarioId: { runId, scenarioId } },
+    include: { run: { select: { ownerId: true } } },
   });
-  if (!result) return NextResponse.json({ error: "Result not found" }, { status: 404 });
+  const scope = ownerWhere(auth.user);
+  if (!result || (scope.ownerId && result.run.ownerId !== scope.ownerId)) {
+    return NextResponse.json({ error: "Result not found" }, { status: 404 });
+  }
 
   const judge = result.judgeJson ? JSON.parse(result.judgeJson) : null;
   let snapshot: ScenarioSnapshot | undefined;

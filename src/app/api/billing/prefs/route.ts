@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updatePrefs } from "@/server/billing";
 import { routeError } from "@/server/log";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       mockPackId?: string;
     } | null;
     if (!body) return NextResponse.json({ error: "Expected a JSON body" }, { status: 400 });
-    return NextResponse.json(await updatePrefs(body));
+    return NextResponse.json(await updatePrefs(ownerIdFor(auth.user), body));
   } catch (err) {
     return NextResponse.json(routeError("billing.prefs", err), { status: 500 });
   }

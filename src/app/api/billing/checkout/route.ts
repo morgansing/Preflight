@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createCheckout } from "@/server/billing";
 import { routeError } from "@/server/log";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Expected { kind: plan|pack, id }" }, { status: 400 });
     }
     const origin = request.nextUrl.origin;
-    const result = await createCheckout(body.kind, body.id, origin);
+    const result = await createCheckout(ownerIdFor(auth.user), body.kind, body.id, origin);
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

@@ -21,7 +21,8 @@ import {
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
-const ACCOUNT_ID = "default";
+/** Fallback account for webhook events that predate owner metadata. */
+const DEFAULT_ACCOUNT = "default";
 
 let cachedCatalog: BillingCatalog | null = null;
 
@@ -42,10 +43,10 @@ export function activeCatalog(): BillingCatalog {
   return cachedCatalog;
 }
 
-export async function getAccount(db: Db = prisma) {
+export async function getAccount(ownerId: string, db: Db = prisma) {
   return db.billingAccount.upsert({
-    where: { id: ACCOUNT_ID },
-    create: { id: ACCOUNT_ID },
+    where: { id: ownerId },
+    create: { id: ownerId },
     update: {},
   });
 }
@@ -58,19 +59,19 @@ function currentPeriodKey(account: { planId: string; currentPeriodEnd: Date | nu
 /** Grant the current period's allowance once (idempotent per periodKey). */
 async function ensureAllowanceGrant(
   db: Db,
-  account: { planId: string; currentPeriodEnd: Date | null },
+  account: { id: string; planId: string; currentPeriodEnd: Date | null },
   periodKey: string,
 ): Promise<void> {
   const plan = catalogPlan(activeCatalog(), account.planId);
   if (plan.monthlyTokens <= 0) return;
   const existing = await db.creditLedgerEntry.findFirst({
-    where: { accountId: ACCOUNT_ID, kind: "allowance_grant", periodKey },
+    where: { accountId: account.id, kind: "allowance_grant", periodKey },
     select: { id: true },
   });
   if (existing) return;
   await db.creditLedgerEntry.create({
     data: {
-      accountId: ACCOUNT_ID,
+      accountId: account.id,
       delta: plan.monthlyTokens,
       kind: "allowance_grant",
       periodKey,
@@ -81,21 +82,22 @@ async function ensureAllowanceGrant(
 
 async function balanceFor(
   db: Db,
+  accountId: string,
   periodKey: string,
 ): Promise<Balance> {
   const entries = await db.creditLedgerEntry.findMany({
-    where: { accountId: ACCOUNT_ID },
+    where: { accountId },
     select: { delta: true, kind: true, periodKey: true },
   });
   return computeBalance(entries, periodKey);
 }
 
 /** The one status shape both modes serve (GET /api/billing). */
-export async function getBillingStatus(): Promise<BillingStatus> {
-  const account = await getAccount();
+export async function getBillingStatus(ownerId: string): Promise<BillingStatus> {
+  const account = await getAccount(ownerId);
   const periodKey = currentPeriodKey(account);
   await ensureAllowanceGrant(prisma, account, periodKey);
-  const balance = await balanceFor(prisma, periodKey);
+  const balance = await balanceFor(prisma, account.id, periodKey);
   return {
     enabled: config.billing.enabled,
     catalog: activeCatalog(),
@@ -115,16 +117,17 @@ export async function getBillingStatus(): Promise<BillingStatus> {
  * FreeGrant ledger until auth lands.
  */
 export async function precheckRun(
+  ownerId: string,
   sims: number,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const account = await getAccount();
+  const account = await getAccount(ownerId);
   const periodKey = currentPeriodKey(account);
   await ensureAllowanceGrant(prisma, account, periodKey);
 
-  let balance = await balanceFor(prisma, periodKey);
+  let balance = await balanceFor(prisma, account.id, periodKey);
   if (balance.total < sims && account.autoTopUp) {
     const topped = await attemptAutoTopUp(account, sims - balance.total);
-    if (topped) balance = await balanceFor(prisma, periodKey);
+    if (topped) balance = await balanceFor(prisma, account.id, periodKey);
   }
   if (balance.total < sims) {
     return {
@@ -138,12 +141,12 @@ export async function precheckRun(
 }
 
 /** Debit a launched run against the ledger (precheckRun ran first). */
-export async function debitRun(sims: number, runId: string): Promise<void> {
-  const account = await getAccount();
+export async function debitRun(ownerId: string, sims: number, runId: string): Promise<void> {
+  const account = await getAccount(ownerId);
   const periodKey = currentPeriodKey(account);
   await prisma.creditLedgerEntry.create({
     data: {
-      accountId: ACCOUNT_ID,
+      accountId: account.id,
       delta: -sims,
       kind: "run_debit",
       periodKey,
@@ -154,7 +157,7 @@ export async function debitRun(sims: number, runId: string): Promise<void> {
 
 /** Off-session purchase of the configured top-up pack. Stripe-dormant → false. */
 async function attemptAutoTopUp(
-  account: { stripeCustomerId: string | null; autoTopUpPackId: string | null },
+  account: { id: string; stripeCustomerId: string | null; autoTopUpPackId: string | null },
   shortfall: number,
 ): Promise<boolean> {
   const stripe = getStripe();
@@ -193,7 +196,7 @@ async function attemptAutoTopUp(
     }
     await prisma.creditLedgerEntry.create({
       data: {
-        accountId: ACCOUNT_ID,
+        accountId: account.id,
         delta: pack.tokens,
         kind: "auto_topup",
         stripeRef: intent.id,
@@ -209,13 +212,13 @@ async function attemptAutoTopUp(
 }
 
 /** Preference writes — and, while Stripe is dormant, preview pack grants. */
-export async function updatePrefs(input: {
+export async function updatePrefs(ownerId: string, input: {
   autoTopUp?: boolean;
   autoTopUpPackId?: string | null;
   /** Dormant mode only: credit a pack instantly (preview, no charge). */
   mockPackId?: string;
 }): Promise<BillingStatus> {
-  const account = await getAccount();
+  const account = await getAccount(ownerId);
   await prisma.billingAccount.update({
     where: { id: account.id },
     data: {
@@ -228,7 +231,7 @@ export async function updatePrefs(input: {
     if (pack) {
       await prisma.creditLedgerEntry.create({
         data: {
-          accountId: ACCOUNT_ID,
+          accountId: account.id,
           delta: pack.tokens,
           kind: "pack_purchase",
           note: `${pack.id} (preview — Stripe dormant)`,
@@ -236,7 +239,7 @@ export async function updatePrefs(input: {
       });
     }
   }
-  return getBillingStatus();
+  return getBillingStatus(ownerId);
 }
 
 /* ------------------------- webhook mutations ------------------------- */
@@ -263,8 +266,11 @@ export async function applyStripeEvent(event: {
       subscription?: string | null;
       metadata?: Record<string, string>;
     };
+    // Checkout sessions carry the owning account in metadata (set at
+    // creation); events from before ownership default to the shared row.
+    const account = await getAccount(session.metadata?.accountId ?? DEFAULT_ACCOUNT);
     await prisma.billingAccount.update({
-      where: { id: ACCOUNT_ID },
+      where: { id: account.id },
       data: {
         ...(session.customer ? { stripeCustomerId: String(session.customer) } : {}),
         ...(session.subscription ? { stripeSubscriptionId: String(session.subscription) } : {}),
@@ -276,7 +282,7 @@ export async function applyStripeEvent(event: {
       if (pack) {
         await prisma.creditLedgerEntry.create({
           data: {
-            accountId: ACCOUNT_ID,
+            accountId: account.id,
             delta: pack.tokens,
             kind: "pack_purchase",
             stripeRef: session.id,
@@ -301,8 +307,15 @@ export async function applyStripeEvent(event: {
     const plan = catalog.plans.find((p) => p.stripeLookupKey === lookupKey);
     const deleted = event.type === "customer.subscription.deleted";
     const periodEnd = item?.current_period_end;
+    // Subscription events name only the customer — resolve the account
+    // that owns that Stripe customer (set during checkout).
+    const owned = await prisma.billingAccount.findFirst({
+      where: { stripeCustomerId: String(sub.customer) },
+      select: { id: true },
+    });
+    const account = owned ?? (await getAccount(DEFAULT_ACCOUNT));
     await prisma.billingAccount.update({
-      where: { id: ACCOUNT_ID },
+      where: { id: account.id },
       data: {
         stripeCustomerId: String(sub.customer),
         stripeSubscriptionId: deleted ? null : sub.id,
@@ -315,8 +328,15 @@ export async function applyStripeEvent(event: {
     const paid = event.type === "invoice.paid";
     log.info("billing", `stripe ${event.type}`, { eventId: event.id });
     if (!paid) {
+      const invoice = event.data.object as { customer?: string | null };
+      const owned = invoice.customer
+        ? await prisma.billingAccount.findFirst({
+            where: { stripeCustomerId: String(invoice.customer) },
+            select: { id: true },
+          })
+        : null;
       await prisma.billingAccount.update({
-        where: { id: ACCOUNT_ID },
+        where: { id: owned?.id ?? DEFAULT_ACCOUNT },
         data: { subscriptionStatus: "past_due" },
       });
     }
@@ -327,6 +347,7 @@ export async function applyStripeEvent(event: {
 
 /** Create a Checkout Session for a plan or a pack. Null while dormant. */
 export async function createCheckout(
+  ownerId: string,
   kind: "plan" | "pack",
   id: string,
   origin: string,
@@ -350,14 +371,14 @@ export async function createCheckout(
     };
   }
 
-  const account = await getAccount();
+  const account = await getAccount(ownerId);
   const session = await stripe.checkout.sessions.create({
     mode: kind === "plan" ? "subscription" : "payment",
     customer: account.stripeCustomerId ?? undefined,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${origin}/billing?checkout=success`,
     cancel_url: `${origin}/billing?checkout=cancelled`,
-    ...(kind === "pack" ? { metadata: { packId: id } } : {}),
+    metadata: { accountId: account.id, ...(kind === "pack" ? { packId: id } : {}) },
   });
   if (!session.url) return { error: "Stripe did not return a checkout URL.", status: 502 };
   return { url: session.url };
@@ -365,11 +386,12 @@ export async function createCheckout(
 
 /** Billing Portal session for subscription management. */
 export async function createPortal(
+  ownerId: string,
   origin: string,
 ): Promise<{ url: string } | { error: string; status: number }> {
   const stripe = getStripe();
   if (!stripe) return { error: "Billing is not connected yet.", status: 409 };
-  const account = await getAccount();
+  const account = await getAccount(ownerId);
   if (!account.stripeCustomerId) {
     return { error: "No Stripe customer yet — subscribe to a plan first.", status: 409 };
   }

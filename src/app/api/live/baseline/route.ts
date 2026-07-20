@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, ownerWhere, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +12,14 @@ export const dynamic = "force-dynamic";
  * gate against it.
  */
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
   try {
-  const pins = await prisma.runBaseline.findMany({ orderBy: { createdAt: "desc" } });
+  const pins = await prisma.runBaseline.findMany({
+    where: { ...ownerWhere(auth.user) },
+    orderBy: { createdAt: "desc" },
+  });
   return NextResponse.json(pins);
   } catch (err) {
     return NextResponse.json(routeError("live.baseline", err), { status: 500 });
@@ -30,7 +35,9 @@ export async function POST(request: NextRequest) {
   if (!body?.runId) {
     return NextResponse.json({ error: "Expected { runId }" }, { status: 400 });
   }
-  const run = await prisma.liveRun.findUnique({ where: { id: body.runId } });
+  const run = await prisma.liveRun.findFirst({
+    where: { id: body.runId, ...ownerWhere(auth.user) },
+  });
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
   if (run.status !== "complete") {
     return NextResponse.json(
@@ -39,8 +46,14 @@ export async function POST(request: NextRequest) {
     );
   }
   const pin = await prisma.runBaseline.upsert({
-    where: { agentName_suite: { agentName: run.agentName, suite: run.suite } },
-    create: { agentName: run.agentName, suite: run.suite, runId: run.id },
+    where: {
+      ownerId_agentName_suite: {
+        ownerId: run.ownerId,
+        agentName: run.agentName,
+        suite: run.suite,
+      },
+    },
+    create: { ownerId: run.ownerId, agentName: run.agentName, suite: run.suite, runId: run.id },
     update: { runId: run.id, createdAt: new Date() },
   });
   return NextResponse.json(pin, { status: 201 });
@@ -50,6 +63,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
   try {
   const body = (await request.json().catch(() => null)) as {
     agentName?: string;
@@ -60,7 +75,13 @@ export async function DELETE(request: NextRequest) {
   }
   await prisma.runBaseline
     .delete({
-      where: { agentName_suite: { agentName: body.agentName, suite: body.suite } },
+      where: {
+        ownerId_agentName_suite: {
+          ownerId: ownerIdFor(auth.user),
+          agentName: body.agentName,
+          suite: body.suite,
+        },
+      },
     })
     .catch(() => null);
   return NextResponse.json({ ok: true });

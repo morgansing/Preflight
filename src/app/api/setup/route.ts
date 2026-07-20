@@ -2,17 +2,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
 import type { AgentProfile, PolicyRule } from "@/lib/rulebook-types";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
-const PROFILE_ID = "default"; // single-workspace V0
-
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
+  const profileId = ownerIdFor(auth.user);
   try {
-  const profile = await prisma.agentProfile.findUnique({ where: { id: PROFILE_ID } });
+  const profile = await prisma.agentProfile.findUnique({ where: { id: profileId } });
   const rules = await prisma.policyRule.findMany({
-    where: { profileId: PROFILE_ID },
+    where: { profileId },
     orderBy: { id: "asc" },
   });
   return NextResponse.json({
@@ -43,6 +44,7 @@ export async function PUT(request: NextRequest) {
   // Dormant until SUPABASE_JWT_SECRET exists; then a verified user is required.
   const auth = await requireUser(request);
   if (auth.response) return auth.response;
+  const profileId = ownerIdFor(auth.user);
   try {
   const body = (await request.json().catch(() => null)) as {
     profile: AgentProfile;
@@ -57,9 +59,9 @@ export async function PUT(request: NextRequest) {
 
   await prisma.$transaction([
     prisma.agentProfile.upsert({
-      where: { id: PROFILE_ID },
+      where: { id: profileId },
       create: {
-        id: PROFILE_ID,
+        id: profileId,
         role: body.profile.role,
         agentRef: body.profile.agentRef,
         toolsJson: JSON.stringify(body.profile.tools ?? []),
@@ -70,10 +72,10 @@ export async function PUT(request: NextRequest) {
         toolsJson: JSON.stringify(body.profile.tools ?? []),
       },
     }),
-    prisma.policyRule.deleteMany({ where: { profileId: PROFILE_ID } }),
+    prisma.policyRule.deleteMany({ where: { profileId } }),
     prisma.policyRule.createMany({
       data: body.rules.map((r) => ({
-        profileId: PROFILE_ID,
+        profileId,
         text: String(r.text).slice(0, 500),
         category: String(r.category),
         severity: String(r.severity),

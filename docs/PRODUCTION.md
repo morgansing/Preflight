@@ -117,10 +117,26 @@ still need to: enable the Google and GitHub providers (Auth →
 Providers) and add your domain + `/dashboard` to the redirect allowlist
 (Auth → URL Configuration).
 
-Remaining follow-on when multi-user matters:
-- Key `BillingAccount` and the `FreeGrant` ledger by `user.id` (the
-  verified id is already returned by `requireUser`); the fingerprint
-  heuristics become defence-in-depth only.
+**Per-user data scoping is live.** Every user-owned table carries an
+`ownerId` (default `"default"` in dormant mode) and both reads and
+writes filter on the verified `user.id`: runs, reports, replays, the
+SSE stream, flight plans, the Rulebook/agent profile, generated and
+red-team suites, regression baselines, billing accounts + credit
+ledger, and the registered-agent list. Two signed-in users get fully
+separate workspaces; the `service:ci` token sees the whole workspace
+(so the CI gate keeps working) but writes land in the shared row. The
+registered-agent list is server-backed (`LiveAgent`), so it follows a
+user across devices — the outbound bearer token stays browser-local by
+design and is re-entered on a new device. In dormant mode every row is
+owned by `"default"`, so single-workspace behaviour is byte-identical
+to before.
+
+Remaining follow-on when multi-user hardening matters:
+- The anonymous `FreeGrant` ledger already folds in a `user:<id>`
+  dimension once signed in; the email/fingerprint heuristics stay as
+  defence-in-depth for the anonymous tier.
+- Teams/seats (multiple users per billing account) would add a
+  `workspace` layer above `ownerId` — not needed until org billing.
 
 ## 4. LLM provider
 

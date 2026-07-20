@@ -105,7 +105,10 @@ export function SetupWizard() {
           return null;
         }
       }
-      const [status, res] = await Promise.all([fetchProviderStatus(), fetch("/api/setup")]);
+      const [status, res] = await Promise.all([
+        fetchProviderStatus(),
+        fetch("/api/setup", { headers: await authHeaders() }),
+      ]);
       if (!cancelled.current) setProvider(status);
       if (!res.ok) return null;
       const data = await res.json();
@@ -256,7 +259,7 @@ export function SetupWizard() {
         return;
       }
       try {
-        const r = await fetch("/api/generate");
+        const r = await fetch("/api/generate", { headers: await authHeaders() });
         const d = await r.json();
         if (cancelled.current || !d.suite) return;
         if (d.suite.status === "generating") {

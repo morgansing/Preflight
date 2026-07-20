@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createPortal } from "@/server/billing";
 import { routeError } from "@/server/log";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireUser(request);
   if (auth.response) return auth.response;
   try {
-    const result = await createPortal(request.nextUrl.origin);
+    const result = await createPortal(ownerIdFor(auth.user), request.nextUrl.origin);
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

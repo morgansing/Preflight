@@ -30,6 +30,7 @@ import {
   type SuiteTier,
 } from "@/lib/suite-tiers";
 import { useSession } from "@/lib/auth";
+import { authHeaders } from "@/lib/supabase";
 import { useBillingPrefs } from "@/lib/billing";
 import { fetchFreeAllowance } from "@/lib/live-api";
 import { computeFingerprint } from "@/lib/identity";
@@ -154,7 +155,7 @@ export function LiveMissionControl() {
 
   useEffect(() => {
     // Surface a ready generated suite as its own run tier.
-    fetch("/api/generate")
+    void authHeaders().then((h) => fetch("/api/generate", { headers: h }))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.suite?.status === "ready")

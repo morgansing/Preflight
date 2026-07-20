@@ -1,6 +1,13 @@
 import { createHmac, generateKeyPairSync, sign as cryptoSign, type KeyObject } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { isServiceToken, verifyJwtWithJwks, verifySupabaseJwt, type Jwks } from "./auth";
+import {
+  isServiceToken,
+  ownerIdFor,
+  ownerWhere,
+  verifyJwtWithJwks,
+  verifySupabaseJwt,
+  type Jwks,
+} from "./auth";
 
 const SECRET = "test-secret";
 
@@ -129,6 +136,25 @@ describe("verifyJwtWithJwks", () => {
       { alg: "ES256", key: ec.privateKey, kid: "ec-1" },
     );
     expect(verifyJwtWithJwks(token, jwks)).toBeNull();
+  });
+});
+
+describe("ownerWhere / ownerIdFor", () => {
+  it("scopes a normal user to their own rows", () => {
+    expect(ownerWhere({ id: "user-alice" })).toEqual({ ownerId: "user-alice" });
+    expect(ownerIdFor({ id: "user-alice" })).toBe("user-alice");
+  });
+
+  it("lets the CI service token read across the workspace", () => {
+    // No ownerId filter on reads…
+    expect(ownerWhere({ id: "service:ci" })).toEqual({});
+    // …but its writes land in the shared "default" row, not a phantom tenant.
+    expect(ownerIdFor({ id: "service:ci" })).toBe("default");
+  });
+
+  it("scopes the dormant single-workspace user to default", () => {
+    expect(ownerWhere({ id: "default" })).toEqual({ ownerId: "default" });
+    expect(ownerIdFor({ id: "default" })).toBe("default");
   });
 });
 

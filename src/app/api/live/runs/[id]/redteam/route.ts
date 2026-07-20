@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { routeError } from "@/server/log";
-import { requireUser } from "@/server/auth";
+import { ownerWhere, requireUser } from "@/server/auth";
+import { prisma } from "@/server/db";
 import { startRedteamGeneration } from "@/server/generation";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,11 @@ export async function POST(
   if (auth.response) return auth.response;
   try {
     const { id } = await params;
+    const owned = await prisma.liveRun.findFirst({
+      where: { id, ...ownerWhere(auth.user) },
+      select: { id: true },
+    });
+    if (!owned) return NextResponse.json({ error: "Run not found" }, { status: 404 });
     const result = await startRedteamGeneration(id);
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });

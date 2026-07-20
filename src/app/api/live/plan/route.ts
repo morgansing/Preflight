@@ -7,7 +7,7 @@ import { launchPlan } from "@/server/harness";
 import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
 import { plannedSimCount } from "@/server/run-list";
 import type { WorkspaceIdentity } from "@/lib/identity";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -40,19 +40,20 @@ export async function POST(request: NextRequest) {
     const plan = typeof body.plan === "string" ? body.plan : undefined;
     const identity = (body.identity ?? undefined) as WorkspaceIdentity | undefined;
     const identified = !!identity && (!!identity.email || !!identity.fingerprint);
+    const ownerId = ownerIdFor(auth.user);
     let sims = 0;
     for (const suite of suites) sims += await plannedSimCount(suite);
-    const account = !sandbox ? await getAccount() : null;
+    const account = !sandbox ? await getAccount(ownerId) : null;
     const ledgerMetered =
       !!account && config.billing.enabled && account.subscriptionStatus === "active";
     if (ledgerMetered) {
-      const pre = await precheckRun(sims);
+      const pre = await precheckRun(ownerId, sims);
       if (!pre.ok) {
         return NextResponse.json({ error: pre.reason, freeGrantBlocked: true }, { status: 402 });
       }
     }
     if (!sandbox && !ledgerMetered && plan === "free" && identified) {
-      const allow = await checkFreeAllowance(prisma, identity!);
+      const allow = await checkFreeAllowance(prisma, identity!, ownerId);
       if (allow.blocked || sims > allow.remaining) {
         return NextResponse.json(
           {
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
         authToken: body.authToken ? String(body.authToken) : undefined,
         systemPrompt: body.systemPrompt ? String(body.systemPrompt) : undefined,
         sandbox,
+        ownerId,
       },
       suites,
       planKind,
@@ -85,9 +87,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
     if (ledgerMetered) {
-      await debitRun(sims, result.runIds[0]);
+      await debitRun(ownerId, sims, result.runIds[0]);
     } else if (!sandbox && plan === "free" && identified) {
-      await recordFreeUsage(prisma, identity!, sims);
+      await recordFreeUsage(prisma, identity!, sims, ownerId);
     }
     return NextResponse.json(result, { status: 201 });
   } catch (err) {

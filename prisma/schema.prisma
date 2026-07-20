@@ -115,6 +115,7 @@ model AgentProfile {
 
 model CustomSuite {
   version       Int      @id @default(autoincrement())
+  ownerId       String   @default("default")
   name          String
   status        String // generating | ready | error
   error         String?
@@ -161,6 +162,23 @@ model PolicyRule {
   @@index([profileId, enabled])
 }
 
+// Registered live agents — the connections a workspace tests. The
+// outbound bearer token is deliberately NOT stored (same stance as run
+// resume): it stays in the registering browser and is re-entered on a
+// new device.
+model LiveAgent {
+  id           String   @id
+  ownerId      String   @default("default")
+  name         String
+  kind         String // http | openai | mcp | reference
+  endpoint     String?
+  model        String?
+  systemPrompt String?
+  createdAt    DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+}
+
 // Free-grant ledger: how many free simulations an identity has already
 // consumed. Keyed by a normalized email (plus/dot tricks collapsed) OR
 // a coarse device fingerprint (fp:<hash>) — so cycling accounts from the
@@ -177,16 +195,20 @@ model FreeGrant {
 // agent + suite is compared against. One pin per (agentName, suite);
 // with no pin, comparisons fall back to the previous completed run.
 model RunBaseline {
+  ownerId   String   @default("default")
   agentName String
   suite     String
   runId     String
   createdAt DateTime @default(now())
 
-  @@id([agentName, suite])
+  @@id([ownerId, agentName, suite])
 }
 
 model LiveRun {
   id            String       @id
+  // Verified owner (Supabase user id). "default" = the dormant
+  // single-workspace mode; "service:ci" bypasses scoping on reads.
+  ownerId       String       @default("default")
   agentName     String
   agentKind     String // http | mcp | reference
   endpoint      String?
@@ -219,6 +241,7 @@ model LiveRun {
   @@index([status])
   @@index([agentName, suite, status, startedAt])
   @@index([planId])
+  @@index([ownerId, startedAt])
 }
 
 model LiveResult {

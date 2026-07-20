@@ -37,7 +37,16 @@ export async function requireUser(request: Request): Promise<AuthResult> {
     return { user: { id: "default" } };
   }
   const header = request.headers.get("authorization") ?? "";
-  const token = header.replace(/^Bearer\s+/i, "").trim();
+  let token = header.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    // EventSource can't send headers — SSE subscriptions pass the
+    // access token as a query parameter instead.
+    try {
+      token = new URL(request.url).searchParams.get("access_token") ?? "";
+    } catch {
+      /* relative/opaque URL — no query token */
+    }
+  }
   // Headless callers (the CI gate) authenticate with the service token —
   // machines can't complete a browser login.
   if (config.auth.apiToken && isServiceToken(token, config.auth.apiToken)) {
@@ -62,6 +71,19 @@ export async function requireUser(request: Request): Promise<AuthResult> {
     };
   }
   return { user: { id: payload.sub, email: payload.email } };
+}
+
+/** Owner filter for queries: the service token (CI) sees the whole
+ * workspace; everyone else sees rows they own. Spread into a Prisma
+ * `where`: `{ ...ownerWhere(auth.user) }`. */
+export function ownerWhere(user: AuthedUser): { ownerId?: string } {
+  return user.id === "service:ci" ? {} : { ownerId: user.id };
+}
+
+/** The id new rows are written under. CI writes land in the shared
+ * workspace rather than a phantom "service:ci" tenant. */
+export function ownerIdFor(user: AuthedUser): string {
+  return user.id === "service:ci" ? "default" : user.id;
 }
 
 /** Constant-time service-token comparison. */

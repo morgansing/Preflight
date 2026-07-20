@@ -24,6 +24,7 @@ const MODEL = config.model;
 const MAX_TOTAL = 1000;
 
 export async function startGeneration(
+  ownerId: string,
   perRule: number,
 ): Promise<{ version: number } | { error: string; status: number }> {
   const key = providerKey();
@@ -32,9 +33,9 @@ export async function startGeneration(
   const generating = await prisma.customSuite.findFirst({ where: { status: "generating" } });
   if (generating) return { error: `Suite v${generating.version} is still generating.`, status: 409 };
 
-  const profileRow = await prisma.agentProfile.findUnique({ where: { id: "default" } });
+  const profileRow = await prisma.agentProfile.findUnique({ where: { id: ownerId } });
   const ruleRows = await prisma.policyRule.findMany({
-    where: { profileId: "default", enabled: true },
+    where: { profileId: ownerId, enabled: true },
     orderBy: { id: "asc" },
   });
   if (ruleRows.length === 0) {
@@ -63,6 +64,7 @@ export async function startGeneration(
   const per = Math.max(1, Math.min(12, Math.floor(perRule)));
   const suite = await prisma.customSuite.create({
     data: {
+      ownerId,
       name: `Rulebook suite`,
       status: "generating",
       ruleCount: rules.length,
@@ -147,6 +149,7 @@ export async function startRedteamGeneration(
   if (!run || run.status !== "complete") {
     return { error: "Red-team suites are generated from a completed run.", status: 409 };
   }
+  const ownerId = run.ownerId;
   const { getClusterReport } = await import("./clustering");
   const { getProvider } = await import("./provider");
   const provider = key === "mock" ? null : await getProvider();
@@ -164,7 +167,7 @@ export async function startRedteamGeneration(
     source: "manual",
   }));
 
-  const profileRow = await prisma.agentProfile.findUnique({ where: { id: "default" } });
+  const profileRow = await prisma.agentProfile.findUnique({ where: { id: ownerId } });
   const profile: AgentProfile = profileRow
     ? {
         role: profileRow.role,
@@ -179,6 +182,7 @@ export async function startRedteamGeneration(
 
   const suite = await prisma.customSuite.create({
     data: {
+      ownerId,
       name: `Red-team suite (from ${runId})`,
       status: "generating",
       ruleCount: rules.length,
@@ -295,8 +299,11 @@ export interface SuiteStatus {
   createdAt: string;
 }
 
-export async function latestSuite(): Promise<SuiteStatus | null> {
-  const suite = await prisma.customSuite.findFirst({ orderBy: { version: "desc" } });
+export async function latestSuite(ownerId: string): Promise<SuiteStatus | null> {
+  const suite = await prisma.customSuite.findFirst({
+    where: { ownerId },
+    orderBy: { version: "desc" },
+  });
   if (!suite) return null;
   return {
     version: suite.version,

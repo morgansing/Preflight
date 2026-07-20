@@ -2,14 +2,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/server/db";
 import { routeError } from "@/server/log";
 import { latestSuite, startGeneration } from "@/server/generation";
-import { requireUser } from "@/server/auth";
+import { ownerIdFor, requireUser } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
 /** GET → latest suite status + scenario summaries when ready. */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
   try {
-  const suite = await latestSuite();
+  const suite = await latestSuite(ownerIdFor(auth.user));
   if (!suite) return NextResponse.json({ suite: null });
   const scenarios =
     suite.status === "ready"
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
   if (auth.response) return auth.response;
   try {
   const body = await request.json().catch(() => ({}));
-  const result = await startGeneration(Number(body.perRule ?? 6));
+  const result = await startGeneration(ownerIdFor(auth.user), Number(body.perRule ?? 6));
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
