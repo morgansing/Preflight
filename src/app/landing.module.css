@@ -1,0 +1,441 @@
+.page {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(61, 220, 132, 0.06), transparent 38%),
+    linear-gradient(180deg, #0b0c0e 0%, #0d0f12 44%, #0b0c0e 100%);
+}
+
+.ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.grid {
+  position: absolute;
+  inset: -12rem -20%;
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 58px 58px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 30%, transparent 76%, black 100%);
+  animation: grid-drift 30s linear infinite;
+}
+
+.noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+}
+
+.orbOne,
+.orbTwo,
+.orbThree {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  will-change: transform;
+}
+
+.orbOne {
+  top: 3rem;
+  left: 8%;
+  width: 24rem;
+  height: 24rem;
+  background: rgba(61, 220, 132, 0.085);
+  animation: orb-one 18s ease-in-out infinite alternate;
+}
+
+.orbTwo {
+  top: 54rem;
+  right: -9rem;
+  width: 32rem;
+  height: 32rem;
+  background: rgba(61, 220, 132, 0.055);
+  animation: orb-two 24s ease-in-out infinite alternate;
+}
+
+.orbThree {
+  top: 165rem;
+  left: -12rem;
+  width: 34rem;
+  height: 34rem;
+  background: rgba(232, 234, 237, 0.035);
+  animation: orb-three 22s ease-in-out infinite alternate;
+}
+
+.heroKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  border: 1px solid rgba(61, 220, 132, 0.18);
+  border-radius: 9999px;
+  background: rgba(19, 21, 25, 0.7);
+  padding: 0.45rem 0.8rem;
+  color: var(--color-sub);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+  animation: hero-in 0.65s 0.05s var(--ease-out-quad) both;
+}
+
+.heroTitle {
+  animation: hero-in 0.75s 0.13s var(--ease-out-quad) both;
+}
+
+.heroAccent {
+  color: transparent;
+  background: linear-gradient(110deg, var(--color-ink) 5%, var(--color-accent) 48%, #a4ecc2 72%, var(--color-ink));
+  background-size: 220% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: headline-shimmer 8s ease-in-out infinite;
+}
+
+.heroCopy {
+  animation: hero-in 0.75s 0.22s var(--ease-out-quad) both;
+}
+
+.heroActions {
+  animation: hero-in 0.75s 0.31s var(--ease-out-quad) both;
+}
+
+.signalMarquee {
+  position: relative;
+  overflow: hidden;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+  animation: hero-in 0.75s 0.4s var(--ease-out-quad) both;
+}
+
+.signalTrack {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 2.5rem;
+  animation: marquee 28s linear infinite;
+}
+
+.liveShell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-edge);
+  border-radius: 1rem 1rem 0 0;
+  background:
+    linear-gradient(180deg, rgba(26, 29, 35, 0.92), rgba(15, 17, 20, 0.96)),
+    var(--color-surface);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.015) inset,
+    0 0 80px rgba(61, 220, 132, 0.035);
+}
+
+.scanLine {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -25%;
+  width: 25%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.08), transparent);
+  animation: scan 7s ease-in-out infinite;
+}
+
+.metricCard,
+.replayCard {
+  border: 1px solid var(--color-edge);
+  background:
+    linear-gradient(145deg, rgba(26, 29, 35, 0.92), rgba(15, 17, 20, 0.95)),
+    var(--color-surface);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.025) inset;
+}
+
+.metricBar {
+  height: 100%;
+  transform-origin: left center;
+  animation: bar-grow 1s 0.3s var(--ease-out-quad) both;
+}
+
+.sectionShell {
+  margin-inline: calc(clamp(1.25rem, 4vw, 3rem) * -1);
+  border-block: 1px solid rgba(36, 40, 48, 0.8);
+  padding: clamp(5rem, 10vw, 8rem) clamp(1.25rem, 4vw, 3rem);
+  background:
+    radial-gradient(circle at 8% 50%, rgba(61, 220, 132, 0.045), transparent 35%),
+    linear-gradient(100deg, rgba(19, 21, 25, 0.64), rgba(11, 12, 14, 0.16));
+}
+
+.divergence {
+  display: inline-block;
+  margin-inline: -0.35rem;
+  border-left: 2px solid var(--color-fail);
+  border-radius: 0.25rem;
+  background: rgba(240, 84, 79, 0.07);
+  padding-inline: 0.35rem;
+  color: var(--color-fail);
+  animation: divergence-pulse 3.2s ease-in-out infinite;
+}
+
+.reportFloat {
+  animation: report-float 6s ease-in-out infinite;
+}
+
+.workflowCard {
+  min-height: 22rem;
+  transition:
+    background-color 260ms ease,
+    transform 260ms ease;
+}
+
+.workflowCard::after {
+  position: absolute;
+  right: 1.75rem;
+  bottom: 0;
+  left: 1.75rem;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.65), transparent);
+  transform: scaleX(0);
+  transition: transform 300ms ease;
+}
+
+.workflowCard:hover {
+  z-index: 1;
+  background: var(--color-raised);
+  transform: translateY(-4px);
+}
+
+.workflowCard:hover::after {
+  transform: scaleX(1);
+}
+
+.featureCard {
+  position: relative;
+  min-height: 19rem;
+  overflow: hidden;
+  transition:
+    transform 260ms ease,
+    border-color 260ms ease,
+    box-shadow 260ms ease;
+}
+
+.featureCard::before {
+  position: absolute;
+  top: -5rem;
+  right: -5rem;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 9999px;
+  content: "";
+  background: rgba(61, 220, 132, 0.08);
+  filter: blur(42px);
+  transition: transform 420ms ease;
+}
+
+.featureCard:hover {
+  border-color: rgba(61, 220, 132, 0.28);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  transform: translateY(-6px);
+}
+
+.featureCard:hover::before {
+  transform: translate(-2rem, 2rem) scale(1.3);
+}
+
+.closingCta {
+  position: relative;
+  border: 1px solid rgba(61, 220, 132, 0.18);
+  background:
+    linear-gradient(135deg, rgba(26, 29, 35, 0.94), rgba(12, 15, 15, 0.94)),
+    var(--color-surface);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.3);
+}
+
+.closingCta::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(circle at center, black, transparent 72%);
+}
+
+.closingGlow {
+  position: absolute;
+  top: -8rem;
+  left: 50%;
+  width: 32rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: rgba(61, 220, 132, 0.11);
+  filter: blur(80px);
+  transform: translateX(-50%);
+  animation: closing-glow 7s ease-in-out infinite;
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes headline-shimmer {
+  0%,
+  20% {
+    background-position: 100% center;
+  }
+  60%,
+  100% {
+    background-position: 0% center;
+  }
+}
+
+@keyframes grid-drift {
+  to {
+    transform: translate3d(58px, 58px, 0);
+  }
+}
+
+@keyframes orb-one {
+  to {
+    transform: translate3d(14vw, 9rem, 0) scale(1.15);
+  }
+}
+
+@keyframes orb-two {
+  to {
+    transform: translate3d(-20vw, 12rem, 0) scale(0.9);
+  }
+}
+
+@keyframes orb-three {
+  to {
+    transform: translate3d(22vw, -8rem, 0) scale(1.1);
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(calc(-50% - 1.25rem));
+  }
+}
+
+@keyframes scan {
+  0%,
+  15% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    transform: translateX(600%);
+    opacity: 0;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes divergence-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(240, 84, 79, 0);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(240, 84, 79, 0.12);
+  }
+}
+
+@keyframes report-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes closing-glow {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: translateX(-50%) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    opacity: 0.11;
+    background-size: 44px 44px;
+  }
+
+  .heroKicker {
+    max-width: 19rem;
+    line-height: 1.5;
+  }
+
+  .signalTrack {
+    animation-duration: 22s;
+  }
+
+  .reportFloat {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid,
+  .orbOne,
+  .orbTwo,
+  .orbThree,
+  .heroKicker,
+  .heroTitle,
+  .heroCopy,
+  .heroActions,
+  .signalMarquee,
+  .signalTrack,
+  .scanLine,
+  .metricBar,
+  .divergence,
+  .reportFloat,
+  .closingGlow,
+  .heroAccent {
+    animation: none;
+  }
+}
