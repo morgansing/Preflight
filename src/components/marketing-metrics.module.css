@@ -1,0 +1,543 @@
+.console {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: 27rem;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: 1px solid rgba(123, 139, 157, 0.22);
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at 22% 44%, rgba(61, 220, 132, 0.09), transparent 30%),
+    radial-gradient(circle at 92% 88%, rgba(240, 84, 79, 0.07), transparent 32%),
+    linear-gradient(145deg, rgba(23, 27, 31, 0.98), rgba(8, 10, 12, 0.99));
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 0 78px rgba(61, 220, 132, 0.035);
+}
+
+.console::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgba(255, 255, 255, 0.025) 50%, transparent 50.2%),
+    linear-gradient(180deg, transparent 49.8%, rgba(255, 255, 255, 0.02) 50%, transparent 50.2%);
+  content: "";
+  pointer-events: none;
+}
+
+.grid {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(111, 127, 145, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(111, 127, 145, 0.045) 1px, transparent 1px);
+  background-size: 1.65rem 1.65rem;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9), transparent 78%);
+  pointer-events: none;
+}
+
+.scanBeam {
+  position: absolute;
+  z-index: -1;
+  top: 3.5rem;
+  bottom: 2.75rem;
+  left: 0;
+  width: 4rem;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(61, 220, 132, 0.025),
+    rgba(61, 220, 132, 0.12),
+    transparent
+  );
+  filter: blur(0.2px);
+  pointer-events: none;
+}
+
+.header,
+.footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-color: rgba(123, 139, 157, 0.18);
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.105em;
+}
+
+.header {
+  min-height: 3.45rem;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  padding: 0.8rem 1rem;
+}
+
+.systemLabel,
+.runStamp {
+  display: flex;
+  align-items: center;
+}
+
+.systemLabel {
+  gap: 0.55rem;
+  color: #8792a4;
+}
+
+.systemLabel i {
+  width: 0.42rem;
+  height: 0.42rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 16px rgba(61, 220, 132, 0.62);
+}
+
+.runStamp {
+  gap: 0.75rem;
+}
+
+.complete {
+  border: 1px solid rgba(61, 220, 132, 0.25);
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.065);
+  padding: 0.25rem 0.42rem;
+  color: var(--color-accent);
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(12.5rem, 0.82fr) minmax(16rem, 1.18fr);
+}
+
+.dialPanel {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(123, 139, 157, 0.16);
+}
+
+.dial {
+  position: relative;
+  width: min(74%, 13.5rem);
+  aspect-ratio: 1;
+  flex: none;
+}
+
+.dial::before,
+.dial::after {
+  position: absolute;
+  border: 1px solid rgba(123, 139, 157, 0.13);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.dial::before {
+  inset: 11%;
+}
+
+.dial::after {
+  inset: 25%;
+  border-style: dashed;
+}
+
+.dialTicks,
+.dialRing,
+.sweep {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.dialTicks {
+  inset: 0;
+  background: repeating-conic-gradient(
+    from -90deg,
+    rgba(135, 146, 164, 0.34) 0 0.75deg,
+    transparent 0.75deg 6deg
+  );
+  mask: radial-gradient(transparent 68%, #000 68.5% 70%, transparent 70.5%);
+}
+
+.dialRing {
+  inset: 7%;
+  background: conic-gradient(
+    from -90deg,
+    var(--color-accent) 0 97%,
+    var(--color-fail) 97% 99%,
+    var(--color-warn) 99% 100%
+  );
+  filter:
+    drop-shadow(0 0 8px rgba(61, 220, 132, 0.22))
+    drop-shadow(0 0 12px rgba(240, 84, 79, 0.08));
+  mask: radial-gradient(transparent 65%, #000 66%);
+}
+
+.sweep {
+  inset: 7%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 93%,
+    rgba(255, 255, 255, 0.32) 97%,
+    rgba(61, 220, 132, 0.82) 99.2%,
+    transparent 100%
+  );
+  filter: drop-shadow(0 0 8px rgba(61, 220, 132, 0.38));
+  mask: radial-gradient(transparent 57%, #000 58% 64%, transparent 65%);
+}
+
+.dialCore {
+  position: absolute;
+  inset: 28%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px solid rgba(61, 220, 132, 0.14);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(61, 220, 132, 0.075), rgba(9, 12, 14, 0.92) 72%);
+  box-shadow:
+    inset 0 0 24px rgba(61, 220, 132, 0.035),
+    0 0 30px rgba(0, 0, 0, 0.26);
+}
+
+.dialCore strong {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 4.2vw, 3.35rem);
+  font-weight: 400;
+  letter-spacing: -0.07em;
+  line-height: 0.92;
+}
+
+.dialKicker,
+.dialTotal,
+.verdict span,
+.metricCopy b,
+.metricStatus {
+  font-family: var(--font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dialKicker {
+  margin-bottom: 0.3rem;
+  color: var(--color-accent);
+  font-size: 0.42rem;
+}
+
+.dialTotal {
+  margin-top: 0.4rem;
+  color: var(--color-mut);
+  font-size: 0.38rem;
+}
+
+.verdict {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  border-left: 1px solid rgba(61, 220, 132, 0.34);
+  background: rgba(8, 10, 12, 0.74);
+  padding: 0.45rem 0.55rem;
+  backdrop-filter: blur(10px);
+}
+
+.verdict > span {
+  color: var(--color-mut);
+  font-size: 0.4rem;
+}
+
+.verdict strong {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--color-ink);
+  font-size: 0.65rem;
+  font-weight: 500;
+}
+
+.verdict p {
+  display: flex;
+  gap: 0.28rem;
+  margin-top: 0.25rem;
+  align-items: center;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.42rem;
+  letter-spacing: 0.045em;
+}
+
+.verdict b {
+  color: var(--color-fail);
+  font-weight: 500;
+}
+
+.verdict em {
+  color: var(--color-warn);
+  font-style: normal;
+}
+
+.readout {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  padding: 1.15rem 1.2rem 0.95rem;
+}
+
+.readoutHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #7d8899;
+  font-family: var(--font-mono);
+  font-size: 0.43rem;
+  letter-spacing: 0.09em;
+}
+
+.readoutHeader span:last-child {
+  color: var(--color-accent);
+}
+
+.distribution {
+  display: flex;
+  height: 0.35rem;
+  gap: 2px;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(123, 139, 157, 0.1);
+}
+
+.distributionSegment {
+  min-width: 3px;
+  border-radius: inherit;
+  background: var(--metric-tone);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--metric-tone) 36%, transparent);
+  transform-origin: left center;
+}
+
+.metrics {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  margin-top: 0.7rem;
+}
+
+.metricRow {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  grid-template-columns: 3.15rem minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  overflow: hidden;
+  border-top: 1px solid rgba(123, 139, 157, 0.14);
+}
+
+.metricValue {
+  color: var(--metric-tone);
+  font-family: var(--font-display);
+  font-size: clamp(1.65rem, 3.1vw, 2.35rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--metric-tone) 18%, transparent);
+}
+
+.metricCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.metricCopy b {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 0.48rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricCopy span {
+  overflow: hidden;
+  color: var(--color-sub);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricStatus {
+  display: inline-flex;
+  min-width: 3.9rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  color: var(--metric-tone);
+  font-size: 0.42rem;
+}
+
+.metricStatus i {
+  width: 0.32rem;
+  height: 0.32rem;
+  border-radius: 50%;
+  background: var(--metric-tone);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--metric-tone) 60%, transparent);
+}
+
+.metricTrace {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--metric-tone), transparent 76%);
+  opacity: 0.42;
+  transform-origin: left;
+}
+
+.safe {
+  --metric-tone: var(--color-accent);
+}
+
+.fail {
+  --metric-tone: var(--color-fail);
+}
+
+.warn {
+  --metric-tone: var(--color-warn);
+}
+
+.footer {
+  min-height: 2.75rem;
+  border-top-style: solid;
+  border-top-width: 1px;
+  padding: 0.72rem 1rem;
+}
+
+.blockerSignal {
+  color: var(--color-fail);
+}
+
+@media (max-width: 620px) {
+  .console {
+    height: 31rem;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .runStamp > span:first-child {
+    display: none;
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 12.5rem minmax(0, 1fr);
+  }
+
+  .dialPanel {
+    border-right: 0;
+    border-bottom: 1px solid rgba(123, 139, 157, 0.16);
+  }
+
+  .dial {
+    width: 10.6rem;
+  }
+
+  .dialCore strong {
+    font-size: 2.55rem;
+  }
+
+  .verdict {
+    right: max(0.65rem, calc(50% - 10.5rem));
+  }
+
+  .readout {
+    padding: 0.85rem 0.9rem 0.7rem;
+  }
+
+  .metricValue {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .console {
+    height: 30rem;
+  }
+
+  .header,
+  .footer {
+    padding-inline: 0.75rem;
+  }
+
+  .systemLabel {
+    font-size: 0.43rem;
+  }
+
+  .body {
+    grid-template-rows: 11.75rem minmax(0, 1fr);
+  }
+
+  .dial {
+    width: 9.6rem;
+  }
+
+  .verdict {
+    right: 0.55rem;
+    bottom: 0.55rem;
+  }
+
+  .readoutHeader span:last-child {
+    display: none;
+  }
+
+  .metricRow {
+    grid-template-columns: 2.8rem minmax(0, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .metricCopy span {
+    font-size: 0.56rem;
+  }
+
+  .metricStatus {
+    min-width: 3.35rem;
+  }
+
+  .footer > span:first-child {
+    display: none;
+  }
+
+  .footer {
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console *,
+  .console *::before,
+  .console *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -2,21 +2,18 @@ import Link from "next/link";
 import { HeroAuthButtons } from "@/components/hero-auth-buttons";
 import { LandingReveal } from "@/components/landing-reveal";
 import { MarketingMetrics } from "@/components/marketing-metrics";
+import { MarketingReadiness } from "@/components/marketing-readiness";
 import { MarketingReplay } from "@/components/marketing-replay";
-import { ReadinessCard } from "@/components/readiness-card";
 import { WallLoop } from "@/components/mission-control";
 import { ButtonLink } from "@/components/ui";
 import { getReplay } from "@/lib/fixtures/replays";
-import { failingReplayId, scenarioById } from "@/lib/fixtures/scenarios";
+import { scenarioById } from "@/lib/fixtures/scenarios";
 import styles from "./landing.module.css";
 
-const suiteTiers = [
-  ["01", "Smoke", "24", "Every category, including the traps"],
-  ["02", "Standard", "200", "The complete hand-shaped base suite"],
-  ["03", "Extended", "500", "Deeper variation in every category"],
-  ["04", "Scale", "1,000", "Expose inconsistent judgement"],
-  ["05", "Exhaustive", "5,000", "Overnight pre-launch depth"],
-  ["06", "Max", "10,000", "The full scenario space"],
+const coverageStops = [
+  ["01", "Fast signal", "24", "Every category, including policy traps"],
+  ["02", "Base evidence", "200", "The complete hand-shaped scenario suite"],
+  ["03", "Full pressure", "10,000", "Deterministic variation at launch depth"],
 ];
 
 const workflow = [
@@ -339,47 +336,50 @@ export default function Landing() {
 
         <LandingReveal>
           <section className={styles.coverageSection}>
-            <div className={styles.coverageHeading}>
-              <div className={styles.sectionCopy}>
-                <SectionLabel number="03">Coverage that scales</SectionLabel>
-                <h2>
-                  Start with 24.
-                  <br />
-                  <em>Sign off with 10,000.</em>
-                </h2>
-              </div>
+            <div className={styles.coverageCopy}>
+              <SectionLabel number="03">Coverage that scales</SectionLabel>
+              <h2>
+                24 to 10,000
+                <br />
+                <em>real decisions.</em>
+              </h2>
               <p>
-                Smoke gives you a fast signal across every category. Standard
-                runs all 200 hand-shaped base scenarios. Larger tiers extend
-                that same library with deterministic variation until the full
-                10,000-scenario space is covered.
+                Start with a fast signal, run the full hand-shaped suite, then
+                turn up the pressure for launch sign-off.
               </p>
+              <Link href="/product#coverage" className={styles.textLink}>
+                Explore coverage depth <span aria-hidden>→</span>
+              </Link>
             </div>
 
-            <div className={styles.tierConsole}>
-              <div className={styles.tierHeader}>
-                <span>RUN DEPTH</span>
-                <span>SCENARIOS</span>
-                <span>WHAT IT ADDS</span>
+            <div className={styles.coverageConsole}>
+              <div className={styles.coverageConsoleTop}>
+                <span>SCENARIO PRESSURE</span>
+                <span>SELECT THE EVIDENCE DEPTH</span>
               </div>
-              {suiteTiers.map(([number, name, count, note], index) => (
-                <div className={styles.tierRow} key={name}>
-                  <span>
-                    <i>{number}</i>
-                    {name}
-                  </span>
-                  <strong>{count}</strong>
-                  <span>{note}</span>
-                  <div className={styles.tierSignal} aria-hidden>
-                    {Array.from({ length: 10 }, (_, signalIndex) => (
-                      <i
-                        key={signalIndex}
-                        className={signalIndex <= index + 3 ? styles.tierSignalOn : ""}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+              <div className={styles.coverageMatrix} aria-hidden>
+                {Array.from({ length: 36 }, (_, index) => (
+                  <i key={index} style={{ "--cell": index } as React.CSSProperties} />
+                ))}
+              </div>
+              <div className={styles.coverageStops}>
+                {coverageStops.map(([number, name, count, note]) => (
+                  <article key={count}>
+                    <div>
+                      <span>{number}</span>
+                      <span>{name}</span>
+                    </div>
+                    <strong>{count}</strong>
+                    <p>{note}</p>
+                  </article>
+                ))}
+              </div>
+              <div className={styles.coverageTrack} aria-hidden>
+                <span />
+                <i />
+                <i />
+                <i />
+              </div>
             </div>
           </section>
         </LandingReveal>
@@ -498,20 +498,14 @@ export default function Landing() {
               </Link>
             </div>
             <div className={styles.reportVisual}>
-              <div className={styles.reportGlow} aria-hidden />
-              <ReadinessCard
+              <MarketingReadiness
                 score={97}
-                strengths={["Product questions", "Shipping updates", "Order status"]}
-                weaknesses={["Refund fraud", "Duplicate orders", "Escalations"]}
-                meta="Last run · 2m ago · 200 scenarios"
-                hrefs={Object.fromEntries(
-                  ["Refund fraud", "Duplicate orders", "Escalations"].map(
-                    (weakness) => {
-                      const id = failingReplayId(weakness);
-                      return [weakness, id && `/replay/${id}`];
-                    },
-                  ),
-                )}
+                threshold={90}
+                confidence={[94, 99]}
+                baselineScore={94.6}
+                regressions={0}
+                scenarios={200}
+                reportHref="/share/demo"
               />
             </div>
           </section>

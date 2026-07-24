@@ -169,62 +169,67 @@ export default function PricingPage() {
       </div>
 
       <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <Link href="/" className={styles.brand} aria-label="Preflight home">
-            <span className={styles.brandSignal} aria-hidden>
-              <span />
-            </span>
-            <span>PREFLIGHT</span>
+        <Link href="/" className={styles.brand} aria-label="Preflight home">
+          <span className={styles.brandSignal} aria-hidden />
+          <span>PREFLIGHT</span>
+        </Link>
+        <nav className={styles.nav} aria-label="Primary navigation">
+          <Link href="/">Home</Link>
+          <Link href="/product">Product</Link>
+          <Link href="/integrations">Integrations</Link>
+          <Link href="/pricing" aria-current="page">
+            Pricing
           </Link>
-          <nav className={styles.nav} aria-label="Primary navigation">
-            <Link href="/product">Product</Link>
-            <Link href="/integrations">Integrations</Link>
-            <Link href="/login">Sign in</Link>
-            <Link href="/signup" className={styles.navCta}>
-              Start free <span aria-hidden>→</span>
-            </Link>
-          </nav>
-        </div>
+        </nav>
+        <Link href="/signup" className={styles.headerCta}>
+          Start free <span aria-hidden>→</span>
+        </Link>
       </header>
 
       <main className={styles.main}>
-        <section className={styles.hero} aria-labelledby="pricing-heading">
-          <div className={styles.heroEyebrow}>
-            <span aria-hidden />
-            Monthly pricing · metered by simulations
+        <section
+          className={styles.pricingIntro}
+          aria-labelledby="pricing-heading"
+        >
+          <div className={styles.introLead}>
+            <p className={styles.sectionEyebrow}>
+              Pricing / monthly simulation billing
+            </p>
+            <h1 id="pricing-heading">
+              Monthly simulation allowances, plainly priced.
+            </h1>
           </div>
-          <h1 id="pricing-heading" className={styles.heroTitle}>
-            Test every change.
-            <span> Pay for the evidence.</span>
-          </h1>
-          <p className={styles.heroCopy}>
-            Run realistic conversations, policy traps, security attacks, and
-            regression suites against your agent. Pricing follows the work:
-            simulations executed, never seats occupied.
+
+          <p className={styles.introSummary}>
+            Choose how many evaluated scenarios your release cadence needs.
+            Allowance, launch depth, concurrency, and overage are explicit
+            before a run begins.
           </p>
-          <div className={styles.heroActions}>
-            <Link href="/signup" className={styles.primaryButton}>
-              Run {freePlan.monthlyTokens.toLocaleString()} simulations free
-              <span aria-hidden>→</span>
-            </Link>
-            <Link href="/runs" className={styles.secondaryButton}>
-              Watch a live run
-            </Link>
-          </div>
+
           <div
-            className={styles.heroFacts}
-            aria-label="How Preflight pricing is measured"
+            className={styles.introLedger}
+            aria-label="Preflight pricing summary"
           >
-            <span>
-              <i aria-hidden>1 SIM</i> One complete scenario + verdict
-            </span>
-            <span>
-              <i aria-hidden>{STANDARD_RUN.size.toLocaleString()}</i>{" "}
-              Simulations per Standard run
-            </span>
-            <span>
-              <i aria-hidden>NO SEATS</i> Paid plans bill monthly
-            </span>
+            <div>
+              <span>Billing unit</span>
+              <strong>1 complete scenario + verdict</strong>
+            </div>
+            <div>
+              <span>{STANDARD_RUN.name} run</span>
+              <strong>
+                {STANDARD_RUN.size.toLocaleString()} simulations
+              </strong>
+            </div>
+            <div>
+              <span>Free allowance</span>
+              <strong>
+                {freePlan.monthlyTokens.toLocaleString()} one-time · no card
+              </strong>
+            </div>
+            <div>
+              <span>Paid billing</span>
+              <strong>Monthly · no per-seat charge</strong>
+            </div>
           </div>
         </section>
 
@@ -296,7 +301,11 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className={styles.plansSection} aria-labelledby="plans-heading">
+        <section
+          id="plans"
+          className={styles.plansSection}
+          aria-labelledby="plans-heading"
+        >
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.sectionEyebrow}>Choose your testing cadence</p>
@@ -565,7 +574,7 @@ export default function PricingPage() {
         <section className={styles.workflowSection} aria-labelledby="habit-heading">
           <div>
             <p className={styles.sectionEyebrow}>Why a monthly allowance?</p>
-            <h2 id="habit-heading">Readiness is a loop, not a launch-day audit.</h2>
+            <h2 id="habit-heading">Test every change. Keep the evidence.</h2>
           </div>
           <div className={styles.workflow} aria-label="Preflight testing workflow">
             {["Build", "Test", "Replay", "Fix", "Rerun", "Ship"].map(
@@ -579,9 +588,10 @@ export default function PricingPage() {
             )}
           </div>
           <p>
-            Plans are sized for the second run as much as the first. Catch the
-            failure, inspect the replay, change the agent, and rerun the same
-            evidence before it reaches production.
+            Readiness is a loop, not a launch-day audit. Plans are sized for the
+            second run as much as the first: catch the failure, inspect the
+            replay, change the agent, and rerun the same evidence before it
+            reaches production.
           </p>
         </section>
 
@@ -621,7 +631,7 @@ export default function PricingPage() {
             Connect an agent, generate its first suite, and get the evidence
             before you spend a dollar.
           </p>
-          <div className={styles.heroActions}>
+          <div className={styles.actionRow}>
             <Link href="/signup" className={styles.primaryButton}>
               Start free <span aria-hidden>→</span>
             </Link>
@@ -638,9 +648,7 @@ export default function PricingPage() {
 
       <footer className={styles.footer}>
         <Link href="/" className={styles.brand} aria-label="Preflight home">
-          <span className={styles.brandSignal} aria-hidden>
-            <span />
-          </span>
+          <span className={styles.brandSignal} aria-hidden />
           <span>PREFLIGHT</span>
         </Link>
         <p>Evaluation infrastructure for production AI agents.</p>

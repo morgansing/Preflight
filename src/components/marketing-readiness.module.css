@@ -1,0 +1,1023 @@
+.scene {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 620px;
+  min-width: 0;
+}
+
+.sceneGrid {
+  position: absolute;
+  inset: -2.5rem -3rem;
+  z-index: -3;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(rgba(61, 220, 132, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 220, 132, 0.065) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(ellipse at center, #000 22%, transparent 72%);
+  animation: gridMove 22s linear infinite;
+}
+
+.sceneGlow {
+  position: absolute;
+  z-index: -2;
+  top: 10%;
+  left: 10%;
+  width: 70%;
+  height: 72%;
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.085);
+  filter: blur(82px);
+  animation: glowBreathe 7s ease-in-out infinite;
+}
+
+.signalOrbit {
+  position: absolute;
+  z-index: -1;
+  top: 1.4rem;
+  right: 2rem;
+  width: 10rem;
+  height: 10rem;
+  border: 1px solid rgba(61, 220, 132, 0.12);
+  border-radius: 999px;
+  animation: orbitRotate 14s linear infinite;
+}
+
+.signalOrbit::before,
+.signalOrbit::after {
+  position: absolute;
+  border: 1px solid rgba(61, 220, 132, 0.08);
+  border-radius: inherit;
+  content: "";
+}
+
+.signalOrbit::before {
+  inset: 1.6rem;
+}
+
+.signalOrbit::after {
+  inset: 3.3rem;
+}
+
+.signalOrbit i {
+  position: absolute;
+  top: 50%;
+  right: -0.24rem;
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow:
+    0 0 12px rgba(61, 220, 132, 0.8),
+    0 0 28px rgba(61, 220, 132, 0.45);
+}
+
+.report {
+  position: absolute;
+  inset: 2.1rem 2.6rem 3.4rem 0;
+  overflow: hidden;
+  border: 1px solid rgba(61, 220, 132, 0.2);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(145deg, rgba(26, 29, 35, 0.97), rgba(11, 13, 16, 0.985)),
+    var(--color-surface);
+  box-shadow:
+    0 36px 90px rgba(0, 0, 0, 0.42),
+    0 0 84px rgba(61, 220, 132, 0.045),
+    inset 0 1px rgba(255, 255, 255, 0.026);
+  animation: reportSettle 780ms var(--ease-out-quad) both;
+}
+
+.report::after {
+  position: absolute;
+  inset: 0 auto 0 -22%;
+  width: 22%;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.052), transparent);
+  animation: reportScan 8s 1.2s ease-in-out infinite;
+}
+
+.reportHeader {
+  display: flex;
+  min-height: 3.3rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-edge);
+  padding: 0 1rem;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.11em;
+}
+
+.reportHeader > div {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.reportHeader p {
+  color: var(--color-ink);
+}
+
+.liveDot {
+  position: relative;
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.58);
+}
+
+.liveDot::after {
+  position: absolute;
+  inset: -0.3rem;
+  border: 1px solid rgba(61, 220, 132, 0.35);
+  border-radius: inherit;
+  content: "";
+  animation: signalPulse 2.2s ease-out infinite;
+}
+
+.verified {
+  border: 1px solid rgba(61, 220, 132, 0.22);
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.045);
+  padding: 0.3rem 0.5rem;
+  color: var(--color-accent);
+}
+
+.scoreRegion {
+  display: grid;
+  grid-template-columns: 10.8rem 1fr;
+  gap: 1.45rem;
+  align-items: center;
+  padding: 1.5rem 1.25rem 1.1rem;
+}
+
+.scoreRing {
+  position: relative;
+  display: grid;
+  width: 9.5rem;
+  height: 9.5rem;
+  place-items: center;
+  border-radius: 999px;
+  background: conic-gradient(
+    var(--color-accent) var(--score),
+    var(--color-edge) var(--score)
+  );
+  box-shadow:
+    0 0 38px rgba(61, 220, 132, 0.085),
+    inset 0 0 24px rgba(0, 0, 0, 0.3);
+  transform: rotate(-90deg);
+  animation: ringReveal 1.15s 160ms var(--ease-out-quad) both;
+}
+
+.scoreRing::before {
+  position: absolute;
+  inset: 0.42rem;
+  border-radius: inherit;
+  content: "";
+  background:
+    radial-gradient(circle at 50% 35%, rgba(61, 220, 132, 0.055), transparent 62%),
+    #101317;
+}
+
+.scoreRing::after {
+  position: absolute;
+  inset: -0.45rem;
+  border: 1px solid rgba(61, 220, 132, 0.1);
+  border-radius: inherit;
+  content: "";
+  animation: ringPulse 3.4s ease-in-out infinite;
+}
+
+.scoreRing > div {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  transform: rotate(90deg);
+}
+
+.scoreRing strong {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 4.4rem;
+  font-weight: 430;
+  line-height: 1;
+  letter-spacing: -0.065em;
+}
+
+.scoreRing span {
+  color: var(--color-sub);
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+}
+
+.scoreSummary {
+  min-width: 0;
+}
+
+.summaryLabel {
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.47rem;
+  letter-spacing: 0.12em;
+}
+
+.scoreSummary h3 {
+  margin-top: 0.5rem;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 2.15rem;
+  font-weight: 430;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.scoreSummary p {
+  max-width: 22rem;
+  margin-top: 0.55rem;
+  color: var(--color-sub);
+  font-size: 0.68rem;
+  line-height: 1.62;
+}
+
+.verdictChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin-top: 0.75rem;
+  border: 1px solid rgba(224, 163, 64, 0.3);
+  border-radius: 999px;
+  background: rgba(224, 163, 64, 0.055);
+  padding: 0.32rem 0.55rem;
+  color: var(--color-warn);
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.1em;
+}
+
+.verdictChip[data-ready="true"] {
+  border-color: rgba(61, 220, 132, 0.28);
+  background: rgba(61, 220, 132, 0.055);
+  color: var(--color-accent);
+}
+
+.thresholdPanel {
+  margin: 0 1.25rem;
+  border: 1px solid var(--color-edge);
+  border-radius: 0.55rem;
+  background: rgba(8, 10, 12, 0.58);
+  padding: 0.8rem 0.9rem 0.65rem;
+}
+
+.thresholdHeader {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.43rem;
+  letter-spacing: 0.1em;
+}
+
+.thresholdHeader span:last-child {
+  color: var(--color-sub);
+}
+
+.thresholdTrack {
+  position: relative;
+  height: 1.8rem;
+  margin-top: 0.65rem;
+}
+
+.trackBase,
+.scoreFill,
+.confidenceBand {
+  position: absolute;
+  top: 0.72rem;
+  left: 0;
+  height: 0.28rem;
+  border-radius: 999px;
+}
+
+.trackBase {
+  width: 100%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--color-edge) 0,
+      var(--color-edge) calc(10% - 2px),
+      transparent calc(10% - 2px),
+      transparent 10%
+    );
+}
+
+.scoreFill {
+  z-index: 1;
+  width: var(--score);
+  background: linear-gradient(90deg, rgba(61, 220, 132, 0.35), var(--color-accent));
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.2);
+  transform-origin: left;
+  animation: scoreFill 1.2s 340ms var(--ease-out-quad) both;
+}
+
+.confidenceBand {
+  z-index: 2;
+  top: 0.46rem;
+  left: var(--confidence-left);
+  width: var(--confidence-width);
+  height: 0.8rem;
+  border: 1px solid rgba(232, 234, 237, 0.4);
+  background: rgba(232, 234, 237, 0.09);
+  animation: confidenceFade 650ms 1.1s ease-out both;
+}
+
+.thresholdMarker,
+.scoreMarker {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.thresholdMarker {
+  left: var(--threshold);
+  background: var(--color-warn);
+}
+
+.scoreMarker {
+  left: var(--score);
+  background: var(--color-accent);
+  animation: markerSettle 600ms 1.3s ease-out both;
+}
+
+.thresholdMarker i,
+.scoreMarker i {
+  position: absolute;
+  top: 0.53rem;
+  left: -0.25rem;
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.thresholdMarker {
+  color: var(--color-warn);
+}
+
+.scoreMarker {
+  color: var(--color-accent);
+}
+
+.thresholdMarker small,
+.scoreMarker small {
+  position: absolute;
+  top: -0.05rem;
+  left: 50%;
+  color: currentColor;
+  font-family: var(--font-mono);
+  font-size: 0.37rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.scoreMarker small {
+  top: 1.34rem;
+}
+
+.trackTicks {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.36rem;
+}
+
+.evidenceFlow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 0.85rem 1.25rem 0;
+  border: 1px solid var(--color-edge);
+  border-radius: 0.55rem;
+  background: var(--color-edge);
+}
+
+.evidenceItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
+  background: rgba(15, 17, 20, 0.98);
+  padding: 0.75rem;
+}
+
+.evidenceNumber {
+  color: rgba(232, 234, 237, 0.16);
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.evidenceItem strong,
+.evidenceItem small {
+  display: block;
+}
+
+.evidenceItem strong {
+  overflow: hidden;
+  color: var(--color-sub);
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidenceItem small {
+  overflow: hidden;
+  margin-top: 0.18rem;
+  color: var(--color-mut);
+  font-size: 0.48rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidenceCheck {
+  display: grid;
+  width: 1.3rem;
+  height: 1.3rem;
+  place-items: center;
+  border: 1px solid rgba(61, 220, 132, 0.25);
+  border-radius: 999px;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+}
+
+.evidenceLine {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: -0.5rem;
+  width: 1rem;
+  height: 1px;
+  overflow: hidden;
+  background: var(--color-edge);
+}
+
+.evidenceLine i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  transform: translateX(-100%);
+  animation: evidenceTravel 2.8s ease-in-out infinite;
+}
+
+.evidenceItem:nth-child(2) .evidenceLine i {
+  animation-delay: 1.4s;
+}
+
+.reportFooter {
+  display: grid;
+  grid-template-columns: repeat(3, 0.72fr) 1.25fr;
+  gap: 1px;
+  margin-top: 0.85rem;
+  border-top: 1px solid var(--color-edge);
+  background: var(--color-edge);
+}
+
+.reportFooter > div {
+  display: flex;
+  min-width: 0;
+  min-height: 4.65rem;
+  flex-direction: column;
+  justify-content: center;
+  background: rgba(12, 14, 17, 0.98);
+  padding: 0.7rem 0.85rem;
+}
+
+.reportFooter span,
+.reportFooter small {
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.4rem;
+  letter-spacing: 0.08em;
+}
+
+.reportFooter strong {
+  margin-top: 0.15rem;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 430;
+  line-height: 1;
+}
+
+.reportFooter small {
+  margin-top: 0.2rem;
+  letter-spacing: 0;
+}
+
+.reportFooter .positive {
+  color: var(--color-accent);
+}
+
+.reportFooter .negative {
+  color: var(--color-fail);
+}
+
+.reportAction {
+  align-items: flex-start;
+}
+
+.reportAction a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  border-radius: 0.25rem;
+  color: var(--color-accent);
+  font-size: 0.61rem;
+  transition: color 180ms ease;
+}
+
+.reportAction a:hover {
+  color: var(--color-accent-hover);
+}
+
+.baselineCard {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  width: 13rem;
+  overflow: hidden;
+  border: 1px solid var(--color-edge);
+  border-radius: 0.65rem;
+  background: rgba(14, 17, 20, 0.93);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(16px);
+  animation:
+    satelliteIn 700ms 480ms var(--ease-out-quad) both,
+    satelliteFloat 6s 1.2s ease-in-out infinite;
+}
+
+.baselineTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-edge);
+  padding: 0.65rem 0.75rem;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.36rem;
+  letter-spacing: 0.08em;
+}
+
+.baselineTop span:first-child {
+  color: var(--color-sub);
+}
+
+.baselineScore {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.95rem 0.75rem 0.75rem;
+}
+
+.baselineScore span,
+.baselineScore strong {
+  font-family: var(--font-display);
+  font-size: 2.05rem;
+  font-weight: 430;
+}
+
+.baselineScore span {
+  color: var(--color-mut);
+}
+
+.baselineScore strong {
+  color: var(--color-accent);
+}
+
+.baselineScore i {
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-style: normal;
+}
+
+.baselineRows {
+  padding: 0 0.75rem 0.65rem;
+}
+
+.baselineRows > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-edge);
+  padding: 0.5rem 0;
+  color: var(--color-mut);
+  font-size: 0.51rem;
+}
+
+.baselineRows strong {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  font-weight: 500;
+}
+
+.positive {
+  color: var(--color-accent);
+}
+
+.negative {
+  color: var(--color-fail);
+}
+
+.gateCard {
+  position: absolute;
+  z-index: 4;
+  right: 1rem;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 1rem;
+  width: 14.4rem;
+  border: 1px solid rgba(224, 163, 64, 0.28);
+  border-radius: 0.65rem;
+  background: rgba(14, 17, 20, 0.94);
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(16px);
+  animation:
+    satelliteIn 700ms 820ms var(--ease-out-quad) both,
+    gateFloat 5.5s 1.5s ease-in-out infinite;
+}
+
+.gateCard[data-ready="true"] {
+  border-color: rgba(61, 220, 132, 0.28);
+}
+
+.gateCard > div {
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
+}
+
+.gateCard p,
+.gateCard small {
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.42rem;
+  letter-spacing: 0.1em;
+}
+
+.gateCard strong {
+  justify-self: end;
+  color: var(--color-warn);
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.gateCard[data-ready="true"] strong {
+  color: var(--color-accent);
+}
+
+.gateCard small {
+  grid-column: 1 / -1;
+  padding-left: 0.88rem;
+  letter-spacing: 0;
+}
+
+.gatePulse {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--color-warn);
+  box-shadow: 0 0 12px rgba(224, 163, 64, 0.45);
+  animation: gatePulse 2.4s ease-in-out infinite;
+}
+
+.gateCard[data-ready="true"] .gatePulse {
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.55);
+}
+
+.reportAction a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+@keyframes reportSettle {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes satelliteIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes signalPulse {
+  from {
+    opacity: 0.8;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes gridMove {
+  to {
+    transform: translate3d(38px, 38px, 0);
+  }
+}
+
+@keyframes glowBreathe {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes orbitRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reportScan {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  78%,
+  100% {
+    transform: translateX(600%);
+  }
+}
+
+@keyframes ringReveal {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-90deg) scale(1);
+  }
+}
+
+@keyframes ringPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes scoreFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes confidenceFade {
+  from {
+    opacity: 0;
+    transform: scaleX(0.35);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes markerSettle {
+  from {
+    opacity: 0;
+    transform: translateX(-1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes evidenceTravel {
+  0%,
+  25% {
+    transform: translateX(-100%);
+  }
+  75%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes satelliteFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes gateFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 4px;
+  }
+}
+
+@keyframes gatePulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .scene {
+    height: auto;
+    min-height: 710px;
+  }
+
+  .report {
+    inset: 2rem 0 5rem;
+  }
+
+  .baselineCard {
+    right: 0.65rem;
+    width: 12.3rem;
+  }
+
+  .scoreRegion {
+    grid-template-columns: 8rem 1fr;
+    padding-top: 1.9rem;
+  }
+
+  .scoreRing {
+    width: 7.5rem;
+    height: 7.5rem;
+  }
+
+  .scoreRing strong {
+    font-size: 3.6rem;
+  }
+
+  .scoreSummary h3 {
+    font-size: 1.75rem;
+  }
+
+  .evidenceFlow {
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceItem {
+    min-height: 3.3rem;
+  }
+
+  .evidenceLine {
+    display: none;
+  }
+
+  .reportFooter {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .reportAction {
+    grid-column: 2;
+  }
+
+  .gateCard {
+    right: 0.5rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .scene {
+    min-height: 830px;
+  }
+
+  .report {
+    top: 1.3rem;
+  }
+
+  .reportHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.4rem;
+    padding-block: 0.7rem;
+  }
+
+  .baselineCard {
+    position: relative;
+    z-index: 5;
+    top: auto;
+    right: auto;
+    width: calc(100% - 1.5rem);
+    margin: 0 auto;
+  }
+
+  .scoreRegion {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding-top: 1.3rem;
+    text-align: center;
+  }
+
+  .scoreSummary p {
+    margin-inline: auto;
+  }
+
+  .thresholdPanel {
+    margin-inline: 0.8rem;
+  }
+
+  .evidenceFlow {
+    margin-inline: 0.8rem;
+  }
+
+  .reportFooter {
+    margin-top: 0.7rem;
+  }
+
+  .reportFooter > div {
+    padding-inline: 0.7rem;
+  }
+
+  .gateCard {
+    right: 0;
+    left: 0;
+    width: calc(100% - 1.5rem);
+    margin-inline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sceneGrid,
+  .sceneGlow,
+  .signalOrbit,
+  .report,
+  .report::after,
+  .liveDot::after,
+  .scoreRing,
+  .scoreRing::after,
+  .scoreFill,
+  .confidenceBand,
+  .scoreMarker,
+  .evidenceLine i,
+  .baselineCard,
+  .gateCard,
+  .gatePulse {
+    animation: none;
+  }
+}
