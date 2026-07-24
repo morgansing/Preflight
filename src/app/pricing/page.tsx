@@ -211,15 +211,19 @@ export default function PricingPage() {
               Watch a live run
             </Link>
           </div>
-          <div className={styles.heroFacts} aria-label="Pricing highlights">
+          <div
+            className={styles.heroFacts}
+            aria-label="How Preflight pricing is measured"
+          >
             <span>
-              <i aria-hidden>01</i> No credit card
+              <i aria-hidden>1 SIM</i> One complete scenario + verdict
             </span>
             <span>
-              <i aria-hidden>02</i> Monthly plans only
+              <i aria-hidden>{STANDARD_RUN.size.toLocaleString()}</i>{" "}
+              Simulations per Standard run
             </span>
             <span>
-              <i aria-hidden>03</i> No per-seat charge
+              <i aria-hidden>NO SEATS</i> Paid plans bill monthly
             </span>
           </div>
         </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Replay, ReplayStep, Scenario } from "@/lib/types";
 import styles from "./marketing-replay.module.css";
@@ -22,22 +22,38 @@ function stepLabel(step: ReplayStep) {
 function StepCard({
   step,
   active,
+  revealed,
   divergence,
+  reducedMotion,
 }: {
   step: ReplayStep;
   active: boolean;
+  revealed: boolean;
   divergence: boolean;
+  reducedMotion: boolean;
 }) {
   return (
     <motion.article
-      layout
-      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-      animate={{ opacity: active ? 1 : 0.58, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      initial={false}
+      animate={{
+        opacity: revealed ? (active ? 1 : 0.58) : 0,
+        y: revealed ? 0 : 10,
+      }}
+      transition={
+        reducedMotion
+          ? { duration: 0 }
+          : {
+              duration: 0.58,
+              ease: [0.16, 1, 0.3, 1],
+              opacity: { duration: 0.46, ease: "easeOut" },
+            }
+      }
+      aria-hidden={!revealed}
+      data-replay-active={active ? "true" : "false"}
+      data-replay-revealed={revealed ? "true" : "false"}
       className={`${styles.stepCard} ${active ? styles.stepActive : ""} ${
         divergence ? styles.stepDivergence : ""
-      }`}
+      } ${!revealed ? styles.stepPending : ""}`}
     >
       {divergence && <span className={styles.divergenceFlag}>DIVERGENCE</span>}
       <div className={styles.stepLabel}>{stepLabel(step)}</div>
@@ -62,6 +78,8 @@ export function MarketingReplay({
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { amount: 0.22 });
   const reduceMotion = useReducedMotion();
+  const seenStackRef = useRef<HTMLDivElement>(null);
+  const actionStackRef = useRef<HTMLDivElement>(null);
   const last = replay.steps.length - 1;
   const [current, setCurrent] = useState(reduceMotion ? last : 0);
   const [playing, setPlaying] = useState(!reduceMotion);
@@ -74,26 +92,49 @@ export function MarketingReplay({
     return () => window.clearInterval(id);
   }, [inView, last, playing, reduceMotion]);
 
-  const visibleSteps = useMemo(
-    () => replay.steps.slice(Math.max(0, current - 3), current + 1),
-    [current, replay.steps],
-  );
-  const seen = useMemo(
+  const seenSteps = useMemo(
     () =>
       replay.steps
         .map((step, index) => ({ step, index }))
         .filter(
-          ({ step, index }) =>
-            index <= current &&
-            (step.actor === "customer" || step.kind === "tool_result"),
-        )
-        .slice(-2),
-    [current, replay.steps],
+          ({ step }) =>
+            step.actor === "customer" || step.kind === "tool_result",
+        ),
+    [replay.steps],
   );
 
   const hasDiverged =
     replay.divergenceStep !== undefined && current >= replay.divergenceStep;
   const completed = current === last;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const behavior: ScrollBehavior = reduceMotion ? "auto" : "smooth";
+
+      [seenStackRef.current, actionStackRef.current].forEach((stack) => {
+        if (!stack) return;
+
+        const active = stack.querySelector<HTMLElement>(
+          '[data-replay-active="true"]',
+        );
+        const revealed = stack.querySelectorAll<HTMLElement>(
+          '[data-replay-revealed="true"]',
+        );
+        const target = active ?? revealed.item(revealed.length - 1);
+
+        if (!target) return;
+
+        const centeredTop =
+          target.offsetTop - (stack.clientHeight - target.offsetHeight) / 2;
+        stack.scrollTo({
+          top: Math.max(0, centeredTop),
+          behavior,
+        });
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [current, reduceMotion]);
 
   return (
     <div ref={rootRef} className={styles.shell}>
@@ -111,100 +152,133 @@ export function MarketingReplay({
         </div>
       </header>
 
-      <div className={styles.columns}>
-        <section className={styles.column} aria-label="What the agent saw">
-          <div className={styles.columnLabel}>WHAT THE AGENT SAW</div>
-          <div className={styles.stack}>
-            <AnimatePresence initial={false} mode="popLayout">
-              {seen.map(({ step, index }) => (
-                <StepCard
-                  key={`seen-${index}`}
-                  step={step}
-                  active={index === current}
-                  divergence={false}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        </section>
-
-        <section
-          className={`${styles.column} ${styles.activityColumn}`}
-          aria-label="What the agent did"
-          aria-live="polite"
+      <div className={styles.columnsFrame}>
+        <div
+          className={styles.columnsViewport}
+          tabIndex={0}
+          aria-label="Replay comparison. Scroll horizontally to compare all three views."
         >
-          <div className={styles.columnLabel}>WHAT THE AGENT DID</div>
-          <div className={styles.stack}>
-            <AnimatePresence initial={false} mode="popLayout">
-              {visibleSteps.map((step, offset) => {
-                const index = Math.max(0, current - 3) + offset;
-                return (
-                  <StepCard
-                    key={`action-${index}`}
-                    step={step}
-                    active={index === current}
-                    divergence={index === replay.divergenceStep}
-                  />
-                );
-              })}
-            </AnimatePresence>
-          </div>
-        </section>
+          <div className={styles.columns}>
+            <section className={styles.column} aria-label="What the agent saw">
+              <div className={styles.columnLabel}>WHAT THE AGENT SAW</div>
+              <div ref={seenStackRef} className={styles.stack}>
+                {seenSteps.map(({ step, index }) => {
+                  const revealed = index <= current;
+                  return (
+                    <StepCard
+                      key={`seen-${index}`}
+                      step={step}
+                      active={revealed && index === current}
+                      revealed={revealed}
+                      divergence={false}
+                      reducedMotion={Boolean(reduceMotion)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
 
-        <section className={styles.column} aria-label="Expected path">
-          <div className={styles.columnLabel}>EXPECTED PATH</div>
-          <p className={styles.rubric}>{scenario.rubric}</p>
-          <div className={styles.pathStack}>
-            {replay.expectedPath.map((expected, index) => {
-              const violated =
-                hasDiverged && index === replay.divergenceExpected;
-              const met =
-                completed && expected.kind === "must" && !violated;
-              return (
-                <motion.div
-                  key={`${expected.kind}-${expected.text}`}
-                  animate={
-                    violated
-                      ? {
-                          borderColor: "rgba(240, 84, 79, 0.64)",
-                          backgroundColor: "rgba(240, 84, 79, 0.09)",
-                          x: [0, -2, 2, 0],
+            <section
+              className={`${styles.column} ${styles.activityColumn}`}
+              aria-label="What the agent did"
+              aria-live="polite"
+            >
+              <div className={styles.columnLabel}>WHAT THE AGENT DID</div>
+              <div ref={actionStackRef} className={styles.stack}>
+                {replay.steps.map((step, index) => {
+                  const revealed = index <= current;
+                  return (
+                    <StepCard
+                      key={`action-${index}`}
+                      step={step}
+                      active={index === current}
+                      revealed={revealed}
+                      divergence={
+                        revealed && index === replay.divergenceStep
+                      }
+                      reducedMotion={Boolean(reduceMotion)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+
+            <section
+              className={`${styles.column} ${styles.expectedColumn}`}
+              aria-label="Expected path"
+            >
+              <div className={styles.columnLabel}>EXPECTED PATH</div>
+              <p className={styles.rubric}>{scenario.rubric}</p>
+              <div className={styles.pathStack}>
+                {replay.expectedPath.map((expected, index) => {
+                  const violated =
+                    hasDiverged && index === replay.divergenceExpected;
+                  const met =
+                    completed && expected.kind === "must" && !violated;
+                  const status = violated
+                    ? `✕ violated at step ${String(
+                        (replay.divergenceStep ?? 0) + 1,
+                      ).padStart(2, "0")}`
+                    : met
+                      ? "✓ criterion met"
+                      : "";
+
+                  return (
+                    <motion.div
+                      key={`${expected.kind}-${expected.text}`}
+                      initial={false}
+                      animate={
+                        violated && !reduceMotion
+                          ? { x: [0, -1.5, 1.5, 0] }
+                          : { x: 0 }
+                      }
+                      transition={
+                        reduceMotion
+                          ? { duration: 0 }
+                          : { duration: 0.58, ease: [0.16, 1, 0.3, 1] }
+                      }
+                      className={`${styles.pathCard} ${
+                        violated ? styles.pathViolated : ""
+                      }`}
+                    >
+                      <span
+                        className={
+                          expected.kind === "must_not"
+                            ? styles.mustNotGlyph
+                            : styles.mustGlyph
                         }
-                      : undefined
-                  }
-                  transition={{ duration: 0.55 }}
-                  className={`${styles.pathCard} ${
-                    violated ? styles.pathViolated : ""
-                  }`}
-                >
-                  <span
-                    className={
-                      expected.kind === "must_not"
-                        ? styles.mustNotGlyph
-                        : styles.mustGlyph
-                    }
-                    aria-hidden
-                  >
-                    {expected.kind === "must_not" ? "⊘" : "✓"}
-                  </span>
-                  <div>
-                    <div className={styles.pathKind}>
-                      {expected.kind === "must_not" ? "MUST NOT" : "MUST"}
-                    </div>
-                    <p>{expected.text}</p>
-                    {violated && (
-                      <span className={styles.violatedAt}>
-                        ✕ violated at step{" "}
-                        {String((replay.divergenceStep ?? 0) + 1).padStart(2, "0")}
+                        aria-hidden
+                      >
+                        {expected.kind === "must_not" ? "⊘" : "✓"}
                       </span>
-                    )}
-                    {met && <span className={styles.metAt}>✓ criterion met</span>}
-                  </div>
-                </motion.div>
-              );
-            })}
+                      <div>
+                        <div className={styles.pathKind}>
+                          {expected.kind === "must_not" ? "MUST NOT" : "MUST"}
+                        </div>
+                        <p>{expected.text}</p>
+                        <span
+                          className={`${styles.pathStatus} ${
+                            violated
+                              ? styles.violatedAt
+                              : met
+                                ? styles.metAt
+                                : ""
+                          }`}
+                          aria-hidden={!status}
+                        >
+                          {status || "\u00a0"}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
-        </section>
+        </div>
+        <span className={styles.scrollHint} aria-hidden>
+          SWIPE TO COMPARE →
+        </span>
       </div>
 
       <footer className={styles.controls}>

@@ -1,5 +1,8 @@
 .shell {
+  display: grid;
+  height: 37.5rem;
   overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   border: 1px solid var(--color-edge);
   border-radius: 1.25rem;
   background: #090b0d;
@@ -10,13 +13,13 @@
 
 .header {
   display: flex;
-  min-height: 5rem;
+  min-height: 4.5rem;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
   border-bottom: 1px solid var(--color-edge);
   background: rgba(26, 29, 35, 0.88);
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.15rem;
 }
 
 .headerIdentity {
@@ -75,20 +78,45 @@
   font-size: 0.625rem;
 }
 
+.columnsFrame,
+.columnsViewport {
+  min-height: 0;
+}
+
+.columnsFrame {
+  position: relative;
+  overflow: hidden;
+}
+
+.columnsViewport {
+  height: 100%;
+  overflow: hidden;
+}
+
+.columnsViewport:focus-visible {
+  box-shadow: inset 0 0 0 1px rgba(61, 220, 132, 0.42);
+  outline: none;
+}
+
 .columns {
   display: grid;
+  height: 100%;
+  min-height: 0;
   grid-template-columns: 0.92fr 1.25fr 1fr;
   gap: 1px;
   background: var(--color-edge);
 }
 
 .column {
+  display: grid;
   min-width: 0;
-  min-height: 33rem;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
   background:
     radial-gradient(circle at 50% 0%, rgba(61, 220, 132, 0.025), transparent 34%),
     #090b0d;
-  padding: 1.4rem;
+  padding: 1.15rem;
 }
 
 .activityColumn {
@@ -97,8 +125,12 @@
     #090b0d;
 }
 
+.expectedColumn {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
 .columnLabel {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.95rem;
   color: #738096;
   font-size: 0.625rem;
   letter-spacing: 0.19em;
@@ -106,9 +138,32 @@
 
 .stack,
 .pathStack {
+  position: relative;
   display: flex;
+  min-height: 0;
+  overflow-y: auto;
   flex-direction: column;
   gap: 0.55rem;
+  padding-right: 0.3rem;
+  padding-bottom: 0.35rem;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(115, 128, 150, 0.32) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.stack::-webkit-scrollbar,
+.pathStack::-webkit-scrollbar,
+.columnsViewport::-webkit-scrollbar {
+  width: 0.35rem;
+  height: 0.35rem;
+}
+
+.stack::-webkit-scrollbar-thumb,
+.pathStack::-webkit-scrollbar-thumb,
+.columnsViewport::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(115, 128, 150, 0.32);
 }
 
 .stepCard,
@@ -119,6 +174,15 @@
   border-radius: 0.75rem;
   background: rgba(19, 21, 25, 0.88);
   padding: 0.95rem;
+  transition:
+    border-color 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stepPending {
+  pointer-events: none;
+  user-select: none;
 }
 
 .stepActive {
@@ -169,7 +233,7 @@
 }
 
 .rubric {
-  margin-bottom: 1.15rem;
+  margin-bottom: 0.9rem;
   color: var(--color-sub);
   font-size: 0.75rem;
   line-height: 1.65;
@@ -180,6 +244,11 @@
   align-items: flex-start;
   gap: 0.7rem;
   padding: 0.8rem;
+}
+
+.pathCard > div {
+  min-width: 0;
+  flex: 1;
 }
 
 .pathCard p {
@@ -211,17 +280,34 @@
   color: var(--color-fail);
 }
 
-.violatedAt,
-.metAt {
+.pathViolated {
+  border-color: rgba(240, 84, 79, 0.64);
+  background: rgba(240, 84, 79, 0.09);
+}
+
+.pathStatus {
   display: block;
+  min-height: 0.8rem;
   margin-top: 0.45rem;
-  color: var(--color-fail);
+  color: transparent;
+  font-family: var(--font-mono);
   font-size: 0.5rem;
   letter-spacing: 0.05em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  transition: color 360ms ease;
+}
+
+.violatedAt {
+  color: var(--color-fail);
 }
 
 .metAt {
   color: var(--color-accent);
+}
+
+.scrollHint {
+  display: none;
 }
 
 .controls {
@@ -296,6 +382,10 @@
 }
 
 @media (max-width: 900px) {
+  .shell {
+    height: 35.5rem;
+  }
+
   .header {
     align-items: flex-start;
   }
@@ -313,23 +403,64 @@
     display: none;
   }
 
+  .columnsFrame::after {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    bottom: 0.35rem;
+    width: 2rem;
+    background: linear-gradient(90deg, transparent, rgba(9, 11, 13, 0.78));
+    content: "";
+    pointer-events: none;
+  }
+
+  .columnsViewport {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-color: rgba(61, 220, 132, 0.44) transparent;
+    scrollbar-gutter: stable;
+  }
+
   .columns {
-    grid-template-columns: 1fr;
+    width: 58rem;
+    min-width: 58rem;
+    grid-template-columns: 17rem 22rem 19rem;
   }
 
   .column {
-    min-height: auto;
+    min-height: 0;
+    scroll-snap-align: start;
   }
 
-  .activityColumn {
-    order: -1;
-    min-height: 28rem;
+  .scrollHint {
+    position: absolute;
+    z-index: 3;
+    right: 0.65rem;
+    bottom: 0.65rem;
+    display: block;
+    border: 1px solid rgba(61, 220, 132, 0.2);
+    border-radius: 9999px;
+    background: rgba(9, 11, 13, 0.88);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+    padding: 0.35rem 0.55rem;
+    color: rgba(61, 220, 132, 0.78);
+    font-family: var(--font-mono);
+    font-size: 0.45rem;
+    letter-spacing: 0.09em;
+    pointer-events: none;
   }
 }
 
 @media (max-width: 520px) {
+  .shell {
+    height: 34rem;
+  }
+
   .header {
-    padding: 0.9rem;
+    padding: 0.75rem 0.85rem;
   }
 
   .wallLabel,
@@ -338,11 +469,13 @@
   }
 
   .column {
-    padding: 1rem;
+    padding: 0.9rem;
   }
 
-  .activityColumn {
-    min-height: 25rem;
+  .columns {
+    width: 50rem;
+    min-width: 50rem;
+    grid-template-columns: 15rem 19rem 16rem;
   }
 
   .controls {
@@ -356,7 +489,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .scrubStep,
-  .playButton {
+  .playButton,
+  .stepCard,
+  .pathCard,
+  .pathStatus {
     transition: none;
   }
 }

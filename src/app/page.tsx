@@ -5,15 +5,18 @@ import { MarketingMetrics } from "@/components/marketing-metrics";
 import { MarketingReplay } from "@/components/marketing-replay";
 import { ReadinessCard } from "@/components/readiness-card";
 import { WallLoop } from "@/components/mission-control";
-import { ButtonLink, Eyebrow } from "@/components/ui";
+import { ButtonLink } from "@/components/ui";
 import { getReplay } from "@/lib/fixtures/replays";
 import { failingReplayId, scenarioById } from "@/lib/fixtures/scenarios";
 import styles from "./landing.module.css";
 
-const proofPoints = [
-  ["200", "base scenarios"],
-  ["23", "Gauntlet stress cases"],
-  ["10,000", "max sign-off run"],
+const suiteTiers = [
+  ["01", "Smoke", "24", "Every category, including the traps"],
+  ["02", "Standard", "200", "The complete hand-shaped base suite"],
+  ["03", "Extended", "500", "Deeper variation in every category"],
+  ["04", "Scale", "1,000", "Expose inconsistent judgement"],
+  ["05", "Exhaustive", "5,000", "Overnight pre-launch depth"],
+  ["06", "Max", "10,000", "The full scenario space"],
 ];
 
 const workflow = [
@@ -21,89 +24,108 @@ const workflow = [
     step: "01",
     kicker: "Connect",
     title: "Bring the agent you already have.",
-    body: "Point Preflight at an HTTP endpoint or connect a supported agent. Your production code stays where it is; the simulator handles the pressure.",
+    body: "Point Preflight at an OpenAI-compatible or custom HTTP endpoint. Your production code stays where it is.",
     meta: "Endpoint · auth · tools",
   },
   {
     step: "02",
     kicker: "Define",
-    title: "Turn your operating policy into a Rulebook.",
-    body: "Start from help-centre pages, pasted docs, prompts, transcripts, or seven guided questions. Preflight drafts the rules; your team approves them.",
+    title: "Turn operating policy into a Rulebook.",
+    body: "Start from help-centre pages, docs, prompts, transcripts, or seven guided questions. Your team approves every rule.",
     meta: "Docs · prompts · transcripts",
   },
   {
     step: "03",
     kicker: "Stress",
     title: "Run the conversations you cannot risk.",
-    body: "Coverage, The Gauntlet, prompt-injection attacks, and scenarios generated from your Rulebook run against the same agent and judge.",
+    body: "Coverage, The Gauntlet, prompt-injection attacks, and Rulebook scenarios run against the same agent and judge.",
     meta: "Coverage · security · policy",
   },
   {
     step: "04",
     kicker: "Prove",
     title: "Ship with evidence, not instinct.",
-    body: "Replay every miss, compare against a pinned baseline, and share a verifiable readiness result with the people responsible for launch.",
-    meta: "Replays · CI gate · report",
+    body: "Replay every miss, compare a pinned baseline, and share a verifiable readiness result with the launch team.",
+    meta: "Replay · CI gate · report",
   },
 ];
 
 const verdictLayers = [
   {
+    number: "01",
     label: "Root-cause clustering",
-    title: "Turn 31 red cells into three problems",
-    tone: "text-mut",
-    body: (
-      <>
-        Preflight groups repeat failures by the decision that caused them,
-        gives each cluster a plain-English diagnosis, and links the proof
-        replays. Fix the problem instead of triaging the symptom list.
-      </>
-    ),
+    title: "Turn 31 red cells into three problems.",
+    body: "Repeated failures are grouped by the decision that caused them, with a plain-English diagnosis and proof replays for each cluster.",
   },
   {
+    number: "02",
     label: "Adaptive red-team",
-    title: "Its failures become its next exam",
-    tone: "text-warn",
-    body: (
-      <>
-        One click turns a run&apos;s failure patterns into a suite of escalating
-        adversaries aimed at exactly what your agent got wrong. Fix, re-run,
-        and the attacks move to the next weakness.
-      </>
-    ),
+    title: "Its failures become its next exam.",
+    body: "Turn a run's failure clusters into escalating adversaries aimed at exactly where the agent already cracked.",
   },
   {
-    label: "Proof you can share",
-    title: "A badge that answers the question",
-    tone: "text-accent",
-    body: (
-      <>
-        Every run can publish a verifiable read-only result and embeddable
-        score badge—gate pull requests on it in CI, place it in the README, or
-        attach the PDF to the launch email. Transcripts stay private.
-      </>
-    ),
+    number: "03",
+    label: "Shareable proof",
+    title: "A result the launch team can inspect.",
+    body: "Publish a read-only result, embed the score badge, gate pull requests in CI, or attach the PDF to the sign-off.",
   },
 ];
 
 const integrations = [
-  ["OA", "OpenAI"],
+  ["OA", "OpenAI-compatible"],
   ["AZ", "Azure OpenAI"],
   ["LC", "LangChain"],
-  ["CA", "CrewAI"],
+  ["CR", "CrewAI"],
   ["AI", "Vercel AI SDK"],
-  ["V", "vLLM / TGI"],
-  ["↗", "Custom HTTP"],
+  ["VL", "vLLM / TGI"],
+  ["HTTP", "Custom endpoint"],
 ];
 
 const replay = getReplay("SCN-0187");
 const replayScenario = scenarioById.get("SCN-0187");
 
+function Header() {
+  return (
+    <header className={styles.header}>
+      <Link href="/" className={styles.brand} aria-label="Preflight home">
+        <span className={styles.brandSignal} aria-hidden />
+        <span>PREFLIGHT</span>
+      </Link>
+      <nav className={styles.nav} aria-label="Primary navigation">
+        <Link href="/" aria-current="page">
+          Home
+        </Link>
+        <Link href="/product">Product</Link>
+        <Link href="/integrations">Integrations</Link>
+        <Link href="/pricing">Pricing</Link>
+      </nav>
+      <Link href="/signup" className={styles.headerCta}>
+        Start free <span aria-hidden>→</span>
+      </Link>
+    </header>
+  );
+}
+
+function SectionLabel({
+  number,
+  children,
+}: {
+  number: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.sectionLabel}>
+      <span>{number}</span>
+      {children}
+    </div>
+  );
+}
+
 export default function Landing() {
   if (!replay || !replayScenario) return null;
 
   return (
-    <main className={`${styles.page} min-h-screen overflow-hidden`}>
+    <main className={styles.page}>
       <div aria-hidden className={styles.ambient}>
         <div className={styles.grid} />
         <div className={styles.signalField} />
@@ -113,373 +135,264 @@ export default function Landing() {
         <div className={styles.noise} />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-5 sm:px-8">
-        <header className="flex items-center justify-between py-7">
-          <Link
-            href="/"
-            className="focus-ring group flex items-center gap-2 rounded-md"
-            aria-label="Preflight home"
-          >
-            <span
-              aria-hidden
-              className="relative inline-flex size-2 rounded-full bg-accent shadow-[0_0_18px_rgba(61,220,132,0.65)]"
-            >
-              <span className="absolute inset-0 animate-ping rounded-full bg-accent opacity-30" />
-            </span>
-            <span className="font-mono text-xs tracking-[0.18em] text-ink transition-colors group-hover:text-accent">
-              PREFLIGHT
-            </span>
-          </Link>
-          <nav className="flex items-center gap-4 sm:gap-6" aria-label="Primary">
-            <Link
-              href="/product"
-              className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink md:inline"
-            >
-              Product
-            </Link>
-            <Link
-              href="/integrations"
-              className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink lg:inline"
-            >
-              Integrations
-            </Link>
-            <Link
-              href="/pricing"
-              className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink sm:inline"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/login"
-              className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink sm:inline"
-            >
-              Sign in
-            </Link>
-            <details className="relative sm:hidden">
-              <summary className="focus-ring cursor-pointer list-none rounded-full border border-edge bg-surface/70 px-3 py-2 text-[12px] text-sub">
-                Menu
-              </summary>
-              <div className="absolute right-0 top-12 z-30 grid w-44 gap-1 rounded-xl border border-edge bg-raised/95 p-2 text-left text-[13px] shadow-[0_18px_50px_rgba(0,0,0,.45)] backdrop-blur-xl">
-                <Link href="/product" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
-                  Product
-                </Link>
-                <Link href="/integrations" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
-                  Integrations
-                </Link>
-                <Link href="/pricing" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
-                  Pricing
-                </Link>
-                <Link href="/login" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
-                  Sign in
-                </Link>
-              </div>
-            </details>
-            <Link
-              href="/dashboard"
-              className="focus-ring rounded-full border border-edge bg-surface/70 px-4 py-2 text-[13px] text-ink backdrop-blur-xl transition-all hover:border-accent/40 hover:bg-raised"
-            >
-              Open the app <span aria-hidden>→</span>
-            </Link>
-          </nav>
-        </header>
+      <div className={styles.shell}>
+        <Header />
 
-        <section className="relative pb-24 pt-20 text-center sm:pb-28 sm:pt-28">
-          <div className={styles.heroKicker}>
-            <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-            Evaluation infrastructure for production AI
-          </div>
-          <h1
-            className={`${styles.heroTitle} font-display mx-auto mt-7 max-w-4xl text-5xl leading-[0.98] tracking-[-0.045em] text-ink sm:text-7xl lg:text-[5.4rem]`}
-          >
-            Know how your agent fails
-            <span className={styles.heroAccent}> before your users do.</span>
-          </h1>
-          <p
-            className={`${styles.heroCopy} mx-auto mt-7 max-w-2xl text-base leading-relaxed text-sub sm:text-lg`}
-          >
-            Preflight puts AI agents through realistic conversations,
-            adversarial edge cases, and your own operating policies—then shows
-            you the exact decision that broke.
-          </p>
-
-          <div className={`${styles.heroActions} mx-auto mt-10 max-w-xl`}>
-            <HeroAuthButtons />
-            <div className="my-5 flex items-center gap-3">
-              <span className="h-px flex-1 bg-edge/80" />
-              <span className="font-mono text-[9px] tracking-[0.16em] text-mut">
-                OR EXPLORE FIRST
-              </span>
-              <span className="h-px flex-1 bg-edge/80" />
+        <section className={styles.hero}>
+          <div className={styles.heroCopy}>
+            <div className={styles.eyebrow}>
+              <span aria-hidden />
+              Evaluation infrastructure for production AI
             </div>
-            <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row">
-              <ButtonLink
-                href="/runs"
-                size="lg"
-                className="group min-w-36 shadow-[0_0_30px_rgba(61,220,132,0.12)]"
-              >
-                Run the demo
-                <span
-                  aria-hidden
-                  className="transition-transform group-hover:translate-x-0.5"
-                >
-                  →
-                </span>
+            <h1>
+              Know how your agent fails
+              <br />
+              <em>before your users do.</em>
+            </h1>
+            <p>
+              Preflight puts AI agents through realistic conversations,
+              adversarial edge cases, and your own operating policies—then
+              shows you the exact decision that broke.
+            </p>
+
+            <div className={styles.authShell}>
+              <HeroAuthButtons />
+            </div>
+
+            <div className={styles.exploreDivider}>
+              <span />
+              <small>OR EXPLORE FIRST</small>
+              <span />
+            </div>
+
+            <div className={styles.heroActions}>
+              <ButtonLink href="/runs" size="lg" className={styles.runButton}>
+                Run the demo <span aria-hidden>→</span>
               </ButtonLink>
               <ButtonLink
                 href="/signup"
                 size="lg"
                 variant="secondary"
-                className="min-w-36 bg-surface/60 backdrop-blur"
+                className={styles.secondaryButton}
               >
                 Start free
               </ButtonLink>
             </div>
-            <p className="mt-4 text-[12px] text-mut">
+            <p className={styles.freeNote}>
               First 250 simulations free · no credit card required
             </p>
           </div>
 
-          <div
-            className={`${styles.signalMarquee} mx-auto mt-14 max-w-3xl`}
-            aria-label="Evaluation areas"
-          >
-            <div className={styles.signalTrack}>
-              {[
-                "Tool calls",
-                "Policy adherence",
-                "Prompt injection",
-                "Escalations",
-                "Regression",
-                "Tool calls",
-                "Policy adherence",
-                "Prompt injection",
-                "Escalations",
-                "Regression",
-              ].map((item, index) => (
-                <span key={`${item}-${index}`} className="flex items-center gap-3">
-                  <span className="size-1 rounded-full bg-accent/70" />
-                  {item}
+          <div className={styles.heroVisual}>
+            <div className={styles.heroGrid} aria-hidden />
+            <div className={styles.liveShell} aria-labelledby="live-run-title">
+              <div className={styles.liveHeader}>
+                <div>
+                  <span className={styles.livePulse} aria-hidden />
+                  <p id="live-run-title">LIVE EVALUATION</p>
+                </div>
+                <span>RUN 0472 · STANDARD</span>
+              </div>
+              <div className={styles.liveStats}>
+                <span>
+                  <strong>194</strong>
+                  PASS
                 </span>
-              ))}
+                <span>
+                  <strong>4</strong>
+                  FAIL
+                </span>
+                <span>
+                  <strong>2</strong>
+                  REVIEW
+                </span>
+                <span>
+                  <strong>200</strong>
+                  TOTAL
+                </span>
+              </div>
+              <div className={styles.wallFrame}>
+                <div className={styles.scanLine} aria-hidden />
+                <WallLoop />
+              </div>
+              <div className={styles.liveFooter}>
+                <span>ECOMMERCE SUPPORT SUITE</span>
+                <span>VERIFIED DEMO RUN</span>
+              </div>
+            </div>
+            <div className={styles.heroTelemetry} aria-hidden>
+              <span>POLICY SIGNAL · 97.0</span>
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
             </div>
           </div>
         </section>
 
-        <LandingReveal>
-          <section className={styles.liveShell} aria-labelledby="live-run-title">
-            <div className="flex flex-col gap-4 border-b border-edge/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-40" />
-                  <span className="relative inline-flex size-2 rounded-full bg-accent" />
-                </span>
-                <div>
-                  <p
-                    id="live-run-title"
-                    className="font-mono text-[10px] tracking-[0.16em] text-ink"
-                  >
-                    LIVE EVALUATION
-                  </p>
-                  <p className="mt-1 text-xs text-mut">
-                    Ecommerce support suite · run 0472
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-5 font-mono text-[10px] tracking-wider text-mut">
-                <span>
-                  <strong className="font-normal text-accent">194</strong> pass
-                </span>
-                <span>
-                  <strong className="font-normal text-fail">4</strong> fail
-                </span>
-                <span>
-                  <strong className="font-normal text-warn">2</strong> review
-                </span>
-              </div>
+        <section className={styles.scaleBand} aria-label="Simulation run depths">
+          <div className={styles.scaleBandLabel}>
+            <span>RUN DEPTH</span>
+            <small>One standard. More evidence.</small>
+          </div>
+          {[
+            ["Smoke", "24", "fast signal"],
+            ["Standard", "200", "full base suite"],
+            ["Sign-off", "10,000", "maximum depth"],
+          ].map(([name, count, note]) => (
+            <div className={styles.scaleBandItem} key={name}>
+              <span>{name}</span>
+              <strong>{count}</strong>
+              <small>{note}</small>
             </div>
-            <div className="relative p-3 sm:p-5">
-              <div className={styles.scanLine} aria-hidden />
-              <WallLoop />
-            </div>
-            <p className="border-t border-edge/80 px-5 py-3 text-center font-mono text-[10px] tracking-[0.14em] text-mut">
-              200 SCENARIOS · REPLAYING FROM A VERIFIED DEMO RUN
-            </p>
-          </section>
-        </LandingReveal>
+          ))}
+        </section>
 
         <LandingReveal>
-          <section
-            className="grid border-x border-b border-edge/70 bg-surface/30 sm:grid-cols-3"
-            aria-label="Preflight at a glance"
-          >
-            {proofPoints.map(([value, label], index) => (
-              <div
-                key={label}
-                className={`flex items-baseline gap-3 px-6 py-6 sm:block sm:text-center ${
-                  index > 0 ? "border-t border-edge/70 sm:border-l sm:border-t-0" : ""
-                }`}
-              >
-                <div className="numeral text-3xl text-ink sm:text-4xl">{value}</div>
-                <div className="mt-1 text-xs text-mut">{label}</div>
-              </div>
-            ))}
-          </section>
-        </LandingReveal>
-
-        <LandingReveal>
-          <section className="py-20 sm:py-24" aria-labelledby="integration-title">
-            <div className="text-center">
-              <Eyebrow>Meet your agent where it runs</Eyebrow>
-              <h2
-                id="integration-title"
-                className="font-display mt-4 text-3xl tracking-tight text-ink sm:text-4xl"
-              >
-                One test layer. The stack you already chose.
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-sub">
-                Connect an OpenAI-compatible backend or your own HTTP endpoint.
-                Preflight supplies the store tools, drives the multi-turn
-                conversation, and judges the path—without moving your agent.
+          <section className={styles.integrationStrip}>
+            <div className={styles.integrationLead}>
+              <SectionLabel number="00">Meet your agent where it runs</SectionLabel>
+              <p>
+                OpenAI-compatible or custom HTTP. Framework backends connect
+                through the same two endpoint contracts.
               </p>
             </div>
-            <div
-              className={`${styles.integrationRail} mt-10`}
-              aria-label="Compatible agent stacks"
-            >
+            <div className={styles.integrationRail} aria-label="Endpoint-ready stacks">
               <div className={styles.integrationTrack} aria-hidden>
                 {[...integrations, ...integrations].map(([mark, name], index) => (
                   <div className={styles.integrationItem} key={`${name}-${index}`}>
-                    <span className={styles.integrationMark}>{mark}</span>
-                    <span>{name}</span>
+                    <span>{mark}</span>
+                    {name}
                   </div>
                 ))}
               </div>
             </div>
-            <div className="mt-6 text-center">
-              <Link
-                href="/integrations"
-                className="focus-ring inline-flex items-center gap-2 rounded-md text-sm text-accent transition-colors hover:text-accent-hover"
-              >
-                See every connection path <span aria-hidden>→</span>
-              </Link>
-            </div>
+            <Link href="/integrations" className={styles.textLink}>
+              See connection paths <span aria-hidden>→</span>
+            </Link>
           </section>
         </LandingReveal>
 
         <LandingReveal>
-          <section className="grid items-center gap-12 py-28 lg:grid-cols-[1fr_0.9fr] lg:gap-20 lg:py-36">
-            <div>
-              <Eyebrow>The launch gap</Eyebrow>
-              <h2 className="font-display mt-4 text-4xl leading-[1.08] tracking-tight text-ink sm:text-5xl">
-                There is no staging environment for judgement.
+          <section className={styles.splitSection}>
+            <div className={styles.sectionCopy}>
+              <SectionLabel number="01">The launch gap</SectionLabel>
+              <h2>
+                There is no staging environment
+                <br />
+                <em>for judgement.</em>
               </h2>
-              <p className="mt-6 max-w-xl text-[15px] leading-7 text-sub">
-                Teams put AI agents into real jobs—refunds, orders,
+              <p>
+                Teams put agents into real jobs—refunds, orders,
                 escalations—and discover how they handle fraud by watching
-                them fail on real customers. Preflight is the place agents
-                fail safely, thousands of times, before they touch production.
+                them fail on real customers. Preflight is where those decisions
+                fail safely first.
               </p>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {["Real tool paths", "Policy-aware judges", "Replayable evidence"].map(
-                  (item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-edge bg-surface/60 px-3 py-1.5 font-mono text-[10px] tracking-wide text-sub"
-                    >
-                      {item}
-                    </span>
-                  ),
-                )}
+              <div className={styles.pillRow}>
+                <span>Real tool paths</span>
+                <span>Policy-aware judges</span>
+                <span>Replayable evidence</span>
               </div>
             </div>
-            <MarketingMetrics />
+            <div className={styles.productVisual}>
+              <MarketingMetrics />
+            </div>
           </section>
         </LandingReveal>
 
         <LandingReveal>
-          <section className={styles.sectionShell}>
-            <div className="mx-auto max-w-3xl text-center">
-              <Eyebrow>Replay, not guesswork</Eyebrow>
-              <h2 className="font-display mt-4 text-4xl leading-[1.08] tracking-tight text-ink sm:text-5xl">
-                Watch the exact moment it goes wrong.
+          <section className={`${styles.splitSection} ${styles.replaySection}`}>
+            <div className={styles.sectionCopy}>
+              <SectionLabel number="02">Replay, not guesswork</SectionLabel>
+              <h2>
+                Watch the exact moment
+                <br />
+                <em>it goes wrong.</em>
               </h2>
-              <p className="mx-auto mt-6 max-w-2xl text-[15px] leading-7 text-sub">
-                Every failure has a replay: what the agent saw, what it did,
-                and the expected path beside it—with the divergence marked
-                like an anomaly on an ECG. Press any step below to inspect the
-                evidence yourself.
+              <p>
+                See what the agent saw, what it did, and the expected path
+                beside it. The divergence is marked like an anomaly on an ECG,
+                with the tool call and judge diagnosis attached.
               </p>
+              <p>
+                Step through the real evidence below. Every cell on the wall
+                opens a replay like this one.
+              </p>
+              <Link href="/replay/SCN-0187" className={styles.textLink}>
+                Open the full replay <span aria-hidden>→</span>
+              </Link>
             </div>
-            <div className="mt-12">
+            <div className={styles.replayVisual}>
+              <div className={styles.replayTopline}>
+                <span>SCN-0187 · PAYMENT RETRY</span>
+                <span>DIVERGENCE · STEP 04</span>
+              </div>
               <MarketingReplay replay={replay} scenario={replayScenario} />
-            </div>
-            <div className="mt-6 flex flex-col justify-between gap-4 border-x border-b border-edge/70 bg-surface/35 px-5 py-4 text-sm sm:flex-row sm:items-center">
-              <p className="max-w-3xl leading-6 text-sub">
-                <span className="font-medium text-ink">Judge diagnosis:</span>{" "}
-                {replay.failureReason}
-              </p>
-              <Link
-                href="/replay/SCN-0187"
-                className="focus-ring shrink-0 rounded-md text-accent transition-colors hover:text-accent-hover"
-              >
-                Open full replay →
-              </Link>
+              <div className={styles.diagnosisBar}>
+                <span>JUDGE DIAGNOSIS</span>
+                <p>{replay.failureReason}</p>
+              </div>
             </div>
           </section>
         </LandingReveal>
 
         <LandingReveal>
-          <section className="grid items-center gap-12 py-28 lg:grid-cols-[0.86fr_1.14fr] lg:gap-20 lg:py-36">
-            <div>
-              <Eyebrow>The Gauntlet</Eyebrow>
-              <h2 className="font-display mt-4 text-4xl leading-[1.08] tracking-tight text-ink sm:text-5xl">
-                Harder, not bigger.
-              </h2>
-              <p className="mt-6 max-w-xl text-[15px] leading-7 text-sub">
-                Standard and larger runs already include 23 difficulty-4/5
-                scenarios built around the mistakes that cost money or demand
-                a human: refund fraud, payment-retry duplicates, legal threats,
-                safety complaints, and above-limit approvals.
-              </p>
-              <p className="mt-4 max-w-xl text-[15px] leading-7 text-sub">
-                After a fix, rerun just the hard slice. Then send 16
-                prompt-injection attacks through store data to prove your agent
-                can tell instructions from evidence.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {[
-                  "12 refund-fraud",
-                  "3 duplicate-order",
-                  "8 escalation",
-                  "16 security attacks",
-                ].map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-edge bg-surface/60 px-3 py-1.5 font-mono text-[10px] tracking-wide text-sub"
-                  >
-                    {item}
-                  </span>
-                ))}
+          <section className={styles.coverageSection}>
+            <div className={styles.coverageHeading}>
+              <div className={styles.sectionCopy}>
+                <SectionLabel number="03">Coverage that scales</SectionLabel>
+                <h2>
+                  Start with 24.
+                  <br />
+                  <em>Sign off with 10,000.</em>
+                </h2>
               </div>
-              <Link
-                href="/product"
-                className="focus-ring mt-7 inline-flex items-center gap-2 rounded-md text-sm text-accent transition-colors hover:text-accent-hover"
-              >
-                Explore every evaluation layer <span aria-hidden>→</span>
-              </Link>
+              <p>
+                Smoke gives you a fast signal across every category. Standard
+                runs all 200 hand-shaped base scenarios. Larger tiers extend
+                that same library with deterministic variation until the full
+                10,000-scenario space is covered.
+              </p>
             </div>
 
+            <div className={styles.tierConsole}>
+              <div className={styles.tierHeader}>
+                <span>RUN DEPTH</span>
+                <span>SCENARIOS</span>
+                <span>WHAT IT ADDS</span>
+              </div>
+              {suiteTiers.map(([number, name, count, note], index) => (
+                <div className={styles.tierRow} key={name}>
+                  <span>
+                    <i>{number}</i>
+                    {name}
+                  </span>
+                  <strong>{count}</strong>
+                  <span>{note}</span>
+                  <div className={styles.tierSignal} aria-hidden>
+                    {Array.from({ length: 10 }, (_, signalIndex) => (
+                      <i
+                        key={signalIndex}
+                        className={signalIndex <= index + 3 ? styles.tierSignalOn : ""}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </LandingReveal>
+
+        <LandingReveal>
+          <section className={`${styles.splitSection} ${styles.gauntletSection}`}>
             <div className={styles.gauntletCard}>
               <div className={styles.gauntletHeader}>
                 <div>
                   <span className={styles.gauntletMark}>G</span>
-                  <span className="font-mono text-[10px] tracking-[0.14em] text-warn">
-                    THE GAUNTLET
-                  </span>
+                  <span>THE GAUNTLET</span>
                 </div>
-                <span className="font-mono text-[9px] tracking-[0.13em] text-mut">
-                  23 SCENARIOS · LIVE SLICE
-                </span>
+                <span>23 SCENARIOS · LIVE SLICE</span>
               </div>
               <div className={styles.difficultyRamp}>
                 {[
@@ -503,16 +416,16 @@ export default function Landing() {
               <div className={styles.gauntletBody}>
                 <div className={styles.gauntletSummary}>
                   <div>
-                    <span className="numeral text-4xl text-warn">7</span>
-                    <span>Hard</span>
+                    <span>7</span>
+                    <small>Hard</small>
                   </div>
                   <div>
-                    <span className="numeral text-4xl text-fail">16</span>
-                    <span>Brutal</span>
+                    <span>16</span>
+                    <small>Brutal</small>
                   </div>
                   <div>
-                    <span className="numeral text-4xl text-ink">23</span>
-                    <span>Total</span>
+                    <span>23</span>
+                    <small>Total</small>
                   </div>
                 </div>
                 <div className={styles.gauntletGrid} aria-hidden>
@@ -526,52 +439,66 @@ export default function Landing() {
                     </span>
                   ))}
                 </div>
-                <div className={styles.gauntletCategories}>
-                  {[
-                    ["Refund fraud", "12"],
-                    ["Duplicate orders", "03"],
-                    ["Escalations", "08"],
-                  ].map(([label, value]) => (
-                    <div key={label}>
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
               </div>
               <div className={styles.securityStrip}>
                 <span className={styles.securityPulse} aria-hidden />
                 <div>
                   <span>SECURITY SIDE RUN</span>
-                  <strong>Store data is data—not instructions.</strong>
+                  <strong>Attacks are hidden inside store data.</strong>
                 </div>
                 <b>16 ATTACKS</b>
               </div>
+            </div>
+
+            <div className={styles.sectionCopy}>
+              <SectionLabel number="04">Harder, not bigger</SectionLabel>
+              <h2>
+                Skip the warm-up.
+                <br />
+                <em>Run the hard decisions.</em>
+              </h2>
+              <p>
+                The Gauntlet isolates the 23 difficulty 4–5 scenarios already
+                included in Standard and larger runs: boundary collisions,
+                conflicting evidence, fraud, legal threats, and decisions that
+                should demand a human.
+              </p>
+              <p>
+                Rerun that hard slice alone after a fix. Then send 16
+                prompt-injection attacks through the store data your agent
+                reads, while the visible customer request stays ordinary.
+              </p>
+              <Link href="/product" className={styles.textLink}>
+                Explore every evaluation layer <span aria-hidden>→</span>
+              </Link>
             </div>
           </section>
         </LandingReveal>
 
         <LandingReveal>
-          <section className="grid items-center gap-12 py-28 lg:grid-cols-2 lg:gap-20 lg:py-36">
-            <div>
-              <Eyebrow>Decision-ready output</Eyebrow>
-              <h2 className="font-display mt-4 text-4xl leading-[1.08] tracking-tight text-ink sm:text-5xl">
-                A verdict you can forward to your boss.
+          <section className={styles.splitSection}>
+            <div className={styles.sectionCopy}>
+              <SectionLabel number="05">Decision-ready output</SectionLabel>
+              <h2>
+                A verdict you can forward
+                <br />
+                <em>with the evidence intact.</em>
               </h2>
-              <p className="mt-6 text-[15px] leading-7 text-sub">
-                Every run ends in a readiness report: one score, the categories
-                that hold and break, the five risks that matter in plain
-                English, and a sign-off line. Fix, re-run, repeat—then keep
-                testing on every prompt and model change.
+              <p>
+                Every run ends with a readiness report: score and confidence
+                interval, strengths, weaknesses, root-cause clusters, the risks
+                that matter, and an explicit account of what the run covered.
               </p>
-              <Link
-                href="/share/demo"
-                className="focus-ring mt-7 inline-flex items-center gap-2 rounded-md text-sm text-accent transition-colors hover:text-accent-hover"
-              >
+              <p>
+                Pin a passing baseline, compare newly broken and newly fixed
+                behaviour, then gate the next prompt or model change in GitHub.
+              </p>
+              <Link href="/share/demo" className={styles.textLink}>
                 Open the verified demo report <span aria-hidden>→</span>
               </Link>
             </div>
-            <div className={styles.reportFloat}>
+            <div className={styles.reportVisual}>
+              <div className={styles.reportGlow} aria-hidden />
               <ReadinessCard
                 score={97}
                 strengths={["Product questions", "Shipping updates", "Order status"]}
@@ -591,36 +518,31 @@ export default function Landing() {
         </LandingReveal>
 
         <LandingReveal>
-          <section className="pb-16 pt-8 sm:pb-24">
-            <div className="max-w-2xl">
-              <Eyebrow>One clear path to confidence</Eyebrow>
-              <h2 className="font-display mt-4 text-4xl tracking-tight text-ink sm:text-5xl">
-                From endpoint to evidence in one run.
-              </h2>
-              <p className="mt-5 text-[15px] leading-7 text-sub">
-                Preflight fits around the agent you have today and turns testing
-                into a repeatable release gate.
+          <section className={styles.workflowSection}>
+            <div className={styles.workflowHeading}>
+              <div className={styles.sectionCopy}>
+                <SectionLabel number="06">One clear flight path</SectionLabel>
+                <h2>
+                  From endpoint to evidence
+                  <br />
+                  <em>in one repeatable run.</em>
+                </h2>
+              </div>
+              <p>
+                Preflight fits around the agent you have today and turns
+                evaluation into a release discipline, not a one-off audit.
               </p>
             </div>
-            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-edge bg-edge md:grid-cols-2 xl:grid-cols-4">
+            <div className={styles.workflowGrid}>
               {workflow.map((item) => (
-                <article
-                  key={item.step}
-                  className={`${styles.workflowCard} relative bg-surface p-7 sm:p-8`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] tracking-[0.16em] text-accent">
-                      {item.step} / {item.kicker.toUpperCase()}
-                    </span>
-                    <span className="numeral text-3xl text-edge">{item.step}</span>
+                <article key={item.step} className={styles.workflowCard}>
+                  <div>
+                    <span>{item.step} / {item.kicker.toUpperCase()}</span>
+                    <strong>{item.step}</strong>
                   </div>
-                  <h3 className="mt-8 text-lg font-medium leading-snug text-ink">
-                    {item.title}
-                  </h3>
-                  <p className="mt-4 text-sm leading-6 text-sub">{item.body}</p>
-                  <p className="mt-8 border-t border-edge pt-4 font-mono text-[9px] uppercase tracking-[0.14em] text-mut">
-                    {item.meta}
-                  </p>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                  <small>{item.meta}</small>
                 </article>
               ))}
             </div>
@@ -628,45 +550,28 @@ export default function Landing() {
         </LandingReveal>
 
         <LandingReveal>
-          <section className="py-24 sm:py-32">
-            <div className="text-center">
-              <Eyebrow>Beyond the score</Eyebrow>
-              <h2 className="font-display mt-4 text-4xl tracking-tight text-ink sm:text-5xl">
-                A score is only the beginning.
+          <section className={styles.evidenceSection}>
+            <div className={styles.evidenceHeading}>
+              <SectionLabel number="07">Beyond the score</SectionLabel>
+              <h2>
+                The number is the headline.
+                <br />
+                <em>The evidence is the product.</em>
               </h2>
-              <p className="mx-auto mt-5 max-w-xl text-[15px] leading-7 text-sub">
-                Go from a headline number to the evidence, attack surface, and
-                release proof behind it.
-              </p>
             </div>
-            <div className="mt-12 grid gap-5 lg:grid-cols-3">
-              {verdictLayers.map((layer, index) => (
-                <article
-                  key={layer.label}
-                  className={`${styles.featureCard} rounded-2xl border border-edge bg-surface/80 p-7 shadow-card backdrop-blur-sm`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div
-                      className={`font-mono text-[10px] tracking-[0.14em] ${layer.tone}`}
-                    >
-                      {layer.label.toUpperCase()}
-                    </div>
-                    <span className="font-mono text-[10px] text-mut">
-                      0{index + 1}
-                    </span>
+            <div className={styles.evidenceGrid}>
+              {verdictLayers.map((layer) => (
+                <article key={layer.label}>
+                  <div>
+                    <span>{layer.label.toUpperCase()}</span>
+                    <strong>{layer.number}</strong>
                   </div>
-                  <h3 className="mt-5 text-[17px] font-medium text-ink">
-                    {layer.title}
-                  </h3>
-                  <p className="mt-4 text-sm leading-6 text-sub">{layer.body}</p>
-                  {index === 2 && (
-                    <span className="mt-5 inline-block">
+                  <h3>{layer.title}</h3>
+                  <p>{layer.body}</p>
+                  {layer.number === "03" && (
+                    <span className={styles.badgeDemo}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="/api/badge/demo"
-                        alt="Preflight score badge: 97"
-                        className="h-5"
-                      />
+                      <img src="/api/badge/demo" alt="Preflight score badge: 97" />
                     </span>
                   )}
                 </article>
@@ -676,51 +581,47 @@ export default function Landing() {
         </LandingReveal>
 
         <LandingReveal>
-          <section className={`${styles.closingCta} my-20 overflow-hidden rounded-3xl px-6 py-20 text-center sm:px-12 sm:py-24`}>
-            <div aria-hidden className={styles.closingGlow} />
-            <div className="relative">
-              <Eyebrow className="text-accent">Your agent has a blind spot</Eyebrow>
-              <h2 className="font-display mx-auto mt-4 max-w-2xl text-4xl tracking-tight text-ink sm:text-5xl">
-                Find it before a customer does.
-              </h2>
-              <p className="mx-auto mt-5 max-w-lg text-[15px] leading-7 text-sub">
-                Run the full demo in under two minutes. No setup, no credit
-                card, and every failure comes with a replay.
-              </p>
-              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <ButtonLink href="/runs" size="lg" className="min-w-36">
-                  Run the demo
-                </ButtonLink>
-                <ButtonLink
-                  href="/signup"
-                  size="lg"
-                  variant="secondary"
-                  className="min-w-36 bg-bg/40"
-                >
-                  Start free
-                </ButtonLink>
-              </div>
+          <section className={styles.closingCta}>
+            <div className={styles.closingGrid} aria-hidden />
+            <div className={styles.eyebrow}>
+              <span aria-hidden />
+              Your agent has a blind spot
+            </div>
+            <h2>
+              Find it before
+              <br />
+              <em>a customer does.</em>
+            </h2>
+            <p>
+              Run the demo in under two minutes. No setup, no credit card, and
+              every failure comes with a replay.
+            </p>
+            <div className={styles.closingActions}>
+              <ButtonLink href="/runs" size="lg">
+                Run the demo
+              </ButtonLink>
+              <ButtonLink href="/signup" size="lg" variant="secondary">
+                Start free
+              </ButtonLink>
             </div>
           </section>
         </LandingReveal>
 
-        <footer className="flex flex-col gap-4 border-t border-edge py-8 font-mono text-[10px] tracking-[0.14em] text-mut sm:flex-row sm:items-center sm:justify-between">
-          <span>PREFLIGHT · TEST BEFORE TRUST</span>
-          <div className="flex items-center gap-5">
-            <Link href="/product" className="transition-colors hover:text-ink">
-              PRODUCT
+        <footer className={styles.footer}>
+          <Link href="/" className={styles.brand} aria-label="Preflight home">
+            <span className={styles.brandSignal} aria-hidden />
+            <span>PREFLIGHT</span>
+          </Link>
+          <p>TEST BEFORE TRUST · © 2026</p>
+          <nav aria-label="Footer navigation">
+            <Link href="/product">Product</Link>
+            <Link href="/integrations">Integrations</Link>
+            <Link href="/pricing">Pricing</Link>
+            <Link href="/login">Sign in</Link>
+            <Link href="/signup" className={styles.footerCta}>
+              Start free →
             </Link>
-            <Link href="/integrations" className="transition-colors hover:text-ink">
-              INTEGRATIONS
-            </Link>
-            <Link href="/pricing" className="transition-colors hover:text-ink">
-              PRICING
-            </Link>
-            <Link href="/login" className="transition-colors hover:text-ink">
-              SIGN IN
-            </Link>
-            <span>© 2026</span>
-          </div>
+          </nav>
         </footer>
       </div>
     </main>
