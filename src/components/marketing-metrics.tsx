@@ -1,56 +1,58 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { demoRun, runStats } from "@/lib/fixtures/run";
 import styles from "./marketing-metrics.module.css";
 
-const METRICS = [
+const OUTCOMES = [
   {
-    value: "194",
-    label: "scenarios handled correctly",
-    shortLabel: "CORRECT",
-    status: "CLEARED",
-    width: 97,
-    tone: "safe",
+    count: runStats.pass.toLocaleString(),
+    label: "Handled correctly",
+    detail: "Passed the expected path",
+    glyph: "✓",
+    tone: "pass",
   },
   {
-    value: "4",
-    label: "would have reached customers",
-    shortLabel: "CUSTOMER IMPACT",
-    status: "BLOCK",
-    width: 2,
+    count: runStats.fail.toLocaleString(),
+    label: "Customer impact",
+    detail: "Would have reached customers",
+    glyph: "×",
     tone: "fail",
   },
   {
-    value: "2",
-    label: "resolved, but off-policy",
-    shortLabel: "OFF-POLICY",
-    status: "REVIEW",
-    width: 1,
-    tone: "warn",
+    count: runStats.partial.toLocaleString(),
+    label: "Off-policy",
+    detail: "Resolved outside policy",
+    glyph: "◐",
+    tone: "partial",
   },
 ] as const;
 
+const WALL_CELLS = demoRun.cells.map((cell) => ({
+  id: cell.scenarioId,
+  tone: cell.outcome,
+}));
+
 const consoleVariants: Variants = {
-  hidden: { opacity: 0.45, y: 18, scale: 0.985 },
+  hidden: { opacity: 0.45, y: 14 },
   visible: {
     opacity: 1,
     y: 0,
-    scale: 1,
     transition: {
-      duration: 0.72,
+      duration: 0.62,
       ease: [0.16, 1, 0.3, 1],
-      staggerChildren: 0.11,
-      delayChildren: 0.08,
+      staggerChildren: 0.08,
+      delayChildren: 0.04,
     },
   },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, x: 14 },
+  hidden: { opacity: 0, y: 8 },
   visible: {
     opacity: 1,
-    x: 0,
-    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1] },
+    y: 0,
+    transition: { duration: 0.46, ease: [0.16, 1, 0.3, 1] },
   },
 };
 
@@ -61,169 +63,119 @@ export function MarketingMetrics() {
     <motion.section
       initial={reduceMotion ? false : "hidden"}
       whileInView={reduceMotion ? undefined : "visible"}
-      viewport={{ once: true, amount: 0.38 }}
+      viewport={{ once: true, amount: 0.32 }}
       variants={consoleVariants}
       className={styles.console}
-      aria-label="Preflight launch diagnostic: 194 scenarios handled correctly, 4 would have reached customers, and 2 were resolved off-policy."
+      aria-label={`Completed Preflight run: ${runStats.pass} of ${runStats.total} scenarios passed, ${runStats.fail} failures would have reached customers, and ${runStats.partial} scenarios resolved off-policy.`}
     >
-      <div className={styles.grid} aria-hidden />
-      <motion.div
-        className={styles.scanBeam}
-        aria-hidden
-        animate={
-          reduceMotion
-            ? undefined
-            : { x: ["-160%", "620%"], opacity: [0, 0.65, 0.65, 0] }
-        }
-        transition={{
-          duration: 8,
-          ease: "linear",
-          repeat: Infinity,
-          repeatDelay: 1.4,
-        }}
-      />
-
       <header className={styles.header}>
-        <div className={styles.systemLabel}>
-          <motion.i
-            aria-hidden
-            animate={
-              reduceMotion
-                ? undefined
-                : { opacity: [0.45, 1, 0.45], scale: [0.82, 1, 0.82] }
-            }
-            transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
-          />
-          PREFLIGHT / LAUNCH DIAGNOSTIC
+        <div className={styles.runIdentity}>
+          <span className={styles.statusDot} aria-hidden />
+          <div>
+            <span>RUN run_0147</span>
+            <strong>
+              Aurora Support v1.3 <em>· Ecommerce Support Suite v2</em>
+            </strong>
+          </div>
         </div>
-        <div className={styles.runStamp}>
-          <span>ONE RUN · THIS MORNING</span>
-          <span className={styles.complete}>COMPLETE</span>
-        </div>
+        <span className={styles.complete}>COMPLETE</span>
       </header>
 
+      <motion.div className={styles.statsBar} variants={itemVariants}>
+        <span>
+          <small>PASS RATE</small>
+          <strong className={styles.accent}>{runStats.score}%</strong>
+        </span>
+        <span>
+          <small>COMPLETE</small>
+          <strong>{runStats.total} / {runStats.total}</strong>
+        </span>
+        <span>
+          <small>ELAPSED</small>
+          <strong>00:{String(Math.round(demoRun.durationMs / 1000)).padStart(2, "0")}</strong>
+        </span>
+        <span>
+          <small>COST</small>
+          <strong>${runStats.costUsd.toFixed(2)}</strong>
+        </span>
+      </motion.div>
+
       <div className={styles.body}>
-        <motion.div className={styles.dialPanel} variants={itemVariants}>
-          <div className={styles.dial}>
-            <div className={styles.dialTicks} aria-hidden />
-            <motion.div
-              className={styles.dialRing}
-              aria-hidden
-              initial={reduceMotion ? false : { opacity: 0, rotate: -38, scale: 0.9 }}
-              whileInView={
-                reduceMotion ? undefined : { opacity: 1, rotate: 0, scale: 1 }
-              }
-              viewport={{ once: true, amount: 0.55 }}
-              transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1] }}
-            />
-            <motion.div
-              className={styles.sweep}
-              aria-hidden
-              animate={reduceMotion ? undefined : { rotate: 360 }}
-              transition={{ duration: 5.8, repeat: Infinity, ease: "linear" }}
-            />
-            <div className={styles.dialCore}>
-              <span className={styles.dialKicker}>CLEARED</span>
-              <motion.strong variants={itemVariants}>194</motion.strong>
-              <span className={styles.dialTotal}>OF 200 SCENARIOS</span>
+        <motion.aside className={styles.readout} variants={itemVariants}>
+          <div className={styles.readoutHead}>
+            <span>RUN RESULT</span>
+            <div>
+              <strong>{runStats.pass}</strong>
+              <small>/ {runStats.total}</small>
             </div>
+            <p>scenarios handled correctly</p>
           </div>
 
-          <div className={styles.verdict}>
-            <span>LAUNCH SIGNAL</span>
-            <strong>97% correct</strong>
-            <p>
-              <b>4 block</b>
-              <i aria-hidden>·</i>
-              <em>2 review</em>
-            </p>
-          </div>
-        </motion.div>
-
-        <div className={styles.readout}>
-          <motion.div className={styles.readoutHeader} variants={itemVariants}>
-            <span>SCENARIO DISTRIBUTION</span>
-            <span>200 / 200 EVALUATED</span>
-          </motion.div>
-
-          <motion.div className={styles.distribution} variants={itemVariants}>
-            {METRICS.map((metric) => (
-              <motion.span
-                key={metric.shortLabel}
-                className={`${styles.distributionSegment} ${styles[metric.tone]}`}
-                style={{ flexGrow: metric.width }}
-                variants={{
-                  hidden: { scaleX: 0 },
-                  visible: {
-                    scaleX: 1,
-                    transition: {
-                      duration: 0.95,
-                      ease: [0.16, 1, 0.3, 1],
-                    },
-                  },
-                }}
-              />
-            ))}
-          </motion.div>
-
-          <div className={styles.metrics}>
-            {METRICS.map((metric) => (
+          <div className={styles.outcomes}>
+            {OUTCOMES.map((outcome) => (
               <motion.div
-                key={metric.label}
-                className={`${styles.metricRow} ${styles[metric.tone]}`}
+                key={outcome.label}
+                className={`${styles.outcome} ${styles[outcome.tone]}`}
                 variants={itemVariants}
               >
-                <span className={styles.metricValue}>{metric.value}</span>
-                <span className={styles.metricCopy}>
-                  <b>{metric.shortLabel}</b>
-                  <span>{metric.label}</span>
+                <span className={styles.outcomeGlyph} aria-hidden>
+                  {outcome.glyph}
                 </span>
-                <span className={styles.metricStatus}>
-                  <i aria-hidden />
-                  {metric.status}
+                <span className={styles.outcomeCopy}>
+                  <b>{outcome.label}</b>
+                  <small>{outcome.detail}</small>
                 </span>
-                <motion.span
-                  className={styles.metricTrace}
-                  aria-hidden
-                  variants={{
-                    hidden: { scaleX: 0, opacity: 0 },
-                    visible: {
-                      scaleX: 1,
-                      opacity: 1,
-                      transition: {
-                        duration: 0.82,
-                        ease: [0.16, 1, 0.3, 1],
-                      },
-                    },
-                  }}
-                />
+                <strong>{outcome.count}</strong>
               </motion.div>
             ))}
           </div>
-        </div>
-      </div>
+        </motion.aside>
 
-      <footer className={styles.footer}>
-        <span>TOOL PATHS / POLICY / JUDGEMENT</span>
-        <motion.span
-          className={styles.blockerSignal}
-          animate={
-            reduceMotion
-              ? undefined
-              : {
-                  opacity: [0.72, 1, 0.72],
-                  textShadow: [
-                    "0 0 0 rgba(240,84,79,0)",
-                    "0 0 18px rgba(240,84,79,.32)",
-                    "0 0 0 rgba(240,84,79,0)",
-                  ],
-                }
-          }
-          transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-        >
-          4 CUSTOMER-IMPACT BLOCKERS
-        </motion.span>
-      </footer>
+        <motion.div className={styles.wallPanel} variants={itemVariants}>
+          <div className={styles.wallHeader}>
+            <span>THE WALL</span>
+            <span>{runStats.total} SCENARIOS · OUTCOME MAP</span>
+          </div>
+
+          <div className={styles.wall} aria-hidden>
+            {WALL_CELLS.map((cell) => (
+              <span
+                key={cell.id}
+                className={`${styles.wallCell} ${styles[cell.tone]}`}
+                title={`${cell.id} · ${cell.tone}`}
+              >
+                {cell.tone === "pass" ? "✓" : cell.tone === "fail" ? "×" : "◐"}
+              </span>
+            ))}
+          </div>
+
+          <div className={styles.wallFooter}>
+            <span className={styles.legend}>
+              <i className={styles.pass} aria-hidden />
+              PASS {runStats.pass}
+            </span>
+            <span className={styles.legend}>
+              <i className={styles.fail} aria-hidden />
+              FAIL {runStats.fail}
+            </span>
+            <span className={styles.legend}>
+              <i className={styles.partial} aria-hidden />
+              PARTIAL {runStats.partial}
+            </span>
+          </div>
+
+          <div className={styles.completion}>
+            <motion.span
+              aria-hidden
+              initial={reduceMotion ? false : { scaleX: 0 }}
+              whileInView={reduceMotion ? undefined : { scaleX: 1 }}
+              viewport={{ once: true, amount: 0.65 }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+            />
+            <small>RUN COMPLETE · FULL EVIDENCE AVAILABLE IN THE RUN WALL</small>
+          </div>
+        </motion.div>
+      </div>
     </motion.section>
   );
 }

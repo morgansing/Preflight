@@ -34,9 +34,19 @@ function stateAt(cell: RunCell, elapsed: number): CellState {
   return "pending";
 }
 
-function useRunClock(loop: boolean, loopPauseMs = 3000, durationMs = DEMO_RUN_DURATION_MS) {
+function useRunClock(
+  loop: boolean,
+  loopPauseMs = 3000,
+  durationMs = DEMO_RUN_DURATION_MS,
+  active = true,
+) {
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number | null>(null);
+  const activeRef = useRef(active);
+
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   useEffect(() => {
     // Reduced motion: the looping showcase wall renders settled instead
@@ -52,7 +62,7 @@ function useRunClock(loop: boolean, loopPauseMs = 3000, durationMs = DEMO_RUN_DU
       const dt = now - last;
       last = now;
       startRef.current ??= now;
-      if (document.hidden) {
+      if (!activeRef.current || document.hidden) {
         // Pause while the tab is hidden — shift the start forward so
         // elapsed stays frozen instead of jumping on return.
         startRef.current += dt;
@@ -65,7 +75,7 @@ function useRunClock(loop: boolean, loopPauseMs = 3000, durationMs = DEMO_RUN_DU
         return;
       }
       setElapsed(Math.min(e, durationMs));
-    }, 120);
+    }, loop ? 240 : 120);
     return () => clearInterval(id);
   }, [loop, loopPauseMs, durationMs]);
 
@@ -191,7 +201,9 @@ export function Wall({
                 ? ` · ${state}`
                 : ""
             }`}
-            onOpen={() => href && router.push(href)}
+            onOpen={
+              interactive && href ? () => router.push(href) : undefined
+            }
           />
         );
       })}
@@ -201,10 +213,31 @@ export function Wall({
 
 /** Compact autoplaying wall for the landing page — muted, looping. */
 export function WallLoop({ className = "" }: { className?: string }) {
-  const { elapsed } = useRunClock(true);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(true);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setActive(entry.isIntersecting),
+      { rootMargin: "120px 0px" },
+    );
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  const { elapsed } = useRunClock(
+    true,
+    3000,
+    DEMO_RUN_DURATION_MS,
+    active,
+  );
   const stats = useWallStats(elapsed);
   return (
     <div
+      ref={rootRef}
       className={`rounded-xl border border-edge bg-surface p-6 shadow-card ${className}`}
     >
       <div className="mb-4 flex items-center justify-between font-mono text-[11px] tracking-wider text-mut">

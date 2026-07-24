@@ -3,11 +3,9 @@ import { HeroAuthButtons } from "@/components/hero-auth-buttons";
 import { LandingReveal } from "@/components/landing-reveal";
 import { MarketingMetrics } from "@/components/marketing-metrics";
 import { MarketingReadiness } from "@/components/marketing-readiness";
-import { MarketingReplay } from "@/components/marketing-replay";
+import { MarketingReplayPreview } from "@/components/marketing-replay-preview";
 import { WallLoop } from "@/components/mission-control";
 import { ButtonLink } from "@/components/ui";
-import { getReplay } from "@/lib/fixtures/replays";
-import { scenarioById } from "@/lib/fixtures/scenarios";
 import styles from "./landing.module.css";
 
 const coverageStops = [
@@ -78,9 +76,6 @@ const integrations = [
   ["HTTP", "Custom endpoint"],
 ];
 
-const replay = getReplay("SCN-0187");
-const replayScenario = scenarioById.get("SCN-0187");
-
 function Header() {
   return (
     <header className={styles.header}>
@@ -119,8 +114,6 @@ function SectionLabel({
 }
 
 export default function Landing() {
-  if (!replay || !replayScenario) return null;
-
   return (
     <main className={styles.page}>
       <div aria-hidden className={styles.ambient}>
@@ -321,15 +314,7 @@ export default function Landing() {
               </Link>
             </div>
             <div className={styles.replayVisual}>
-              <div className={styles.replayTopline}>
-                <span>SCN-0187 · PAYMENT RETRY</span>
-                <span>DIVERGENCE · STEP 04</span>
-              </div>
-              <MarketingReplay replay={replay} scenario={replayScenario} />
-              <div className={styles.diagnosisBar}>
-                <span>JUDGE DIAGNOSIS</span>
-                <p>{replay.failureReason}</p>
-              </div>
+              <MarketingReplayPreview />
             </div>
           </section>
         </LandingReveal>

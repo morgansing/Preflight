@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
+import { runStats } from "@/lib/fixtures/run";
 import styles from "./marketing-readiness.module.css";
 
 export type MarketingReadinessProps = {
@@ -9,27 +10,22 @@ export type MarketingReadinessProps = {
   baselineScore?: number;
   regressions?: number;
   scenarios?: number;
+  passed?: number;
+  failed?: number;
+  partial?: number;
   reportHref?: string;
   className?: string;
 };
 
-const evidence = [
-  {
-    number: "01",
-    label: "Proof replay",
-    detail: "Every failed decision",
-  },
-  {
-    number: "02",
-    label: "Root cause",
-    detail: "Failures grouped by cause",
-  },
-  {
-    number: "03",
-    label: "Release check",
-    detail: "Threshold + regressions",
-  },
+const strengths = [
+  "Product questions",
+  "Shipping updates",
+  "Order status",
 ];
+
+const weaknesses = ["Refund fraud", "Duplicate orders", "Escalations"];
+
+const SEGMENTS = 10;
 
 export function MarketingReadiness({
   score = 97,
@@ -37,7 +33,10 @@ export function MarketingReadiness({
   confidence = [94, 99],
   baselineScore = 94.6,
   regressions = 0,
-  scenarios = 200,
+  scenarios = runStats.total,
+  passed = runStats.pass,
+  failed = runStats.fail,
+  partial = runStats.partial,
   reportHref = "/share/demo",
   className = "",
 }: MarketingReadinessProps) {
@@ -50,6 +49,7 @@ export function MarketingReadiness({
   );
   const ready = boundedScore >= boundedThreshold && regressions === 0;
   const delta = boundedScore - baselineScore;
+  const filledSegments = Math.round((boundedScore / 100) * SEGMENTS);
   const variables = {
     "--score": `${boundedScore}%`,
     "--threshold": `${boundedThreshold}%`,
@@ -63,164 +63,168 @@ export function MarketingReadiness({
       style={variables}
       aria-labelledby="marketing-readiness-title"
     >
-      <div className={styles.sceneGrid} aria-hidden />
-      <div className={styles.sceneGlow} aria-hidden />
-      <div className={styles.signalOrbit} aria-hidden>
-        <i />
-      </div>
-
-      <div className={styles.report}>
+      <article className={styles.report}>
         <header className={styles.reportHeader}>
-          <div>
-            <span className={styles.liveDot} aria-hidden />
-            <p id="marketing-readiness-title">READINESS REPORT · RELEASE 042</p>
+          <div className={styles.reportIdentity}>
+            <span className={styles.statusDot} aria-hidden />
+            <div>
+              <p id="marketing-readiness-title">
+                READINESS REPORT · RUN_0147
+              </p>
+              <span>AURORA SUPPORT V1.3</span>
+            </div>
           </div>
-          <span className={styles.verified}>VERIFIED RESULT</span>
+          <span className={styles.reportVerdict} data-ready={ready}>
+            {ready ? "READY TO SHIP" : "REVIEW REQUIRED"}
+          </span>
         </header>
 
-        <div className={styles.scoreRegion}>
-          <div
-            className={styles.scoreRing}
-            aria-label={`Readiness score ${boundedScore} percent`}
-          >
-            <div>
+        <div className={styles.reportMeta}>
+          <span>ECOMMERCE SUPPORT SUITE V2</span>
+          <span>JULY 14, 2026</span>
+        </div>
+
+        <div className={styles.readinessPanel}>
+          <div className={styles.scoreCard}>
+            <span className={styles.eyebrow}>AGENT READINESS</span>
+            <div
+              className={styles.scoreLockup}
+              aria-label={`Readiness score ${boundedScore} percent`}
+            >
               <strong>{boundedScore}</strong>
               <span>%</span>
             </div>
+            <div className={styles.segmentRow} aria-hidden>
+              {Array.from({ length: SEGMENTS }).map((_, index) => (
+                <span
+                  key={index}
+                  data-filled={index < filledSegments}
+                  style={{ animationDelay: `${70 + index * 36}ms` }}
+                />
+              ))}
+            </div>
+            <p className={styles.scoreVerdict} data-ready={ready}>
+              {ready ? "Ready to ship" : "Below release threshold"}
+            </p>
           </div>
 
-          <div className={styles.scoreSummary}>
-            <span className={styles.summaryLabel}>RELEASE VERDICT</span>
-            <h3>{ready ? "Ready to ship" : "Review required"}</h3>
-            <p>
-              {ready
-                ? `Score clears the ${boundedThreshold}% threshold with no new regressions.`
-                : `The release does not yet clear every configured gate.`}
-            </p>
-            <div className={styles.verdictChip} data-ready={ready}>
-              <span aria-hidden>{ready ? "✓" : "!"}</span>
-              {ready ? "PASS" : "HOLD"}
-            </div>
+          <div className={styles.categoryGrid}>
+            <ReportList
+              title="STRENGTHS"
+              items={strengths}
+              glyph="✓"
+              tone="positive"
+            />
+            <ReportList
+              title="WEAKNESSES"
+              items={weaknesses}
+              glyph="×"
+              tone="negative"
+            />
           </div>
         </div>
 
-        <div className={styles.thresholdPanel}>
-          <div className={styles.thresholdHeader}>
+        <div className={styles.confidencePanel}>
+          <div className={styles.confidenceHeader}>
             <span>SCORE CONFIDENCE</span>
             <span>
               95% CI · {confidenceLow}–{confidenceHigh}
             </span>
           </div>
           <div
-            className={styles.thresholdTrack}
+            className={styles.confidenceTrack}
             aria-label={`Score ${boundedScore}; release threshold ${boundedThreshold}; 95 percent confidence interval ${confidenceLow} to ${confidenceHigh}`}
           >
             <span className={styles.trackBase} aria-hidden />
             <span className={styles.scoreFill} aria-hidden />
             <span className={styles.confidenceBand} aria-hidden />
             <span className={styles.thresholdMarker} aria-hidden>
-              <i />
               <small>GATE {boundedThreshold}</small>
             </span>
             <span className={styles.scoreMarker} aria-hidden>
-              <i />
               <small>{boundedScore}</small>
             </span>
           </div>
-          <div className={styles.trackTicks} aria-hidden>
-            <span>0</span>
-            <span>25</span>
-            <span>50</span>
-            <span>75</span>
-            <span>100</span>
-          </div>
         </div>
 
-        <div className={styles.evidenceFlow}>
-          {evidence.map((item, index) => (
-            <div className={styles.evidenceItem} key={item.number}>
-              <span className={styles.evidenceNumber}>{item.number}</span>
-              <div>
-                <strong>{item.label}</strong>
-                <small>{item.detail}</small>
-              </div>
-              <span className={styles.evidenceCheck} aria-label="Available">
-                ✓
-              </span>
-              {index < evidence.length - 1 && (
-                <span className={styles.evidenceLine} aria-hidden>
-                  <i />
-                </span>
-              )}
+        <div className={styles.reportSections}>
+          <section className={styles.baselineSection}>
+            <div>
+              <span className={styles.eyebrow}>VERSUS BASELINE</span>
+              <small>PINNED · RUN_0146</small>
             </div>
-          ))}
-        </div>
+            <div className={styles.baselineScore}>
+              <span>{baselineScore.toFixed(1)}%</span>
+              <i aria-hidden>→</i>
+              <strong>{boundedScore.toFixed(1)}%</strong>
+              <small className={delta >= 0 ? styles.positive : styles.negative}>
+                {delta >= 0 ? "+" : ""}
+                {delta.toFixed(1)}
+              </small>
+            </div>
+          </section>
 
-        <div className={styles.reportFooter}>
-          <div>
-            <span>TEST COVERAGE</span>
-            <strong>{scenarios.toLocaleString()}</strong>
-            <small>scenarios judged</small>
-          </div>
-          <div>
-            <span>BASELINE</span>
-            <strong className={delta >= 0 ? styles.positive : styles.negative}>
-              {delta >= 0 ? "+" : ""}
-              {delta.toFixed(1)}
-            </strong>
-            <small>score movement</small>
-          </div>
-          <div>
-            <span>NEW REGRESSIONS</span>
+          <section className={styles.regressionSection}>
+            <span className={styles.eyebrow}>NEWLY FAILING</span>
             <strong className={regressions === 0 ? styles.positive : styles.negative}>
               {regressions}
             </strong>
-            <small>{regressions === 0 ? "none detected" : "newly broken"}</small>
-          </div>
-          <div className={styles.reportAction}>
-            <span>DECISION PACKET</span>
-            <Link href={reportHref}>
-              Open evidence <span aria-hidden>→</span>
-            </Link>
-          </div>
-        </div>
-      </div>
+            <small>
+              {regressions === 0 ? "No new regressions" : "Review before release"}
+            </small>
+          </section>
 
-      <aside className={styles.baselineCard} aria-label="Pinned baseline comparison">
-        <div className={styles.baselineTop}>
-          <span>PINNED BASELINE</span>
-          <span>MAIN · RUN 041</span>
+          <section className={styles.contentsSection}>
+            <span className={styles.eyebrow}>REPORT SECTIONS</span>
+            <p>
+              <span>WHERE IT BREAKS</span>
+              <strong>3 findings</strong>
+            </p>
+            <p>
+              <span>RISKS THAT MATTER</span>
+              <strong>5 risks</strong>
+            </p>
+          </section>
         </div>
-        <div className={styles.baselineScore}>
-          <span>{baselineScore.toFixed(1)}</span>
-          <i aria-hidden>→</i>
-          <strong>{boundedScore.toFixed(1)}</strong>
-        </div>
-        <div className={styles.baselineRows}>
-          <div>
-            <span>Score movement</span>
-            <strong className={delta >= 0 ? styles.positive : styles.negative}>
-              {delta >= 0 ? "+" : ""}
-              {delta.toFixed(1)}
-            </strong>
-          </div>
-          <div>
-            <span>Newly broken</span>
-            <strong className={regressions === 0 ? styles.positive : styles.negative}>
-              {regressions}
-            </strong>
-          </div>
-        </div>
-      </aside>
 
-      <div className={styles.gateCard} data-ready={ready}>
-        <div>
-          <span className={styles.gatePulse} aria-hidden />
-          <p>RELEASE GATE</p>
-        </div>
-        <strong>{ready ? "PASSING" : "BLOCKED"}</strong>
-        <small>{ready ? "evidence attached" : "action required"}</small>
-      </div>
+        <footer className={styles.reportFooter}>
+          <p>
+            RUN_0147 · {scenarios.toLocaleString()} SCENARIOS · {passed} PASSED ·{" "}
+            {failed} FAILED · {partial} PARTIAL
+          </p>
+          <Link href={reportHref}>
+            FULL REPORT <span aria-hidden>→</span>
+          </Link>
+        </footer>
+      </article>
+    </section>
+  );
+}
+
+function ReportList({
+  title,
+  items,
+  glyph,
+  tone,
+}: {
+  title: string;
+  items: readonly string[];
+  glyph: string;
+  tone: "positive" | "negative";
+}) {
+  return (
+    <section className={styles.reportList}>
+      <span className={styles.eyebrow}>{title}</span>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>
+            <span className={styles[tone]} aria-hidden>
+              {glyph}
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
