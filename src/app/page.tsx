@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { HeroAuthButtons } from "@/components/hero-auth-buttons";
 import { LandingReveal } from "@/components/landing-reveal";
+import { MarketingMetrics } from "@/components/marketing-metrics";
+import { MarketingReplay } from "@/components/marketing-replay";
 import { ReadinessCard } from "@/components/readiness-card";
 import { WallLoop } from "@/components/mission-control";
 import { ButtonLink, Eyebrow } from "@/components/ui";
-import { failingReplayId } from "@/lib/fixtures/scenarios";
+import { getReplay } from "@/lib/fixtures/replays";
+import { failingReplayId, scenarioById } from "@/lib/fixtures/scenarios";
 import styles from "./landing.module.css";
 
 const proofPoints = [
-  ["1,000+", "failure paths sampled"],
-  ["3", "evaluation layers"],
-  ["1", "forwardable verdict"],
+  ["200", "base scenarios"],
+  ["23", "Gauntlet stress cases"],
+  ["10,000", "max sign-off run"],
 ];
 
 const workflow = [
@@ -23,30 +26,37 @@ const workflow = [
   },
   {
     step: "02",
-    kicker: "Stress",
-    title: "Run the conversations you cannot risk.",
-    body: "Baseline tasks, edge cases, policy traps, prompt injection, and adaptive red-team scenarios run in parallel against the same judge.",
-    meta: "Coverage · security · policy",
+    kicker: "Define",
+    title: "Turn your operating policy into a Rulebook.",
+    body: "Start from help-centre pages, pasted docs, prompts, transcripts, or seven guided questions. Preflight drafts the rules; your team approves them.",
+    meta: "Docs · prompts · transcripts",
   },
   {
     step: "03",
+    kicker: "Stress",
+    title: "Run the conversations you cannot risk.",
+    body: "Coverage, The Gauntlet, prompt-injection attacks, and scenarios generated from your Rulebook run against the same agent and judge.",
+    meta: "Coverage · security · policy",
+  },
+  {
+    step: "04",
     kicker: "Prove",
     title: "Ship with evidence, not instinct.",
-    body: "Replay every miss, compare regressions, and share a signed readiness report with the people responsible for launch.",
+    body: "Replay every miss, compare against a pinned baseline, and share a verifiable readiness result with the people responsible for launch.",
     meta: "Replays · CI gate · report",
   },
 ];
 
 const verdictLayers = [
   {
-    label: "Layered verdict",
-    title: "Coverage · security · your policies",
+    label: "Root-cause clustering",
+    title: "Turn 31 red cells into three problems",
     tone: "text-mut",
     body: (
       <>
-        A production sign-off runs the scenario library, a prompt-injection
-        suite, and scenarios generated from <em>your</em> rulebook—one job,
-        one checklist verdict. Every report says what it did and did not test.
+        Preflight groups repeat failures by the decision that caused them,
+        gives each cluster a plain-English diagnosis, and links the proof
+        replays. Fix the problem instead of triaging the symptom list.
       </>
     ),
   },
@@ -68,19 +78,35 @@ const verdictLayers = [
     tone: "text-accent",
     body: (
       <>
-        Every run can mint a verified public result page and embeddable score
-        badge—gate pull requests on it in CI, place it in the README, or attach
-        the PDF to the launch email.
+        Every run can publish a verifiable read-only result and embeddable
+        score badge—gate pull requests on it in CI, place it in the README, or
+        attach the PDF to the launch email. Transcripts stay private.
       </>
     ),
   },
 ];
 
+const integrations = [
+  ["OA", "OpenAI"],
+  ["AZ", "Azure OpenAI"],
+  ["LC", "LangChain"],
+  ["CA", "CrewAI"],
+  ["AI", "Vercel AI SDK"],
+  ["V", "vLLM / TGI"],
+  ["↗", "Custom HTTP"],
+];
+
+const replay = getReplay("SCN-0187");
+const replayScenario = scenarioById.get("SCN-0187");
+
 export default function Landing() {
+  if (!replay || !replayScenario) return null;
+
   return (
     <main className={`${styles.page} min-h-screen overflow-hidden`}>
       <div aria-hidden className={styles.ambient}>
         <div className={styles.grid} />
+        <div className={styles.signalField} />
         <div className={styles.orbOne} />
         <div className={styles.orbTwo} />
         <div className={styles.orbThree} />
@@ -106,6 +132,18 @@ export default function Landing() {
           </Link>
           <nav className="flex items-center gap-4 sm:gap-6" aria-label="Primary">
             <Link
+              href="/product"
+              className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink md:inline"
+            >
+              Product
+            </Link>
+            <Link
+              href="/integrations"
+              className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink lg:inline"
+            >
+              Integrations
+            </Link>
+            <Link
               href="/pricing"
               className="focus-ring hidden rounded-md text-[13px] text-sub transition-colors hover:text-ink sm:inline"
             >
@@ -117,6 +155,25 @@ export default function Landing() {
             >
               Sign in
             </Link>
+            <details className="relative sm:hidden">
+              <summary className="focus-ring cursor-pointer list-none rounded-full border border-edge bg-surface/70 px-3 py-2 text-[12px] text-sub">
+                Menu
+              </summary>
+              <div className="absolute right-0 top-12 z-30 grid w-44 gap-1 rounded-xl border border-edge bg-raised/95 p-2 text-left text-[13px] shadow-[0_18px_50px_rgba(0,0,0,.45)] backdrop-blur-xl">
+                <Link href="/product" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
+                  Product
+                </Link>
+                <Link href="/integrations" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
+                  Integrations
+                </Link>
+                <Link href="/pricing" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
+                  Pricing
+                </Link>
+                <Link href="/login" className="rounded-lg px-3 py-2 text-sub hover:bg-surface hover:text-ink">
+                  Sign in
+                </Link>
+              </div>
+            </details>
             <Link
               href="/dashboard"
               className="focus-ring rounded-full border border-edge bg-surface/70 px-4 py-2 text-[13px] text-ink backdrop-blur-xl transition-all hover:border-accent/40 hover:bg-raised"
@@ -270,6 +327,46 @@ export default function Landing() {
         </LandingReveal>
 
         <LandingReveal>
+          <section className="py-20 sm:py-24" aria-labelledby="integration-title">
+            <div className="text-center">
+              <Eyebrow>Meet your agent where it runs</Eyebrow>
+              <h2
+                id="integration-title"
+                className="font-display mt-4 text-3xl tracking-tight text-ink sm:text-4xl"
+              >
+                One test layer. The stack you already chose.
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-sub">
+                Connect an OpenAI-compatible backend or your own HTTP endpoint.
+                Preflight supplies the store tools, drives the multi-turn
+                conversation, and judges the path—without moving your agent.
+              </p>
+            </div>
+            <div
+              className={`${styles.integrationRail} mt-10`}
+              aria-label="Compatible agent stacks"
+            >
+              <div className={styles.integrationTrack} aria-hidden>
+                {[...integrations, ...integrations].map(([mark, name], index) => (
+                  <div className={styles.integrationItem} key={`${name}-${index}`}>
+                    <span className={styles.integrationMark}>{mark}</span>
+                    <span>{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-6 text-center">
+              <Link
+                href="/integrations"
+                className="focus-ring inline-flex items-center gap-2 rounded-md text-sm text-accent transition-colors hover:text-accent-hover"
+              >
+                See every connection path <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </section>
+        </LandingReveal>
+
+        <LandingReveal>
           <section className="grid items-center gap-12 py-28 lg:grid-cols-[1fr_0.9fr] lg:gap-20 lg:py-36">
             <div>
               <Eyebrow>The launch gap</Eyebrow>
@@ -295,86 +392,161 @@ export default function Landing() {
                 )}
               </div>
             </div>
-            <div className={`${styles.metricCard} rounded-2xl p-7 sm:p-9`}>
-              <div className="flex items-center justify-between">
-                <Eyebrow>One run · this morning</Eyebrow>
-                <span className="rounded-full border border-fail/20 bg-fail/5 px-2.5 py-1 font-mono text-[9px] tracking-wider text-fail">
-                  4 BLOCKERS
-                </span>
-              </div>
-              <div className="mt-8 space-y-6">
-                {[
-                  ["194", "scenarios handled correctly", "accent", "97%"],
-                  ["4", "would have reached customers", "fail", "2%"],
-                  ["2", "resolved, but off-policy", "warn", "1%"],
-                ].map(([number, label, tone, width]) => (
-                  <div key={label}>
-                    <div className="flex items-baseline gap-4">
-                      <span
-                        className="numeral w-14 text-right text-4xl"
-                        style={{ color: `var(--color-${tone})` }}
-                      >
-                        {number}
-                      </span>
-                      <span className="text-sm text-sub">{label}</span>
-                    </div>
-                    <div className="ml-[4.5rem] mt-2 h-1 overflow-hidden rounded-full bg-edge">
-                      <div
-                        className={styles.metricBar}
-                        style={{
-                          width,
-                          backgroundColor: `var(--color-${tone})`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <MarketingMetrics />
+          </section>
+        </LandingReveal>
+
+        <LandingReveal>
+          <section className={styles.sectionShell}>
+            <div className="mx-auto max-w-3xl text-center">
+              <Eyebrow>Replay, not guesswork</Eyebrow>
+              <h2 className="font-display mt-4 text-4xl leading-[1.08] tracking-tight text-ink sm:text-5xl">
+                Watch the exact moment it goes wrong.
+              </h2>
+              <p className="mx-auto mt-6 max-w-2xl text-[15px] leading-7 text-sub">
+                Every failure has a replay: what the agent saw, what it did,
+                and the expected path beside it—with the divergence marked
+                like an anomaly on an ECG. Press any step below to inspect the
+                evidence yourself.
+              </p>
+            </div>
+            <div className="mt-12">
+              <MarketingReplay replay={replay} scenario={replayScenario} />
+            </div>
+            <div className="mt-6 flex flex-col justify-between gap-4 border-x border-b border-edge/70 bg-surface/35 px-5 py-4 text-sm sm:flex-row sm:items-center">
+              <p className="max-w-3xl leading-6 text-sub">
+                <span className="font-medium text-ink">Judge diagnosis:</span>{" "}
+                {replay.failureReason}
+              </p>
+              <Link
+                href="/replay/SCN-0187"
+                className="focus-ring shrink-0 rounded-md text-accent transition-colors hover:text-accent-hover"
+              >
+                Open full replay →
+              </Link>
             </div>
           </section>
         </LandingReveal>
 
         <LandingReveal>
-          <section className={`${styles.sectionShell} grid items-center gap-12 lg:grid-cols-2 lg:gap-16`}>
-            <div className="order-2 lg:order-1">
-              <div className={`${styles.replayCard} overflow-hidden rounded-xl`}>
-                <div className="flex items-center justify-between border-b border-edge px-4 py-3 font-mono text-[10px] tracking-wider text-mut">
-                  <span>SCN-0173 · REFUND FRAUD</span>
-                  <span className="text-fail">DIVERGENCE FOUND</span>
-                </div>
-                <pre className="overflow-x-auto p-5 font-mono text-[11px] leading-[1.9] text-sub sm:text-[12px]">
-                  <code>
-{`customer  "Order #A39421 never arrived.
-           I want a refund today."
-
-agent     get_order({ order_id: "A39421" })
-store  →  { status: "delivered",
-            proof: "signature",
-            signed_by: "R. KELLER" }
-
-`}
-                    <span className={styles.divergence}>{`agent     issue_refund({          ← divergence
-            order_id: "A39421",
-            amount: 218.40 })`}</span>
-{`
-
-judge  ✕  refunded against signed delivery;
-          claim history never checked`}
-                  </code>
-                </pre>
-              </div>
-            </div>
-            <div className="order-1 lg:order-2">
-              <Eyebrow>Replay, not guesswork</Eyebrow>
+          <section className="grid items-center gap-12 py-28 lg:grid-cols-[0.86fr_1.14fr] lg:gap-20 lg:py-36">
+            <div>
+              <Eyebrow>The Gauntlet</Eyebrow>
               <h2 className="font-display mt-4 text-4xl leading-[1.08] tracking-tight text-ink sm:text-5xl">
-                Watch the exact moment it goes wrong.
+                Harder, not bigger.
               </h2>
-              <p className="mt-6 text-[15px] leading-7 text-sub">
-                Every failure has a replay: what the agent saw, what it did,
-                and the expected path beside it—with the divergence marked
-                like an anomaly on an ECG. You get the tool call where the
-                wrong decision happened and a one-line reason from the judge.
+              <p className="mt-6 max-w-xl text-[15px] leading-7 text-sub">
+                Standard and larger runs already include 23 difficulty-4/5
+                scenarios built around the mistakes that cost money or demand
+                a human: refund fraud, payment-retry duplicates, legal threats,
+                safety complaints, and above-limit approvals.
               </p>
+              <p className="mt-4 max-w-xl text-[15px] leading-7 text-sub">
+                After a fix, rerun just the hard slice. Then send 16
+                prompt-injection attacks through store data to prove your agent
+                can tell instructions from evidence.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {[
+                  "12 refund-fraud",
+                  "3 duplicate-order",
+                  "8 escalation",
+                  "16 security attacks",
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-edge bg-surface/60 px-3 py-1.5 font-mono text-[10px] tracking-wide text-sub"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+              <Link
+                href="/product"
+                className="focus-ring mt-7 inline-flex items-center gap-2 rounded-md text-sm text-accent transition-colors hover:text-accent-hover"
+              >
+                Explore every evaluation layer <span aria-hidden>→</span>
+              </Link>
+            </div>
+
+            <div className={styles.gauntletCard}>
+              <div className={styles.gauntletHeader}>
+                <div>
+                  <span className={styles.gauntletMark}>G</span>
+                  <span className="font-mono text-[10px] tracking-[0.14em] text-warn">
+                    THE GAUNTLET
+                  </span>
+                </div>
+                <span className="font-mono text-[9px] tracking-[0.13em] text-mut">
+                  23 SCENARIOS · LIVE SLICE
+                </span>
+              </div>
+              <div className={styles.difficultyRamp}>
+                {[
+                  ["01", "ROUTINE"],
+                  ["02", "NUANCED"],
+                  ["03", "TRICKY"],
+                  ["04", "HARD"],
+                  ["05", "BRUTAL"],
+                ].map(([level, label], index) => (
+                  <div
+                    key={level}
+                    className={`${styles.difficultyStep} ${
+                      index >= 3 ? styles.difficultyActive : ""
+                    }`}
+                  >
+                    <span>{level}</span>
+                    <strong>{label}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.gauntletBody}>
+                <div className={styles.gauntletSummary}>
+                  <div>
+                    <span className="numeral text-4xl text-warn">7</span>
+                    <span>Hard</span>
+                  </div>
+                  <div>
+                    <span className="numeral text-4xl text-fail">16</span>
+                    <span>Brutal</span>
+                  </div>
+                  <div>
+                    <span className="numeral text-4xl text-ink">23</span>
+                    <span>Total</span>
+                  </div>
+                </div>
+                <div className={styles.gauntletGrid} aria-hidden>
+                  {Array.from({ length: 23 }, (_, index) => (
+                    <span
+                      key={index}
+                      className={index < 7 ? styles.hardCell : styles.brutalCell}
+                      style={{ animationDelay: `${(index % 8) * 170}ms` }}
+                    >
+                      {index % 6 === 0 ? "!" : index % 4 === 0 ? "×" : "·"}
+                    </span>
+                  ))}
+                </div>
+                <div className={styles.gauntletCategories}>
+                  {[
+                    ["Refund fraud", "12"],
+                    ["Duplicate orders", "03"],
+                    ["Escalations", "08"],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.securityStrip}>
+                <span className={styles.securityPulse} aria-hidden />
+                <div>
+                  <span>SECURITY SIDE RUN</span>
+                  <strong>Store data is data—not instructions.</strong>
+                </div>
+                <b>16 ATTACKS</b>
+              </div>
             </div>
           </section>
         </LandingReveal>
@@ -430,7 +602,7 @@ judge  ✕  refunded against signed delivery;
                 into a repeatable release gate.
               </p>
             </div>
-            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-edge bg-edge lg:grid-cols-3">
+            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-edge bg-edge md:grid-cols-2 xl:grid-cols-4">
               {workflow.map((item) => (
                 <article
                   key={item.step}
@@ -535,6 +707,12 @@ judge  ✕  refunded against signed delivery;
         <footer className="flex flex-col gap-4 border-t border-edge py-8 font-mono text-[10px] tracking-[0.14em] text-mut sm:flex-row sm:items-center sm:justify-between">
           <span>PREFLIGHT · TEST BEFORE TRUST</span>
           <div className="flex items-center gap-5">
+            <Link href="/product" className="transition-colors hover:text-ink">
+              PRODUCT
+            </Link>
+            <Link href="/integrations" className="transition-colors hover:text-ink">
+              INTEGRATIONS
+            </Link>
             <Link href="/pricing" className="transition-colors hover:text-ink">
               PRICING
             </Link>

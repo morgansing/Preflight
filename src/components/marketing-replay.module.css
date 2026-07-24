@@ -1,0 +1,362 @@
+.shell {
+  overflow: hidden;
+  border: 1px solid var(--color-edge);
+  border-radius: 1.25rem;
+  background: #090b0d;
+  box-shadow:
+    0 34px 100px rgba(0, 0, 0, 0.46),
+    0 0 90px rgba(61, 220, 132, 0.035);
+}
+
+.header {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--color-edge);
+  background: rgba(26, 29, 35, 0.88);
+  padding: 1rem 1.25rem;
+}
+
+.headerIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wallLabel,
+.scenarioId,
+.severity,
+.telemetry,
+.columnLabel,
+.stepLabel,
+.pathKind,
+.violatedAt,
+.metAt,
+.stepCount {
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wallLabel,
+.scenarioId,
+.severity {
+  color: var(--color-mut);
+  font-size: 0.625rem;
+}
+
+.headerIdentity h3 {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.failChip {
+  flex: none;
+  border: 1px solid rgba(240, 84, 79, 0.4);
+  border-radius: 0.4rem;
+  background: rgba(240, 84, 79, 0.08);
+  padding: 0.3rem 0.55rem;
+  color: var(--color-fail);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+}
+
+.telemetry {
+  flex: none;
+  color: var(--color-sub);
+  font-size: 0.625rem;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 0.92fr 1.25fr 1fr;
+  gap: 1px;
+  background: var(--color-edge);
+}
+
+.column {
+  min-width: 0;
+  min-height: 33rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(61, 220, 132, 0.025), transparent 34%),
+    #090b0d;
+  padding: 1.4rem;
+}
+
+.activityColumn {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(61, 220, 132, 0.045), transparent 38%),
+    #090b0d;
+}
+
+.columnLabel {
+  margin-bottom: 1.25rem;
+  color: #738096;
+  font-size: 0.625rem;
+  letter-spacing: 0.19em;
+}
+
+.stack,
+.pathStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.stepCard,
+.pathCard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-edge);
+  border-radius: 0.75rem;
+  background: rgba(19, 21, 25, 0.88);
+  padding: 0.95rem;
+}
+
+.stepActive {
+  border-color: rgba(61, 220, 132, 0.26);
+  background: rgba(26, 29, 35, 0.96);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+}
+
+.stepDivergence {
+  border-color: rgba(240, 84, 79, 0.62);
+  background: rgba(240, 84, 79, 0.075);
+  box-shadow: 0 0 34px rgba(240, 84, 79, 0.08);
+}
+
+.divergenceFlag {
+  position: absolute;
+  top: 0;
+  right: 0.75rem;
+  border-radius: 0 0 0.35rem 0.35rem;
+  background: var(--color-fail);
+  padding: 0.2rem 0.4rem;
+  color: #170707;
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  letter-spacing: 0.12em;
+}
+
+.stepLabel {
+  margin-bottom: 0.55rem;
+  color: var(--color-mut);
+  font-size: 0.55rem;
+}
+
+.stepContent {
+  overflow: hidden;
+  color: var(--color-sub);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.reasoning {
+  color: #a68b52;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-style: italic;
+}
+
+.rubric {
+  margin-bottom: 1.15rem;
+  color: var(--color-sub);
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+.pathCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.8rem;
+}
+
+.pathCard p {
+  margin-top: 0.25rem;
+  color: var(--color-ink);
+  font-size: 0.69rem;
+  line-height: 1.55;
+}
+
+.mustGlyph {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.mustNotGlyph {
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.pathKind {
+  color: var(--color-mut);
+  font-size: 0.5rem;
+}
+
+.pathViolated p,
+.pathViolated .pathKind {
+  color: var(--color-fail);
+}
+
+.violatedAt,
+.metAt {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--color-fail);
+  font-size: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.metAt {
+  color: var(--color-accent);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--color-edge);
+  background: rgba(26, 29, 35, 0.92);
+  padding: 0.9rem 1.15rem;
+}
+
+.playButton {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-edge);
+  border-radius: 9999px;
+  color: var(--color-sub);
+  font-size: 0.65rem;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    background-color 180ms ease;
+}
+
+.playButton:hover,
+.playButton:focus-visible {
+  border-color: rgba(61, 220, 132, 0.45);
+  background: rgba(61, 220, 132, 0.06);
+  color: var(--color-accent);
+  outline: none;
+}
+
+.scrubber {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.scrubStep {
+  height: 0.22rem;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+  border-radius: 9999px;
+  background: var(--color-edge);
+  transition:
+    background-color 220ms ease,
+    transform 220ms ease;
+}
+
+.scrubStep:hover,
+.scrubStep:focus-visible {
+  transform: scaleY(2);
+  outline: none;
+}
+
+.scrubStepComplete {
+  background: rgba(61, 220, 132, 0.72);
+}
+
+.scrubFail {
+  background: var(--color-fail);
+}
+
+.stepCount {
+  color: var(--color-mut);
+  font-size: 0.55rem;
+}
+
+@media (max-width: 900px) {
+  .header {
+    align-items: flex-start;
+  }
+
+  .headerIdentity {
+    flex-wrap: wrap;
+  }
+
+  .headerIdentity h3 {
+    width: 100%;
+    order: 5;
+  }
+
+  .telemetry {
+    display: none;
+  }
+
+  .columns {
+    grid-template-columns: 1fr;
+  }
+
+  .column {
+    min-height: auto;
+  }
+
+  .activityColumn {
+    order: -1;
+    min-height: 28rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .header {
+    padding: 0.9rem;
+  }
+
+  .wallLabel,
+  .severity {
+    display: none;
+  }
+
+  .column {
+    padding: 1rem;
+  }
+
+  .activityColumn {
+    min-height: 25rem;
+  }
+
+  .controls {
+    grid-template-columns: 2.5rem 1fr;
+  }
+
+  .stepCount {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrubStep,
+  .playButton {
+    transition: none;
+  }
+}

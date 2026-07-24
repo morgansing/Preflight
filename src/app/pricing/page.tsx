@@ -1,226 +1,653 @@
-"use client";
-
 import Link from "next/link";
-import { ButtonLink, Card, Eyebrow } from "@/components/ui";
-import { CREDIT_PACKS, PLANS } from "@/lib/billing";
+import type { ReactNode } from "react";
+import {
+  DEFAULT_CATALOG,
+  parseCatalog,
+  type BillingCatalog,
+  type CatalogPlan,
+} from "@/lib/billing-catalog";
+import { tierById } from "@/lib/suite-tiers";
+import styles from "./pricing.module.css";
 
-/**
- * Pricing: the unit is the simulation, not the seat and not the day.
- * Free is 250 simulations (see your agent fail before paying anything);
- * plans are monthly allowances so testing becomes part of the workflow;
- * overage is prepaid packs or opt-in automatic billing.
- */
+const standardRun = tierById("standard");
 
-const WORKFLOW = ["Build", "Test", "Fix", "Rerun", "Ship"];
+if (!standardRun) {
+  throw new Error("The Standard suite tier is required to render pricing.");
+}
 
-const FAQ: { q: string; a: string }[] = [
-  {
-    q: "What counts as one simulation?",
-    a: "One scenario, run once: a full multi-turn conversation between the simulated customer and your agent, driving real store tools, judged against the rubric. A Standard run (200 scenarios) uses 200 simulations. Rerunning it uses 200 more.",
-  },
-  {
-    q: "Do unused simulations roll over?",
-    a: "Monthly plan allowances reset each cycle — they're priced for a testing habit, not for hoarding. Credit packs never expire and are drawn down only after your monthly allowance runs out.",
-  },
-  {
-    q: "What about my agent's own LLM costs?",
-    a: "Your agent runs on your infrastructure with your keys — Preflight never pays (or marks up) your model bill. Simulations cover Preflight's side: the simulated store, the customer persona, the judge, replays, reports, baselines and the CI gate.",
-  },
-  {
-    q: "What happens when I run out mid-month?",
-    a: "Runs never die mid-wall. If a run would exceed your balance, Preflight tells you before it starts — buy a pack, enable auto-overage, or pick a smaller tier.",
-  },
-];
+const STANDARD_RUN = standardRun;
+
+function getPricingCatalog(): BillingCatalog {
+  const override = process.env.BILLING_CATALOG_JSON;
+  if (!override) return DEFAULT_CATALOG;
+
+  try {
+    return parseCatalog(override);
+  } catch {
+    return DEFAULT_CATALOG;
+  }
+}
+
+function money(value: number, fractionDigits = 0) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
+function standardRunEquivalent(plan: CatalogPlan) {
+  const runs = plan.monthlyTokens / STANDARD_RUN.size;
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: runs < 10 ? 2 : 0,
+  }).format(runs);
+}
+
+function maxSuiteLabel(plan: CatalogPlan) {
+  const tier = tierById(plan.limits.maxSuite);
+  return tier
+    ? `${tier.name} · ${tier.size.toLocaleString()} scenarios`
+    : plan.limits.maxSuite;
+}
+
+function allowanceLabel(plan: CatalogPlan) {
+  const amount = plan.monthlyTokens.toLocaleString();
+  return plan.period === "monthly" ? `${amount} / month` : `${amount} total`;
+}
+
+function planPriceLabel(plan: CatalogPlan) {
+  return plan.priceMonthly === null ? money(0) : money(plan.priceMonthly);
+}
+
+function effectiveStandardRunPrice(plan: CatalogPlan) {
+  if (plan.priceMonthly === null) return null;
+  const runEquivalent = plan.monthlyTokens / STANDARD_RUN.size;
+  return money(plan.priceMonthly / runEquivalent, 2);
+}
+
+function FeatureCheck({ children }: { children: ReactNode }) {
+  return (
+    <li className={styles.feature}>
+      <span className={styles.check} aria-hidden>
+        ✓
+      </span>
+      <span>{children}</span>
+    </li>
+  );
+}
 
 export default function PricingPage() {
+  const catalog = getPricingCatalog();
+  const plans = catalog.plans;
+  const freePlan = plans.find((plan) => plan.priceMonthly === null) ?? plans[0];
+  const monthlyPlans = plans.filter((plan) => plan.period === "monthly");
+  const allowancesRollover = monthlyPlans.some((plan) => plan.rollover);
+
+  const faq: Array<{ question: string; answer: ReactNode }> = [
+    {
+      question: "What exactly counts as one simulation?",
+      answer: (
+        <>
+          One scenario, executed once against your agent. That can include a full
+          multi-turn customer conversation, tool calls, store state, and a
+          rubric-based verdict. A {STANDARD_RUN.name} run contains{" "}
+          {STANDARD_RUN.size.toLocaleString()} scenarios, so it consumes{" "}
+          {STANDARD_RUN.size.toLocaleString()} simulations. Rerunning it after a
+          fix consumes the same amount again.
+        </>
+      ),
+    },
+    {
+      question: "Is this monthly or annual pricing?",
+      answer: (
+        <>
+          Paid plans are billed monthly. The prices above do not assume an
+          annual contract or hide an annual commitment. The free allowance is a
+          one-time grant, not a monthly refill.
+        </>
+      ),
+    },
+    {
+      question: "Do unused simulations roll over?",
+      answer: allowancesRollover ? (
+        <>
+          Rollover depends on the plan; the comparison table shows the current
+          rule for each one. Purchased credit-pack simulations never expire.
+        </>
+      ) : (
+        <>
+          Monthly plan allowances reset at the end of each billing cycle and do
+          not roll over. Purchased credit-pack simulations are different: they
+          never expire and are used after the monthly allowance.
+        </>
+      ),
+    },
+    {
+      question: "Does the price include my agent's model bill?",
+      answer: (
+        <>
+          No. Your agent runs on your infrastructure and with your provider
+          keys, so its model and tool costs remain on your bill. Preflight does
+          not mark them up. Your simulation balance covers Preflight&apos;s
+          customer simulation, store, judge, replays, reports, baselines, and
+          CI gate.
+        </>
+      ),
+    },
+    {
+      question: "What happens if a run needs more simulations than I have?",
+      answer: (
+        <>
+          Preflight checks the required balance before launch. Add a
+          non-expiring credit pack or enable automatic overage on a paid plan,
+          then start the run. A wall that has already launched is not stopped
+          halfway through to ask for payment.
+        </>
+      ),
+    },
+    {
+      question: "How are Gauntlet and Rulebook suites billed?",
+      answer: (
+        <>
+          They use the same meter as every other suite: one executed scenario is
+          one simulation. There is no separate Gauntlet add-on fee. The
+          simulation count is shown before launch, so you know the balance a run
+          will use.
+        </>
+      ),
+    },
+  ];
+
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-8 py-6">
-        <Link href="/" className="focus-ring flex items-center gap-2 rounded-md">
-          <span aria-hidden className="inline-block size-2 rounded-full bg-accent" />
-          <span className="font-mono text-xs tracking-[0.18em] text-ink">PREFLIGHT</span>
-        </Link>
-        <nav className="flex items-center gap-6">
-          <Link href="/login" className="focus-ring rounded text-[13px] text-sub hover:text-ink">
-            Sign in
+    <div className={styles.page}>
+      <div className={styles.ambient} aria-hidden>
+        <div className={styles.grid} />
+        <div className={styles.flareOne} />
+        <div className={styles.flareTwo} />
+        <div className={styles.scan} />
+      </div>
+
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <Link href="/" className={styles.brand} aria-label="Preflight home">
+            <span className={styles.brandSignal} aria-hidden>
+              <span />
+            </span>
+            <span>PREFLIGHT</span>
           </Link>
-          <ButtonLink href="/signup" size="sm">
-            Start free
-          </ButtonLink>
-        </nav>
+          <nav className={styles.nav} aria-label="Primary navigation">
+            <Link href="/product">Product</Link>
+            <Link href="/integrations">Integrations</Link>
+            <Link href="/login">Sign in</Link>
+            <Link href="/signup" className={styles.navCta}>
+              Start free <span aria-hidden>→</span>
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-8 pb-24">
-        {/* Hero */}
-        <div className="mx-auto max-w-2xl pt-14 text-center">
-          <Eyebrow>Pricing</Eyebrow>
-          <h1 className="font-display mt-4 text-5xl leading-[1.1] tracking-tight text-ink">
-            Pay per simulation.
-            <br />
-            Not per seat, not per day.
+      <main className={styles.main}>
+        <section className={styles.hero} aria-labelledby="pricing-heading">
+          <div className={styles.heroEyebrow}>
+            <span aria-hidden />
+            Monthly pricing · metered by simulations
+          </div>
+          <h1 id="pricing-heading" className={styles.heroTitle}>
+            Test every change.
+            <span> Pay for the evidence.</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-sub">
-            One simulation = one scenario run against your agent, judged. Your first{" "}
-            <span className="text-ink">250 are free — no credit card</span> — because the fastest
-            way to understand Preflight is watching your own agent fail.
+          <p className={styles.heroCopy}>
+            Run realistic conversations, policy traps, security attacks, and
+            regression suites against your agent. Pricing follows the work:
+            simulations executed, never seats occupied.
           </p>
-        </div>
-
-        {/* Plans */}
-        <div className="mt-14 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {PLANS.map((plan) => {
-            const featured = plan.id === "team";
-            return (
-              <Card
-                key={plan.id}
-                className={`relative flex flex-col p-6 ${
-                  featured ? "border-accent/50 bg-raised" : ""
-                }`}
-              >
-                {featured && (
-                  <span className="absolute -top-2.5 left-6 rounded border border-accent/40 bg-surface px-2 py-0.5 font-mono text-[9px] tracking-[0.14em] text-accent">
-                    MOST TEAMS
-                  </span>
-                )}
-                <div className="text-[15px] font-medium text-ink">{plan.name}</div>
-                <div className="mt-3 flex items-baseline gap-1.5">
-                  {plan.priceMonthly === null ? (
-                    <span className="font-display text-4xl text-ink">$0</span>
-                  ) : (
-                    <>
-                      <span className="font-display text-4xl text-ink">
-                        ${plan.priceMonthly.toLocaleString()}
-                      </span>
-                      <span className="text-sm text-mut">/mo</span>
-                    </>
-                  )}
-                </div>
-                <div className="mt-2 font-mono text-[12px] tabular-nums text-sub">
-                  {plan.simsIncluded.toLocaleString()} simulations
-                  {plan.priceMonthly === null ? " · one-time" : " / month"}
-                </div>
-                <p className="mt-3 text-[13px] leading-relaxed text-sub">{plan.tagline}</p>
-                <ul className="mt-5 flex-1 space-y-2.5">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex gap-2.5 text-[13px] leading-snug text-sub">
-                      <span aria-hidden className="mt-0.5 text-accent">
-                        ✓
-                      </span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6">
-                  <ButtonLink
-                    href="/signup"
-                    variant={featured ? "primary" : "secondary"}
-                    className="w-full"
-                  >
-                    {plan.priceMonthly === null ? "Start free" : `Start with ${plan.name}`}
-                  </ButtonLink>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Overage */}
-        <section className="mx-auto mt-20 max-w-4xl">
-          <div className="text-center">
-            <Eyebrow>When you need more</Eyebrow>
-            <h2 className="font-display mt-3 text-3xl tracking-tight text-ink">
-              Run past your allowance, your way
-            </h2>
+          <div className={styles.heroActions}>
+            <Link href="/signup" className={styles.primaryButton}>
+              Run {freePlan.monthlyTokens.toLocaleString()} simulations free
+              <span aria-hidden>→</span>
+            </Link>
+            <Link href="/runs" className={styles.secondaryButton}>
+              Watch a live run
+            </Link>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <Card className="p-6">
-              <div className="text-[15px] font-medium text-ink">Credit packs</div>
-              <p className="mt-2 text-[13px] leading-relaxed text-sub">
-                Prepaid, never expire, drawn down after your monthly allowance. Predictable for
-                procurement.
-              </p>
-              <ul className="mt-4 space-y-2">
-                {CREDIT_PACKS.map((p) => (
-                  <li
-                    key={p.sims}
-                    className="flex items-baseline justify-between border-b border-edge pb-2 font-mono text-[13px] tabular-nums last:border-0"
-                  >
-                    <span className="text-ink">{p.sims.toLocaleString()} simulations</span>
-                    <span className="text-sub">${p.price.toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <Card className="p-6">
-              <div className="text-[15px] font-medium text-ink">Automatic overage</div>
-              <p className="mt-2 text-[13px] leading-relaxed text-sub">
-                Opt-in, off by default. Keep shipping through a heavy month and settle the extra
-                per 1,000 simulations at your plan&apos;s rate — no run ever blocks on a purchase
-                order.
-              </p>
-              <ul className="mt-4 space-y-2">
-                {PLANS.filter((p) => p.overagePer1k).map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-baseline justify-between border-b border-edge pb-2 font-mono text-[13px] tabular-nums last:border-0"
-                  >
-                    <span className="text-ink">{p.name}</span>
-                    <span className="text-sub">${p.overagePer1k} / extra 1,000</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+          <div className={styles.heroFacts} aria-label="Pricing highlights">
+            <span>
+              <i aria-hidden>01</i> No credit card
+            </span>
+            <span>
+              <i aria-hidden>02</i> Monthly plans only
+            </span>
+            <span>
+              <i aria-hidden>03</i> No per-seat charge
+            </span>
           </div>
         </section>
 
-        {/* Why subscriptions, not PAYG */}
-        <section className="mx-auto mt-20 max-w-3xl rounded-xl border border-edge bg-surface p-8 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-[13px] tracking-wide">
-            {WORKFLOW.map((step, i) => (
-              <span key={step} className="flex items-center gap-2">
-                <span className={step === "Test" || step === "Rerun" ? "text-accent" : "text-sub"}>
-                  {step}
-                </span>
-                {i < WORKFLOW.length - 1 && (
-                  <span aria-hidden className="text-mut">
-                    →
-                  </span>
-                )}
+        <section
+          className={styles.unitSection}
+          aria-labelledby="simulation-unit-heading"
+        >
+          <div className={styles.unitVisual}>
+            <div className={styles.visualTopline}>
+              <span>SIMULATION / ACTIVE</span>
+              <span className={styles.liveState}>
+                <i aria-hidden />
+                Evaluating
               </span>
-            ))}
+            </div>
+            <div className={styles.flow}>
+              <div className={styles.flowNode}>
+                <span>01</span>
+                <strong>Customer</strong>
+                <small>Realistic intent</small>
+              </div>
+              <div className={styles.flowRail} aria-hidden>
+                <span />
+              </div>
+              <div className={styles.flowNode}>
+                <span>02</span>
+                <strong>Your agent</strong>
+                <small>Replies + tools</small>
+              </div>
+              <div className={styles.flowRail} aria-hidden>
+                <span />
+              </div>
+              <div className={styles.flowNode}>
+                <span>03</span>
+                <strong>Judge</strong>
+                <small>Evidence + verdict</small>
+              </div>
+            </div>
+            <div className={styles.verdict}>
+              <div>
+                <span className={styles.verdictDot} aria-hidden />
+                <strong>PASS</strong>
+              </div>
+              <span>Replay stored · rubric checked · report updated</span>
+            </div>
           </div>
-          <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-sub">
-            Preflight is priced as an allowance instead of pay-as-you-go on purpose: readiness
-            isn&apos;t a one-off audit before launch, it&apos;s the test suite your agent runs
-            every time it changes. The plans are sized so rerunning after every fix is the
-            default, not a decision.
+
+          <div className={styles.unitCopy}>
+            <p className={styles.sectionEyebrow}>The billing unit</p>
+            <h2 id="simulation-unit-heading">
+              One scenario. One verdict. One simulation.
+            </h2>
+            <p>
+              A simulation is not a message or a token. It is the complete test:
+              the scenario setup, the conversation, tool activity, and the
+              judged outcome. That makes usage predictable before a run begins.
+            </p>
+            <div className={styles.formula}>
+              <span>
+                1 {STANDARD_RUN.name} suite
+                <small>Full base coverage</small>
+              </span>
+              <b aria-hidden>=</b>
+              <strong>
+                {STANDARD_RUN.size.toLocaleString()}
+                <small>simulations</small>
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.plansSection} aria-labelledby="plans-heading">
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.sectionEyebrow}>Choose your testing cadence</p>
+              <h2 id="plans-heading">From first failure to nightly sign-off.</h2>
+            </div>
+            <p>
+              Every paid price is monthly. Standard-run equivalents translate
+              the allowance into the way your team actually tests.
+            </p>
+          </div>
+
+          <div className={styles.planGrid}>
+            {plans.map((plan) => {
+              const featured = plan.id === "team";
+              const standardPrice = effectiveStandardRunPrice(plan);
+
+              return (
+                <article
+                  key={plan.id}
+                  className={`${styles.planCard} ${
+                    featured ? styles.featuredPlan : ""
+                  }`}
+                >
+                  {featured && (
+                    <div className={styles.featuredLabel}>
+                      <span aria-hidden />
+                      Best for production teams
+                    </div>
+                  )}
+                  <div className={styles.planTop}>
+                    <div>
+                      <p className={styles.planName}>{plan.name}</p>
+                      <p className={styles.planTagline}>{plan.tagline}</p>
+                    </div>
+                    <span className={styles.planCode}>
+                      {plan.period === "monthly" ? "MONTHLY" : "ONE-TIME"}
+                    </span>
+                  </div>
+
+                  <div className={styles.price}>
+                    <strong>{planPriceLabel(plan)}</strong>
+                    <span>
+                      {plan.priceMonthly === null
+                        ? "one-time grant"
+                        : "per month"}
+                    </span>
+                  </div>
+
+                  <div className={styles.allowance}>
+                    <div>
+                      <span>Included</span>
+                      <strong>{allowanceLabel(plan)}</strong>
+                    </div>
+                    <div>
+                      <span>Equivalent</span>
+                      <strong>
+                        {standardRunEquivalent(plan)} Standard runs
+                        {plan.period === "monthly" ? " / mo" : ""}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {standardPrice ? (
+                    <p className={styles.valueLine}>
+                      {standardPrice} per Standard run at full allowance
+                    </p>
+                  ) : (
+                    <p className={styles.valueLine}>
+                      Enough to run the full Standard suite before paying
+                    </p>
+                  )}
+
+                  <ul className={styles.features}>
+                    {plan.features.map((feature) => (
+                      <FeatureCheck key={feature}>{feature}</FeatureCheck>
+                    ))}
+                    <FeatureCheck>
+                      Up to {plan.limits.concurrency} concurrent scenarios
+                    </FeatureCheck>
+                    <FeatureCheck>
+                      Launch suites through {maxSuiteLabel(plan)}
+                    </FeatureCheck>
+                  </ul>
+
+                  <Link
+                    href="/signup"
+                    className={
+                      featured
+                        ? styles.planButtonPrimary
+                        : styles.planButtonSecondary
+                    }
+                    aria-label={
+                      plan.priceMonthly === null
+                        ? `Start with ${plan.name}`
+                        : `Choose the ${plan.name} monthly plan`
+                    }
+                  >
+                    {plan.priceMonthly === null
+                      ? "Start testing free"
+                      : `Choose ${plan.name}`}
+                    <span aria-hidden>→</span>
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+          <p className={styles.planFootnote}>
+            “Standard run” is a value comparison based on the{" "}
+            {STANDARD_RUN.size.toLocaleString()}-scenario Standard suite.
+            Effective per-run figures assume the full monthly allowance is
+            used. Your actual agent-provider bill is separate.
           </p>
         </section>
 
-        {/* FAQ */}
-        <section className="mx-auto mt-20 max-w-3xl">
-          <h2 className="font-display text-center text-3xl tracking-tight text-ink">
-            The fine print, plainly
-          </h2>
-          <div className="mt-8 space-y-6">
-            {FAQ.map((item) => (
-              <div key={item.q} className="border-l-2 border-edge pl-6">
-                <h3 className="text-[15px] font-medium text-ink">{item.q}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-sub">{item.a}</p>
+        <section
+          className={styles.comparisonSection}
+          aria-labelledby="comparison-heading"
+        >
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.sectionEyebrow}>Side by side</p>
+              <h2 id="comparison-heading">The limits, without the asterisks.</h2>
+            </div>
+            <p>
+              Usage, launch depth, concurrency, and overage come directly from
+              the same catalog Preflight enforces.
+            </p>
+          </div>
+
+          <div className={styles.tableWrap}>
+            <table className={styles.comparisonTable}>
+              <caption className={styles.srOnly}>
+                Comparison of Preflight pricing plans and enforced limits
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Plan</th>
+                  {plans.map((plan) => (
+                    <th key={plan.id} scope="col">
+                      <span>{plan.name}</span>
+                      <small>
+                        {plan.priceMonthly === null
+                          ? money(0)
+                          : `${money(plan.priceMonthly)} / mo`}
+                      </small>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Included simulations</th>
+                  {plans.map((plan) => (
+                    <td key={plan.id}>{allowanceLabel(plan)}</td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">Standard-run equivalent</th>
+                  {plans.map((plan) => (
+                    <td key={plan.id}>
+                      {standardRunEquivalent(plan)}
+                      {plan.period === "monthly" ? " / month" : " total"}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">Largest launchable suite</th>
+                  {plans.map((plan) => (
+                    <td key={plan.id}>{maxSuiteLabel(plan)}</td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">Run concurrency</th>
+                  {plans.map((plan) => (
+                    <td key={plan.id}>
+                      {plan.limits.concurrency} scenarios at once
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">Allowance rollover</th>
+                  {plans.map((plan) => (
+                    <td key={plan.id}>
+                      {plan.period === "lifetime"
+                        ? "One-time grant"
+                        : plan.rollover
+                          ? "Rolls over"
+                          : "Resets monthly"}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row">Automatic overage</th>
+                  {plans.map((plan) => (
+                    <td key={plan.id}>
+                      {plan.overagePer1k === null
+                        ? "Not available"
+                        : `${money(plan.overagePer1k)} / extra 1,000`}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className={styles.costSection} aria-labelledby="cost-heading">
+          <div className={styles.modelCallout}>
+            <div className={styles.calloutSignal} aria-hidden>
+              <span />
+              <span />
+              <span />
+            </div>
+            <p className={styles.sectionEyebrow}>Two bills, kept honest</p>
+            <h2 id="cost-heading">Your model bill stays yours.</h2>
+            <p>
+              Preflight does not resell or mark up the model calls made by your
+              agent. Keep your existing provider, keys, and infrastructure. We
+              meter the evaluation layer around it.
+            </p>
+            <div className={styles.costSplit}>
+              <div>
+                <span>Preflight covers</span>
+                <strong>
+                  Persona · simulated store · judge · replays · reports · CI
+                </strong>
               </div>
+              <div>
+                <span>You keep paying</span>
+                <strong>Your agent&apos;s model calls and external tools</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.creditPanel}>
+            <p className={styles.sectionEyebrow}>Burst capacity</p>
+            <h3>Credit packs that wait for you.</h3>
+            <p>
+              Buy once, use whenever. Pack simulations never expire and are
+              drawn only after the current plan allowance is exhausted.
+            </p>
+            <div className={styles.packList}>
+              {catalog.packs.map((pack) => {
+                const perThousand = (pack.price / pack.tokens) * 1_000;
+                return (
+                  <div className={styles.pack} key={pack.id}>
+                    <div>
+                      <strong>{pack.tokens.toLocaleString()}</strong>
+                      <span>simulations</span>
+                    </div>
+                    <div>
+                      <strong>{money(pack.price)}</strong>
+                      <span>{money(perThousand, 2)} / 1,000</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={styles.packNote}>
+              Prefer hands-off usage? Paid plans can opt into automatic overage
+              at the plan-specific rate shown above. It is off by default.
+            </p>
+          </div>
+        </section>
+
+        <section className={styles.workflowSection} aria-labelledby="habit-heading">
+          <div>
+            <p className={styles.sectionEyebrow}>Why a monthly allowance?</p>
+            <h2 id="habit-heading">Readiness is a loop, not a launch-day audit.</h2>
+          </div>
+          <div className={styles.workflow} aria-label="Preflight testing workflow">
+            {["Build", "Test", "Replay", "Fix", "Rerun", "Ship"].map(
+              (step, index, all) => (
+                <div className={styles.workflowStep} key={step}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{step}</strong>
+                  {index < all.length - 1 && <i aria-hidden>→</i>}
+                </div>
+              ),
+            )}
+          </div>
+          <p>
+            Plans are sized for the second run as much as the first. Catch the
+            failure, inspect the replay, change the agent, and rerun the same
+            evidence before it reaches production.
+          </p>
+        </section>
+
+        <section className={styles.faqSection} aria-labelledby="faq-heading">
+          <div className={styles.faqIntro}>
+            <p className={styles.sectionEyebrow}>Pricing FAQ</p>
+            <h2 id="faq-heading">The fine print, in plain English.</h2>
+            <p>
+              Still working out your expected run volume? Start free and watch
+              the usage meter on a real suite.
+            </p>
+            <Link href="/signup">
+              Start with {freePlan.monthlyTokens.toLocaleString()} simulations{" "}
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+          <div className={styles.faqList}>
+            {faq.map((item, index) => (
+              <details key={item.question} className={styles.faqItem}>
+                <summary>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{item.question}</strong>
+                  <i aria-hidden>+</i>
+                </summary>
+                <div>{item.answer}</div>
+              </details>
             ))}
           </div>
         </section>
 
-        {/* Bottom CTA */}
-        <div className="mt-20 text-center">
-          <ButtonLink href="/signup" size="lg">
-            Run your first 250 simulations free
-          </ButtonLink>
-          <p className="mt-3 text-[12px] text-mut">No credit card. Your replays are yours.</p>
-        </div>
+        <section className={styles.finalCta} aria-labelledby="final-cta-heading">
+          <div className={styles.ctaGrid} aria-hidden />
+          <div className={styles.ctaGlow} aria-hidden />
+          <p className={styles.sectionEyebrow}>Your agent is already changing</p>
+          <h2 id="final-cta-heading">Make the next release prove itself.</h2>
+          <p>
+            Connect an agent, generate its first suite, and get the evidence
+            before you spend a dollar.
+          </p>
+          <div className={styles.heroActions}>
+            <Link href="/signup" className={styles.primaryButton}>
+              Start free <span aria-hidden>→</span>
+            </Link>
+            <Link href="/runs" className={styles.secondaryButton}>
+              Explore the demo
+            </Link>
+          </div>
+          <small>
+            {freePlan.monthlyTokens.toLocaleString()} simulations · one-time
+            free grant · no credit card
+          </small>
+        </section>
       </main>
+
+      <footer className={styles.footer}>
+        <Link href="/" className={styles.brand} aria-label="Preflight home">
+          <span className={styles.brandSignal} aria-hidden>
+            <span />
+          </span>
+          <span>PREFLIGHT</span>
+        </Link>
+        <p>Evaluation infrastructure for production AI agents.</p>
+        <nav aria-label="Footer navigation">
+          <Link href="/">Home</Link>
+          <Link href="/product">Product</Link>
+          <Link href="/integrations">Integrations</Link>
+          <Link href="/runs">Demo</Link>
+          <Link href="/login">Sign in</Link>
+        </nav>
+      </footer>
     </div>
   );
 }

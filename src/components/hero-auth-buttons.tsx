@@ -39,12 +39,12 @@ export function HeroAuthButtons() {
   const showHostedBetaMessage = () => setMessage(true);
 
   return (
-    <div>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <div className="mx-auto max-w-[26rem]">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         <button
           type="button"
           onClick={showHostedBetaMessage}
-          className="focus-ring group flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-edge bg-surface/75 px-4 text-[13px] font-medium text-ink shadow-card backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:bg-raised"
+          className="focus-ring group flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-edge bg-surface/75 px-3 text-[12px] font-medium text-ink shadow-card backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:bg-raised sm:h-10"
         >
           <GitHubIcon />
           Continue with GitHub
@@ -52,7 +52,7 @@ export function HeroAuthButtons() {
         <button
           type="button"
           onClick={showHostedBetaMessage}
-          className="focus-ring group flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-edge bg-surface/75 px-4 text-[13px] font-medium text-ink shadow-card backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:bg-raised"
+          className="focus-ring group flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-edge bg-surface/75 px-3 text-[12px] font-medium text-ink shadow-card backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:bg-raised sm:h-10"
         >
           <GoogleIcon />
           Continue with Google
