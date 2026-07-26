@@ -21,9 +21,36 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Preflight — The flight simulator for AI agents",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  ),
+  title: {
+    default: "Preflight — The flight simulator for AI agents",
+    template: "%s | Preflight",
+  },
   description:
-    "Test your support agent against a thousand ways it could fail — before it fails a customer.",
+    "Stress-test AI agents across realistic scenarios, inspect every decision, and ship with evidence instead of hope.",
+  openGraph: {
+    type: "website",
+    title: "Know how your agent fails before your users do.",
+    description:
+      "The flight simulator for AI agents. Stress-test behavior, replay every decision, and turn failures into regression tests.",
+    images: [
+      {
+        url: "/og.png",
+        width: 1731,
+        height: 909,
+        alt: "Preflight agent replay showing what an agent saw, did, and should have done",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Know how your agent fails before your users do.",
+    description:
+      "Stress-test AI agents, replay every decision, and ship with evidence.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
