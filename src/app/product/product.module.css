@@ -28,7 +28,7 @@
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: linear-gradient(to bottom, #000, transparent 30%, transparent 78%, #000);
-  animation: gridDrift 36s linear infinite;
+  animation: none;
 }
 
 .glow,
@@ -44,7 +44,7 @@
   right: -14rem;
   width: 34rem;
   height: 34rem;
-  animation: glowFloat 18s ease-in-out infinite alternate;
+  animation: none;
 }
 
 .glowTwo {
@@ -53,7 +53,7 @@
   width: 38rem;
   height: 38rem;
   opacity: 0.65;
-  animation: glowFloatTwo 23s ease-in-out infinite alternate;
+  animation: none;
 }
 
 .shell {
@@ -321,9 +321,7 @@
 
 .heroSystem {
   position: relative;
-  animation:
-    riseIn 700ms 180ms var(--ease-out-quad) both,
-    systemFloat 7s 1s ease-in-out infinite;
+  animation: riseIn 700ms 180ms var(--ease-out-quad) both;
 }
 
 .heroSystem::after {
@@ -477,7 +475,7 @@
   border-radius: 0.12rem;
   background: var(--color-accent);
   opacity: 0.82;
-  animation: cellBlink 2.7s ease-in-out infinite;
+  animation: none;
 }
 
 .signalBars i:nth-child(3n) {
@@ -682,7 +680,7 @@
   font-family: var(--font-mono);
   font-size: 0.5rem;
   text-align: center;
-  animation: pressureWave 5s var(--delay) ease-in-out infinite;
+  animation: none;
 }
 
 .detailStack {
@@ -862,22 +860,48 @@
   height: 1.3rem;
   border-radius: 0.15rem;
   background: var(--color-accent);
-  animation: meter 2.5s ease-in-out infinite;
+  animation: none;
 }
 
 .gauntletMark i:nth-child(2) {
+  height: 1.75rem;
   animation-delay: 100ms;
 }
 
+.gauntletCard h2 a {
+  color: inherit;
+}
+
+.gauntletCard h2 a span {
+  display: inline-block;
+  margin-left: 0.25rem;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  transition: transform 180ms ease;
+}
+
+.gauntletCard h2 a:hover span {
+  transform: translateX(0.25rem);
+}
+
+.gauntletCard h2 a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
 .gauntletMark i:nth-child(3) {
+  height: 2.25rem;
   animation-delay: 200ms;
 }
 
 .gauntletMark i:nth-child(4) {
+  height: 1.65rem;
   animation-delay: 300ms;
 }
 
 .gauntletMark i:nth-child(5) {
+  height: 2.55rem;
   animation-delay: 400ms;
 }
 
@@ -1033,8 +1057,8 @@
 
 .eventRail > div {
   position: relative;
-  opacity: 0.52;
-  animation: eventFocus 4.8s var(--event-delay) ease-in-out infinite;
+  opacity: 0.72;
+  animation: none;
 }
 
 .eventRail > div::before {
@@ -1166,7 +1190,20 @@
   width: 11rem;
   border-radius: 0.55rem;
   padding: 0.85rem;
-  animation: clusterFloat 6s ease-in-out infinite;
+  animation: none;
+}
+
+.rulebookVisual,
+.replayWindow,
+.clusterVisual,
+.ciWindow {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 30rem;
+}
+
+.specialSuites article {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 33rem;
 }
 
 .cluster strong {

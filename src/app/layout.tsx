@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import { getSiteUrl } from "./seo";
 import "./globals.css";
 
 // Editorial display serif — stands in for Canela. Self-hosted at build
@@ -20,10 +21,21 @@ const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = getSiteUrl();
+
+const softwareApplicationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Preflight",
+  url: siteUrl.toString(),
+  description:
+    "Stress-test AI agents across realistic scenarios, inspect every decision, and ship with evidence instead of hope.",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web",
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  ),
+  metadataBase: siteUrl,
   title: {
     default: "Preflight — The flight simulator for AI agents",
     template: "%s | Preflight",
@@ -63,7 +75,18 @@ export default function RootLayout({
       lang="en"
       className={`${canela.variable} ${inter.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(softwareApplicationJsonLd).replace(
+              /</g,
+              "\\u003c",
+            ),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,4 +1,9 @@
 import Link from "next/link";
+import {
+  MarketingFooter,
+  MarketingHeader,
+  MarketingMain,
+} from "@/components/marketing-shell";
 import styles from "./integrations.module.css";
 
 const connectionTiles = [
@@ -46,61 +51,18 @@ const connectionTiles = [
   },
 ];
 
-function Header() {
-  return (
-    <header className={styles.header}>
-      <Link href="/" className={styles.brand} aria-label="Preflight home">
-        <span className={styles.brandSignal} aria-hidden />
-        <span>PREFLIGHT</span>
-      </Link>
-      <nav className={styles.nav} aria-label="Primary navigation">
-        <Link href="/">Home</Link>
-        <Link href="/product">Product</Link>
-        <Link href="/integrations" aria-current="page">
-          Integrations
-        </Link>
-        <Link href="/pricing">Pricing</Link>
-      </nav>
-      <Link href="/signup" className={styles.headerCta}>
-        Start free <span aria-hidden>→</span>
-      </Link>
-    </header>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className={styles.footer}>
-      <Link href="/" className={styles.brand} aria-label="Preflight home">
-        <span className={styles.brandSignal} aria-hidden />
-        <span>PREFLIGHT</span>
-      </Link>
-      <p>Your agent stays yours.</p>
-      <nav aria-label="Footer navigation">
-        <Link href="/">Home</Link>
-        <Link href="/product">Product</Link>
-        <Link href="/integrations">Integrations</Link>
-        <Link href="/pricing">Pricing</Link>
-        <Link href="/signup" className={styles.footerCta}>
-          Start free →
-        </Link>
-      </nav>
-    </footer>
-  );
-}
-
 export default function IntegrationsPage() {
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.grid} />
         <div className={styles.beam} />
         <div className={styles.glow} />
       </div>
 
-      <div className={styles.shell}>
-        <Header />
+      <MarketingHeader active="integrations" />
 
+      <MarketingMain className={styles.shell}>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>
@@ -121,8 +83,8 @@ export default function IntegrationsPage() {
               <Link href="/agents/connect" className={styles.primaryButton}>
                 Connect an agent <span aria-hidden>→</span>
               </Link>
-              <Link href="/product" className={styles.secondaryButton}>
-                Explore the product
+              <Link href="/share/demo" className={styles.secondaryButton}>
+                Open verified demo
               </Link>
             </div>
             <p className={styles.reachability}>
@@ -541,8 +503,9 @@ export default function IntegrationsPage() {
           </div>
         </section>
 
-        <Footer />
-      </div>
-    </main>
+      </MarketingMain>
+
+      <MarketingFooter />
+    </div>
   );
 }
