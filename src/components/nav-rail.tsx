@@ -224,26 +224,6 @@ export function NavRail() {
         })}
       </div>
 
-      <div className={styles.guideArea}>
-        <button
-          type="button"
-          className={styles.guideButton}
-          onClick={(event) => showGuide(event.currentTarget)}
-          aria-label="How Preflight works"
-          aria-haspopup="dialog"
-          aria-expanded={guideOpen}
-          aria-controls="preflight-guide"
-          title="How Preflight works"
-        >
-          <span className={styles.guideIcon} aria-hidden="true">?</span>
-          <span className={styles.guideCopy}>
-            <strong>How it works</strong>
-            <small>Five-step field guide</small>
-          </span>
-          <span className={styles.guideArrow} aria-hidden="true">↗</span>
-        </button>
-      </div>
-
       <div className={styles.railFooter}>
         <div
           className={styles.accountArea}
@@ -326,6 +306,24 @@ export function NavRail() {
               <span className={styles.planBadge}>FREE</span>
             </Link>
           )}
+        </div>
+
+        <div className={styles.guideArea}>
+          <button
+            type="button"
+            className={styles.guideButton}
+            onClick={(event) => showGuide(event.currentTarget)}
+            aria-label="How Preflight works"
+            aria-haspopup="dialog"
+            aria-expanded={guideOpen}
+            aria-controls="preflight-guide"
+            title="How Preflight works"
+          >
+            <span className={styles.guideIcon} aria-hidden="true">?</span>
+            <span className={styles.guideCopy}>
+              <strong>How it works</strong>
+            </span>
+          </button>
         </div>
 
         <div className={styles.modeArea}>

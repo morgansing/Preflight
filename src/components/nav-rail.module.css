@@ -218,48 +218,43 @@
 }
 
 .guideArea {
-  margin-top: 0.75rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-edge) 80%, transparent);
-  padding-top: 0.7rem;
+  margin-top: 0.2rem;
 }
 
 .guideButton {
   display: flex;
   width: 100%;
-  min-height: 3rem;
+  min-height: 2.5rem;
   cursor: pointer;
   align-items: center;
-  gap: 0.62rem;
-  border: 1px solid color-mix(in srgb, var(--color-edge) 80%, var(--color-accent));
-  border-radius: 0.7rem;
-  padding: 0.38rem 0.48rem;
+  gap: 0.52rem;
+  border: 1px solid transparent;
+  border-radius: 0.62rem;
+  padding: 0.3rem 0.48rem;
   color: var(--color-sub);
-  background:
-    linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 70%),
-    rgb(255 255 255 / 1.6%);
+  background: transparent;
   transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
 .guideButton:hover {
   border-color: color-mix(in srgb, var(--color-edge) 58%, var(--color-accent));
   background:
-    linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 74%),
-    rgb(255 255 255 / 2.5%);
-  transform: translateY(-1px);
+    linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent 74%),
+    rgb(255 255 255 / 2%);
 }
 
 .guideIcon {
   display: grid;
-  width: 2rem;
-  height: 2rem;
+  width: 1.65rem;
+  height: 1.65rem;
   flex: none;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--color-edge) 62%, var(--color-accent));
-  border-radius: 0.58rem;
+  border-radius: 0.44rem;
   color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 6%, var(--color-raised));
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   box-shadow: inset 0 1px rgb(255 255 255 / 3%);
 }
 
@@ -269,8 +264,7 @@
   text-align: left;
 }
 
-.guideCopy strong,
-.guideCopy small {
+.guideCopy strong {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -279,20 +273,8 @@
 
 .guideCopy strong {
   color: var(--color-ink);
-  font-size: 0.7rem;
+  font-size: 0.67rem;
   font-weight: 560;
-}
-
-.guideCopy small {
-  margin-top: 0.12rem;
-  color: var(--color-sub);
-  font-size: 0.61rem;
-}
-
-.guideArrow {
-  color: var(--color-mut);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
 }
 
 .railFooter {
@@ -547,7 +529,6 @@
   .navLabel,
   .activeDot,
   .guideCopy,
-  .guideArrow,
   .accountCopy,
   .planBadge,
   .modeCopy,
@@ -557,7 +538,7 @@
   }
 
   .guideButton {
-    min-height: 2.8rem;
+    min-height: 2.75rem;
   }
 
   .navGroup + .navGroup {
@@ -631,7 +612,6 @@
   .navLabel,
   .activeDot,
   .guideCopy,
-  .guideArrow,
   .accountCopy,
   .planBadge,
   .modeCopy,

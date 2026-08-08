@@ -66,6 +66,24 @@ const steps = [
   },
 ] as const;
 
+const evidenceOutputs = [
+  {
+    label: "Wall",
+    title: "Every scenario, one signal",
+    body: "See passes, misses and unresolved work across the complete suite.",
+  },
+  {
+    label: "Replay",
+    title: "The decision in context",
+    body: "Inspect what the agent saw, what it did and where it first diverged.",
+  },
+  {
+    label: "Report",
+    title: "A release-ready verdict",
+    body: "Use readiness, coverage and root causes to decide what ships next.",
+  },
+] as const;
+
 const pageGuides = [
   {
     path: "/agents/connect",
@@ -78,6 +96,12 @@ const pageGuides = [
     label: "Run history",
     title: "Return to evidence that has already settled.",
     body: "Reopen completed runs, compare scores and jump back into the wall or report behind each result.",
+  },
+  {
+    path: "/runs/",
+    label: "Run evidence",
+    title: "Watch the suite settle into evidence.",
+    body: "Each wall cell is one scenario. Open any result to inspect the replay, judge criteria and first divergence.",
   },
   {
     path: "/replay",
@@ -188,6 +212,12 @@ export function AppGuideProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      const currentPadding = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
+    }
     document.body.style.overflow = "hidden";
     document.body.dataset.preflightGuide = "open";
     const frame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
@@ -205,6 +235,7 @@ export function AppGuideProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("popstate", onHistoryChange);
       document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
       delete document.body.dataset.preflightGuide;
     };
   }, [closeGuide, open]);
@@ -244,38 +275,39 @@ export function AppGuideProvider({ children }: { children: React.ReactNode }) {
 
             <div className={styles.scrollBody}>
               <p id="preflight-guide-description" className={styles.intro}>
-                Choose an agent and a test suite. Preflight seeds a simulated store, lets the
-                agent work each scenario, judges the transcript and keeps the evidence behind
-                every result.
+                Connect an agent, choose the pressure and let it work through a simulated store.
+                Preflight judges every transcript and keeps the evidence behind the result.
               </p>
 
-              <section className={styles.currentSurface} aria-labelledby="current-surface-title">
-                <span>{currentGuide.label} / You are here</span>
-                <h3 id="current-surface-title">{currentGuide.title}</h3>
-                <p>{currentGuide.body}</p>
-              </section>
+              <div className={styles.overviewGrid}>
+                <section className={styles.currentSurface} aria-labelledby="current-surface-title">
+                  <span>{currentGuide.label} / You are here</span>
+                  <h3 id="current-surface-title">{currentGuide.title}</h3>
+                  <p>{currentGuide.body}</p>
+                </section>
 
-              <section className={styles.modeNote} aria-label={`${mode} environment guidance`}>
-                <div className={styles.modeLabel}>
-                  <i aria-hidden="true" /> {mode.toUpperCase()} ENVIRONMENT
-                </div>
-                <p>
-                  {mode === "demo"
-                    ? "A fixture-backed product tour. Fake runs teach the workflow; they are not evaluations of your agent."
-                    : "Runs use the selected connected or reference agent against the simulated store. Sandbox and provider state stay visibly labelled."}
-                </p>
-                <Link href="/runs" onClick={followGuideLink}>
-                  {mode === "demo" ? "Try a fake run" : "Open the run launcher"} <span aria-hidden="true">→</span>
-                </Link>
-              </section>
+                <section className={styles.modeNote} aria-label={`${mode} environment guidance`}>
+                  <div className={styles.modeLabel}>
+                    <i aria-hidden="true" /> {mode.toUpperCase()} ENVIRONMENT
+                  </div>
+                  <p>
+                    {mode === "demo"
+                      ? "A fixture-backed tour. Demo runs teach the workflow; they do not evaluate your agent."
+                      : "Connected or reference agents work against the simulated store. Sandbox and provider state stay clearly labelled."}
+                  </p>
+                  <Link href="/runs" onClick={followGuideLink}>
+                    {mode === "demo" ? "Try a demo run" : "Open the run launcher"} <span aria-hidden="true">→</span>
+                  </Link>
+                </section>
 
-              <button type="button" className={styles.quickJump} onClick={openQuickJump}>
-                <span>
-                  <strong>Jump anywhere</strong>
-                  <small>Open a page, agent, run or scenario</small>
-                </span>
-                <kbd>CTRL / CMD K</kbd>
-              </button>
+                <button type="button" className={styles.quickJump} onClick={openQuickJump}>
+                  <span>
+                    <strong>Jump anywhere</strong>
+                    <small>Page, agent, run or scenario</small>
+                  </span>
+                  <kbd>CTRL / CMD K</kbd>
+                </button>
+              </div>
 
               <div className={styles.sectionHeading}>
                 <span>THE FIVE-STEP FLIGHT PLAN</span>
@@ -299,6 +331,22 @@ export function AppGuideProvider({ children }: { children: React.ReactNode }) {
                   </li>
                 ))}
               </ol>
+
+              <section className={styles.outputs} aria-labelledby="guide-outputs-title">
+                <div className={styles.sectionHeading}>
+                  <span id="guide-outputs-title">WHAT YOU GET BACK</span>
+                  <span>EVIDENCE, NOT A GUESS</span>
+                </div>
+                <div className={styles.outputGrid}>
+                  {evidenceOutputs.map((output, index) => (
+                    <article key={output.label}>
+                      <span>{String(index + 1).padStart(2, "0")} / {output.label}</span>
+                      <strong>{output.title}</strong>
+                      <p>{output.body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
 
               <section className={styles.glossary} aria-labelledby="guide-glossary-title">
                 <div id="guide-glossary-title">QUICK GLOSSARY</div>
