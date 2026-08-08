@@ -146,13 +146,16 @@ export function CommandPalette() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        if (document.body.dataset.preflightGuide === "open") return;
         if (open) close();
         else openNow();
       } else if (e.key === "Escape" && open) {
         close();
       }
     };
-    const onOpenEvent = () => openNow();
+    const onOpenEvent = () => {
+      if (document.body.dataset.preflightGuide !== "open") openNow();
+    };
     window.addEventListener("keydown", onKey);
     window.addEventListener(PALETTE_EVENT, onOpenEvent);
     return () => {
