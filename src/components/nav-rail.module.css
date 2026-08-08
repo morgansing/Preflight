@@ -374,7 +374,6 @@
   font-weight: 520;
 }
 
-.mobileAccount,
 .accountMenu {
   display: none;
 }
@@ -389,6 +388,10 @@
   border-radius: 0.72rem;
   color: var(--color-sub);
   transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.mobileAccount {
+  display: none;
 }
 
 .account:hover,
