@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DIFFICULTY_LABELS, type Difficulty, type Severity } from "@/lib/types";
 import type { LiveOutcome } from "@/lib/live-types";
+import styles from "./ui.module.css";
 
 /* Base components. Every one of these leans on the Part 2 rules:
  * hairline borders, 8px-scale spacing, one accent, calm motion. */
@@ -14,9 +15,9 @@ const buttonBase =
   "disabled:opacity-40 disabled:pointer-events-none select-none cursor-pointer";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-on-accent hover:bg-accent-hover",
-  secondary: "border border-edge text-ink hover:border-mut hover:bg-raised",
-  ghost: "text-sub hover:text-ink hover:bg-raised",
+  primary: `${styles.buttonPrimary} bg-accent text-on-accent hover:bg-accent-hover`,
+  secondary: `${styles.buttonSecondary} border-edge text-ink hover:bg-raised`,
+  ghost: `${styles.buttonGhost} text-sub hover:text-ink hover:bg-raised`,
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
@@ -36,7 +37,7 @@ export function Button({
 }) {
   return (
     <button
-      className={`${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
+      className={`${styles.button} ${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
       {...props}
     />
   );
@@ -58,7 +59,7 @@ export function ButtonLink({
   return (
     <Link
       href={href}
-      className={`${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
+      className={`${styles.button} ${buttonBase} ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
     >
       {children}
     </Link>
@@ -76,7 +77,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-edge p-6 shadow-card ${
+      className={`${styles.card} rounded-xl border border-edge p-6 shadow-card ${
         raised ? "bg-raised" : "bg-surface"
       } ${className}`}
     >
@@ -122,7 +123,7 @@ export function OutcomeChip({ outcome }: { outcome: LiveOutcome }) {
   };
   return (
     <span
-      className="inline-flex h-6 items-center gap-1.5 rounded-md border px-2 font-mono text-[11px] uppercase tracking-wider"
+      className={`${styles.statusChip} inline-flex h-6 items-center gap-1.5 rounded-md border px-2 font-mono text-[11px] uppercase tracking-wider`}
       style={{
         color: outcomeColor[outcome],
         borderColor: `color-mix(in srgb, ${outcomeColor[outcome]} 35%, transparent)`,
@@ -179,7 +180,7 @@ export function Eyebrow({
 export function Skeleton({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-md bg-raised ${className}`}
+      className={`${styles.skeleton} rounded-md bg-raised ${className}`}
       aria-hidden
     />
   );
@@ -195,7 +196,10 @@ export function LoadError({
   onRetry?: () => void;
 }) {
   return (
-    <div className="animate-fade-up mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl border border-warn/30 bg-warn/5 px-8 py-10 text-center">
+    <div
+      role="alert"
+      className={`${styles.loadError} animate-fade-up mx-auto flex max-w-md flex-col items-center gap-3 rounded-xl border border-warn/30 bg-warn/5 px-8 py-10 text-center`}
+    >
       <span aria-hidden className="font-mono text-warn">!</span>
       <p className="text-sm leading-relaxed text-sub">
         Couldn&apos;t load {what} — the server didn&apos;t respond.
@@ -222,7 +226,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="animate-fade-up flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-edge px-8 py-16 text-center">
+    <div className={`${styles.emptyState} animate-fade-up flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-edge px-8 py-16 text-center`}>
       <div className="text-mut">{icon}</div>
       <div className="max-w-sm space-y-2">
         <div className="text-[15px] font-medium text-ink">{title}</div>

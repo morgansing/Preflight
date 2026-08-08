@@ -18,6 +18,7 @@ import {
 } from "@/lib/demo-runs";
 import { DemoRunLauncher } from "./demo-run-launcher";
 import { Button, ButtonLink } from "./ui";
+import shellStyles from "./run-wall-shell.module.css";
 
 /**
  * Mission Control — the signature screen. A full-bleed wall of scenario
@@ -317,7 +318,7 @@ export function MissionControl() {
         <DemoRunLauncher onLaunch={launchFake} onClose={() => setShowLauncher(false)} />
       )}
       {/* Floating header bar — a raised surface, no glass. */}
-      <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4 backdrop-blur-none">
+      <div className={`${shellStyles.stickyHeader} sticky z-10 border-b border-edge bg-raised/95 px-8 py-4 backdrop-blur-none`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="eyebrow">

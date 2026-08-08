@@ -3,15 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import formStyles from "@/components/auth-form.module.css";
 import { AuthShell } from "@/components/auth-shell";
 import { SsoButtons } from "@/components/sso-buttons";
 import { Button } from "@/components/ui";
 import { useSession } from "@/lib/auth";
-
-const inputCls =
-  "focus-ring w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 text-sm text-ink " +
-  "placeholder:text-mut transition-shadow duration-200 focus:border-accent/50 " +
-  "focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-accent)_12%,transparent)] outline-none";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,20 +16,25 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <h1 className="font-display text-3xl tracking-tight text-ink">Welcome back</h1>
-      <p className="mt-2 text-sm leading-relaxed text-sub">
-        Sign in to your workspace — your agents, Rulebook, runs and baselines are where you left
-        them.
-      </p>
+      <div className={formStyles.intro}>
+        <p className={formStyles.routeLabel}>
+          <span>01</span> Return to workspace
+        </p>
+        <h1>Welcome back.</h1>
+        <p>
+          Sign in to your workspace — your agents, Rulebook, runs and baselines are where you left
+          them.
+        </p>
+      </div>
 
-      <div className="mt-8">
+      <div className={formStyles.ssoBlock}>
         <SsoButtons verb="Sign in" />
       </div>
 
       <form
-        className="mt-6 space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
+        className={formStyles.form}
+        onSubmit={(event) => {
+          event.preventDefault();
           // V0: restore the local session, or start one for this email.
           if (!session || session.email !== email) {
             signIn({ name: email.split("@")[0], email });
@@ -41,53 +42,46 @@ export default function LoginPage() {
           router.push("/dashboard");
         }}
       >
-        <label className="block space-y-1.5">
-          <span className="text-[13px] text-sub">Work email</span>
+        <div className={formStyles.field}>
+          <label htmlFor="login-email">Work email</label>
           <input
-            className={inputCls}
+            id="login-email"
+            className={formStyles.input}
             type="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             placeholder="you@company.com"
             autoComplete="email"
           />
-        </label>
-        {/* Design-complete; V0 never stores or transmits this value. */}
-        <label className="block space-y-1.5">
-          <span className="text-[13px] text-sub">Password</span>
+        </div>
+
+        <div className={formStyles.field}>
+          <label htmlFor="login-password">Password</label>
           <input
-            className={inputCls}
+            id="login-password"
+            className={formStyles.input}
             type="password"
             required
             placeholder="••••••••"
             autoComplete="current-password"
           />
-        </label>
-        <div className="flex items-center justify-between">
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-sub">
-            <input type="checkbox" defaultChecked className="focus-ring size-3.5 accent-accent" />
-            Keep me signed in
-          </label>
-          <span className="cursor-not-allowed text-[13px] text-mut" title="Arrives with the hosted beta">
-            Forgot password?
-          </span>
         </div>
-        <Button type="submit" className="w-full">
-          Sign in
+
+        <div className={formStyles.formMeta}>
+          <span className={formStyles.sessionNote}>Stored on this browser</span>
+          <span className={formStyles.unavailable}>Password recovery arrives with hosted auth</span>
+        </div>
+
+        <Button type="submit" className={formStyles.submit}>
+          <span>Sign in to workspace</span>
+          <span aria-hidden>→</span>
         </Button>
       </form>
 
-      <p className="mt-4 text-[12px] leading-relaxed text-mut">
-        V0 preview: your session lives in this browser; no password is stored.
-      </p>
-
-      <p className="mt-8 border-t border-edge pt-5 text-[13px] text-sub">
+      <p className={formStyles.alternate}>
         New to Preflight?{" "}
-        <Link href="/signup" className="focus-ring rounded font-medium text-accent hover:underline">
-          Create a workspace
-        </Link>{" "}
-        — first 250 simulations free.
+        <Link href="/signup">Create a workspace</Link> — first 250 simulations free.
       </p>
     </AuthShell>
   );

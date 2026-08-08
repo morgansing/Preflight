@@ -1,0 +1,147 @@
+.shell {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow: clip;
+  background: var(--color-bg);
+}
+
+.ambient {
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--color-accent) 8%, transparent) 0, transparent 29rem),
+    radial-gradient(circle at 18% 88%, color-mix(in srgb, var(--color-accent) 4%, transparent) 0, transparent 34rem),
+    linear-gradient(140deg, #0b0c0e 0%, #0c0f10 48%, #0a0c0d 100%);
+}
+
+.ambient::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: 0.22;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-accent) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 8%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.ambient::after {
+  position: absolute;
+  top: -24rem;
+  right: -18rem;
+  width: 52rem;
+  height: 52rem;
+  border-radius: 999px;
+  content: "";
+  opacity: 0.48;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 64%);
+}
+
+.main {
+  position: relative;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  flex: 1;
+  outline: none;
+}
+
+.main::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: 1px;
+  content: "";
+  opacity: 0.8;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 24%, transparent), transparent 72%);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100svh;
+  animation: content-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 62%, var(--color-edge));
+  border-radius: 0.55rem;
+  outline: none;
+  color: var(--color-ink);
+  background: var(--color-raised);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 45%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transform: translateY(calc(-100% - 1.5rem));
+  transition: transform 160ms ease;
+}
+
+.skipLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  transform: translateY(0);
+}
+
+@keyframes content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    display: block;
+    overflow: visible;
+  }
+
+  .ambient::before {
+    opacity: 0.14;
+    background-size: 48px 48px;
+  }
+
+  .main,
+  .content {
+    min-height: calc(100svh - 3.6rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
+}
+
+@media print {
+  .shell,
+  .main,
+  .content {
+    display: block;
+    min-height: 0;
+    overflow: visible;
+    background: #fff;
+  }
+
+  .ambient,
+  .skipLink,
+  .main::before {
+    display: none;
+  }
+}

@@ -33,6 +33,7 @@ import { useSession } from "@/lib/auth";
 import { useBillingPrefs } from "@/lib/billing";
 import { fetchFreeAllowance } from "@/lib/live-api";
 import { computeFingerprint } from "@/lib/identity";
+import shellStyles from "./run-wall-shell.module.css";
 
 /**
  * Live Mission Control: launch a real run against the simulated store
@@ -652,7 +653,7 @@ export function LiveMissionControl() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4">
+      <div className={`${shellStyles.stickyHeader} sticky z-10 border-b border-edge bg-raised/95 px-8 py-4`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">

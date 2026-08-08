@@ -1,5 +1,6 @@
 import { CommandPalette } from "@/components/command-palette";
 import { NavRail } from "@/components/nav-rail";
+import styles from "./app-shell.module.css";
 
 export default function AppLayout({
   children,
@@ -7,9 +8,15 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
+    <div className={styles.shell}>
+      <a className={styles.skipLink} href="#app-content">
+        Skip to app content
+      </a>
+      <div className={styles.ambient} aria-hidden="true" />
       <NavRail />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main id="app-content" className={styles.main} tabIndex={-1}>
+        <div className={styles.content}>{children}</div>
+      </main>
       <CommandPalette />
     </div>
   );

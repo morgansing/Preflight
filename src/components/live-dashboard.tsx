@@ -2,153 +2,348 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ButtonLink, Card, EmptyState, Eyebrow, LoadError, Skeleton } from "./ui";
 import { ActivationChecklist } from "./activation-checklist";
-import { ReadinessCard } from "./readiness-card";
+import styles from "./dashboard.module.css";
 import { MockBadge } from "./live-mission-control";
+import { ReadinessCard } from "./readiness-card";
+import { ButtonLink, Eyebrow, LoadError, Skeleton } from "./ui";
+import { strengthsAndWeaknesses } from "@/lib/live-analyze";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
 import { scoreOf, type LiveRunListItem, type LiveRunSummary } from "@/lib/live-types";
-import { strengthsAndWeaknesses } from "@/lib/live-analyze";
 import { suiteLabel } from "@/lib/suite-tiers";
 
 export function LiveDashboard() {
   // undefined = loading · null = fetch failed · [] = empty workspace.
   const [runs, setRuns] = useState<LiveRunListItem[] | null | undefined>(undefined);
   const [latest, setLatest] = useState<LiveRunSummary | null>(null);
+  const [latestDetailFailed, setLatestDetailFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       const list = await fetchRuns();
-      if (!list) return { list: null, full: null };
-      const latestComplete = list.find((r) => r.status === "complete");
+      if (!list) return { list: null, full: null, detailFailed: false };
+      const latestComplete = list.find((run) => run.status === "complete");
       const full = latestComplete ? await fetchRun(latestComplete.id) : null;
-      return { list, full };
-    })().then(({ list, full }) => {
+      return { list, full, detailFailed: Boolean(latestComplete && !full) };
+    })().then(({ list, full, detailFailed }) => {
       if (!alive) return;
       setRuns(list);
       setLatest(full);
+      setLatestDetailFailed(detailFailed);
     });
     return () => {
       alive = false;
     };
   }, [attempt]);
 
-  if (runs === undefined) {
-    return (
-      <div className="mt-16 space-y-3">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
+  if (runs === undefined) return <DashboardLoading />;
+
   if (runs === null) {
     return (
-      <div className="mt-16">
-        <LoadError what="live runs" onRetry={() => setAttempt((a) => a + 1)} />
-      </div>
+      <section className={styles.errorStage}>
+        <div className={styles.stateEyebrow}>Telemetry interrupted</div>
+        <LoadError what="live runs" onRetry={() => setAttempt((current) => current + 1)} />
+      </section>
     );
   }
 
-  if (runs.length === 0) {
-    return (
-      <div className="mt-6">
-        <ActivationChecklist runs={runs} />
-        <div className="mt-10" />
-        <EmptyState
-          icon={
-            <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-8">
-              <rect x="5" y="9" width="22" height="16" rx="3" />
-              <path d="M16 9V5M11 17h.01M21 17h.01M12 21h8" strokeLinecap="round" />
-            </svg>
-          }
-          title="Connect your first agent to see how it holds up."
-          body="Live mode runs your agent against the simulated store for real. Register an endpoint, or start immediately with the built-in reference agent."
-          action={
-            <div className="flex gap-3">
-              <ButtonLink href="/runs">Start a run</ButtonLink>
-              <ButtonLink variant="secondary" href="/agents/connect">
-                Connect an agent
-              </ButtonLink>
-            </div>
-          }
-        />
-      </div>
-    );
-  }
+  if (runs.length === 0) return <EmptyDashboard runs={runs} />;
 
-  const sw = latest ? strengthsAndWeaknesses(latest) : null;
+  const strengths = latest ? strengthsAndWeaknesses(latest) : null;
 
   return (
     <>
-    <ActivationChecklist runs={runs} />
-    <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <div className="space-y-4">
-        {runs.slice(0, 6).map((run) => {
-          const score = run.score;
-          const running = run.status === "running";
-          const resolved =
-            run.counts.pass + run.counts.fail + run.counts.partial + run.counts.error;
-          return (
-            <Link
-              key={run.id}
-              href={running ? `/runs?run=${run.id}` : `/reports?run=${run.id}`}
-              className="focus-ring block rounded-xl"
-            >
-              <Card className="flex items-center justify-between gap-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-mut">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      aria-hidden
-                      className={`size-1.5 shrink-0 rounded-full ${running ? "animate-pulse-cell" : ""}`}
-                      style={{
-                        background: running
-                          ? "var(--color-accent)"
-                          : score >= 90
-                            ? "var(--color-accent)"
-                            : "var(--color-fail)",
-                      }}
-                    />
-                    <span className="truncate text-[15px] font-medium text-ink">{run.agentName}</span>
-                    <span className="font-mono text-[11px] text-mut">{run.id}</span>
-                    {run.provider === "mock" && <MockBadge />}
-                  </div>
-                  <div className="mt-2 text-[13px] text-mut">
-                    {suiteLabel(run.suite, run.total)} · {resolved.toLocaleString()}/
-                    {run.total.toLocaleString()} ·{" "}
-                    {running
-                      ? "running now"
-                      : new Date(run.startedAt).toLocaleString("en-US", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                  </div>
-                </div>
-                <div className="w-20 shrink-0 text-right">
-                  <span className="numeral text-4xl text-ink">{score}</span>
-                  <span className="text-lg text-mut">%</span>
-                </div>
-              </Card>
-            </Link>
-          );
-        })}
-        <div className="pt-2">
-          <Eyebrow>Live runs · newest first</Eyebrow>
-        </div>
+      <LiveStats runs={runs} latest={latest} />
+
+      <div className={styles.activationStage}>
+        <ActivationChecklist runs={runs} />
       </div>
 
-      {latest && sw && (
-        <ReadinessCard
-          score={scoreOf(latest.results)}
-          strengths={sw.strengths}
-          weaknesses={sw.weaknesses}
-          wallHref={`/runs/${latest.id}`}
-          meta={`Run ${latest.id} · ${latest.results.length} scenarios · provider ${latest.provider}`}
-          className="h-fit"
-        />
-      )}
+      <section className={styles.contentSection}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <Eyebrow>Evaluation stream</Eyebrow>
+            <h2>Recent runs</h2>
+            <p>Live progress and settled evidence, ordered by the latest start.</p>
+          </div>
+          <Link href="/runs/history" className={styles.textLink}>
+            View run history <span aria-hidden>→</span>
+          </Link>
+        </div>
+
+        <div className={styles.contentGrid}>
+          <div className={styles.runList}>
+            {runs.slice(0, 6).map((run, index) => (
+              <LiveRunCard key={run.id} run={run} index={index} />
+            ))}
+            <div className={styles.thresholdKey}>
+              <span><i aria-hidden /> Scenario progress</span>
+              <span>Newest runs first</span>
+            </div>
+          </div>
+
+          <aside className={styles.readinessColumn}>
+            {latest && strengths ? (
+              <ReadinessCard
+                score={scoreOf(latest.results)}
+                strengths={strengths.strengths}
+                weaknesses={strengths.weaknesses}
+                wallHref={`/runs/${latest.id}`}
+                meta={`Run ${latest.id} · ${latest.results.length} scenarios · provider ${latest.provider}`}
+                className={styles.readinessCard}
+              />
+            ) : latestDetailFailed ? (
+              <LoadError
+                what="the latest readiness evidence"
+                onRetry={() => setAttempt((current) => current + 1)}
+              />
+            ) : (
+              <PendingReadiness runs={runs} />
+            )}
+          </aside>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function LiveStats({
+  runs,
+  latest,
+}: {
+  runs: LiveRunListItem[];
+  latest: LiveRunSummary | null;
+}) {
+  const agentCount = new Set(runs.map((run) => run.agentName)).size;
+  const running = runs.filter((run) => run.status === "running").length;
+  const resolved = runs.reduce(
+    (sum, run) => sum + run.counts.pass + run.counts.fail + run.counts.partial + run.counts.error,
+    0,
+  );
+  const latestComplete = runs.find((run) => run.status === "complete");
+  const latestScore = latest ? scoreOf(latest.results) : latestComplete?.score;
+
+  const stats: Array<{
+    label: string;
+    value: string;
+    detail: string;
+    href: string;
+    tone?: "accent";
+  }> = [
+    {
+      label: "Agents evaluated",
+      value: String(agentCount),
+      detail: "In recorded runs",
+      href: "/agents",
+    },
+    {
+      label: "Running now",
+      value: String(running),
+      detail: running > 0 ? "Evaluations in flight" : "Workspace is settled",
+      href: "/runs",
+      tone: running > 0 ? "accent" : undefined,
+    },
+    {
+      label: "Scenarios resolved",
+      value: resolved.toLocaleString(),
+      detail: "Across visible runs",
+      href: "/runs/history",
+    },
+    {
+      label: "Latest readiness",
+      value: latestScore === undefined ? "—" : `${latestScore}%`,
+      detail: latestComplete ? `Run ${latestComplete.id}` : "Awaiting a completed run",
+      href: latestComplete ? `/reports?run=${latestComplete.id}` : "/runs",
+      tone: latestScore !== undefined && latestScore >= 90 ? "accent" : undefined,
+    },
+  ];
+
+  return (
+    <section className={styles.metrics} aria-label="Live workspace summary">
+      <div className={styles.metricsHeader}>
+        <span>Current signal</span>
+        <span>{running > 0 ? `${running} evaluation${running === 1 ? "" : "s"} in flight` : "All runs settled"}</span>
+      </div>
+      <div className={styles.metricGrid}>
+        {stats.map((stat, index) => (
+          <Link
+            key={stat.label}
+            href={stat.href}
+            className={`focus-ring ${styles.metricLink}`}
+            style={{ animationDelay: `${80 + index * 55}ms` }}
+          >
+            <span className={styles.metricIndex}>0{index + 1}</span>
+            <span className={styles.metricLabel}>{stat.label}</span>
+            <strong className={`${styles.metricValue} ${stat.tone ? styles.accentValue : ""}`}>
+              {stat.value}
+            </strong>
+            <small>{stat.detail}</small>
+            <span className={styles.metricArrow} aria-hidden>↗</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LiveRunCard({ run, index }: { run: LiveRunListItem; index: number }) {
+  const running = run.status === "running" || run.status === "queued";
+  const resolved = run.counts.pass + run.counts.fail + run.counts.partial + run.counts.error;
+  const progress = run.total === 0 ? 0 : Math.min(100, (resolved / run.total) * 100);
+  const route = running ? `/runs?run=${run.id}` : `/reports?run=${run.id}`;
+  const stateClass = run.status === "error"
+    ? styles.warnDot
+    : running || run.score >= 90
+      ? styles.passDot
+      : styles.failDot;
+
+  return (
+    <Link
+      href={route}
+      className={`focus-ring ${styles.agentLink}`}
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
+      <article className={styles.liveRunCard}>
+        <div className={styles.agentMain}>
+          <div className={styles.agentIdentity}>
+            <span
+              aria-hidden
+              className={`${styles.statusDot} ${stateClass} ${running ? styles.pulsingDot : ""}`}
+            />
+            <div className={styles.agentName}>
+              <strong>{run.agentName}</strong>
+              <span>{run.id}</span>
+            </div>
+            {run.provider === "mock" && <MockBadge />}
+          </div>
+          <p className={styles.suiteName}>{suiteLabel(run.suite, run.total)}</p>
+          <div className={styles.agentMeta}>
+            <span>{run.provider}</span>
+            <span>
+              {running
+                ? run.status === "queued" ? "queued" : "running now"
+                : new Date(run.startedAt).toLocaleString("en-GB", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.liveScore}>
+          <div>
+            <span className={styles.scoreNumber}>{run.score}</span>
+            <span className={styles.scoreUnit}>%</span>
+          </div>
+          <small>{running ? `${resolved.toLocaleString()} / ${run.total.toLocaleString()}` : "Readiness"}</small>
+        </div>
+
+        <div className={styles.runEvidence}>
+          <div className={styles.outcomeCounts}>
+            <span className={styles.clear}>✓ {run.counts.pass.toLocaleString()} pass</span>
+            <span className={styles.critical}>× {run.counts.fail.toLocaleString()} fail</span>
+            <span className={styles.partial}>◐ {run.counts.partial.toLocaleString()} partial</span>
+            {run.counts.error > 0 && <span className={styles.partial}>! {run.counts.error.toLocaleString()} errors</span>}
+          </div>
+          <div className={styles.progressTrack} aria-hidden>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </article>
+    </Link>
+  );
+}
+
+function PendingReadiness({ runs }: { runs: LiveRunListItem[] }) {
+  const activeRun = runs.find((run) => run.status === "running" || run.status === "queued");
+  return (
+    <div className={styles.pendingReadiness}>
+      <div className={styles.pendingTop}>
+        <Eyebrow>Agent readiness</Eyebrow>
+        <span className={styles.pendingSignal} aria-hidden />
+      </div>
+      <div className={styles.pendingScore}>
+        <span>—</span>
+        <small>%</small>
+      </div>
+      <h3>{activeRun ? "Evidence is still resolving." : "No completed evidence yet."}</h3>
+      <p>
+        {activeRun
+          ? `Run ${activeRun.id} is in flight. Readiness will settle when its scenarios complete.`
+          : "Complete a run to calculate readiness, strengths, and weaknesses."}
+      </p>
+      <ButtonLink href={activeRun ? `/runs?run=${activeRun.id}` : "/runs"} variant="secondary" size="sm">
+        {activeRun ? "Watch the run" : "Start a run"}
+      </ButtonLink>
     </div>
+  );
+}
+
+function DashboardLoading() {
+  return (
+    <section className={styles.loadingStage} aria-live="polite" aria-label="Loading dashboard evidence">
+      <div className={styles.metricsLoading}>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className={styles.loadingMetric}>
+            <Skeleton className="h-2.5 w-24" />
+            <Skeleton className="mt-5 h-10 w-16" />
+            <Skeleton className="mt-4 h-2 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className={styles.dashboardLoadingGrid}>
+        <div className={styles.loadingList}>
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+        <Skeleton className="h-[32rem] w-full" />
+      </div>
+      <span className="sr-only">Loading dashboard evidence…</span>
+    </section>
+  );
+}
+
+function EmptyDashboard({ runs }: { runs: LiveRunListItem[] }) {
+  return (
+    <>
+      <div className={styles.activationStage}>
+        <ActivationChecklist runs={runs} />
+      </div>
+      <section className={styles.emptyStage}>
+        <div className={styles.emptyGrid} aria-hidden />
+        <div className={styles.emptyCopy}>
+          <Eyebrow>Workspace ready</Eyebrow>
+          <h2>Put your first agent through Preflight.</h2>
+          <p>
+            Run against the simulated store, inspect every decision, and turn the result into
+            evidence you can act on.
+          </p>
+          <div className={styles.emptyActions}>
+            <ButtonLink href="/runs">Start a run</ButtonLink>
+            <ButtonLink variant="secondary" href="/agents/connect">
+              Connect an agent
+            </ButtonLink>
+          </div>
+        </div>
+
+        <div className={styles.emptyPipeline} aria-label="Preflight evaluation flow">
+          {[
+            ["01", "Agent", "HTTP or provider"],
+            ["02", "Scenario suite", "Real tool paths"],
+            ["03", "Evidence", "Replay and verdict"],
+          ].map(([number, title, detail], index) => (
+            <div key={title} className={styles.pipelineStep}>
+              <span>{number}</span>
+              <strong>{title}</strong>
+              <small>{detail}</small>
+              {index < 2 && <i aria-hidden />}
+            </div>
+          ))}
+        </div>
+      </section>
     </>
   );
 }

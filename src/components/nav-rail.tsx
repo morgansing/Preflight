@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { openPalette } from "@/components/command-palette";
 import { useMode } from "@/lib/mode";
 import { useSession } from "@/lib/auth";
 import { planById } from "@/lib/billing";
+import styles from "./nav-rail.module.css";
 
-/* Hand-drawn 16px line icons — no icon library, everything hairline. */
+/* The product's existing hairline icon language, kept deliberately restrained. */
 const icons = {
   dashboard: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.5" />
       <rect x="9" y="1.5" width="5.5" height="5.5" rx="1.5" />
       <rect x="1.5" y="9" width="5.5" height="5.5" rx="1.5" />
@@ -18,35 +20,35 @@ const icons = {
     </svg>
   ),
   agents: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <rect x="2.5" y="4.5" width="11" height="8" rx="2" />
       <path d="M8 4.5V2M5.5 8.5h.01M10.5 8.5h.01M6 11h4" strokeLinecap="round" />
     </svg>
   ),
   scenarios: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <path d="M3 3.5h10M3 8h10M3 12.5h6" strokeLinecap="round" />
     </svg>
   ),
   runs: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <circle cx="8" cy="8" r="6.25" />
       <path d="M6.75 5.75l3.5 2.25-3.5 2.25z" fill="currentColor" stroke="none" />
     </svg>
   ),
   reports: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <path d="M4 1.5h6l3 3V14a.5.5 0 01-.5.5h-8.5A.5.5 0 013.5 14V2a.5.5 0 01.5-.5z" />
       <path d="M6 9h4M6 11.5h2.5" strokeLinecap="round" />
     </svg>
   ),
   benchmark: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <path d="M3 13.5V8M8 13.5V4M13 13.5V6.5" strokeLinecap="round" />
     </svg>
   ),
   setup: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-4">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" aria-hidden="true">
       <path d="M2.5 5h11M2.5 11h11" strokeLinecap="round" />
       <circle cx="6" cy="5" r="1.75" fill="var(--color-surface)" />
       <circle cx="10.5" cy="11" r="1.75" fill="var(--color-surface)" />
@@ -54,113 +56,182 @@ const icons = {
   ),
 };
 
-const items = [
-  { href: "/dashboard", label: "Dashboard", icon: icons.dashboard },
-  { href: "/setup", label: "Setup", icon: icons.setup },
-  { href: "/agents", label: "Agents", icon: icons.agents },
-  { href: "/scenarios", label: "Scenarios", icon: icons.scenarios },
-  { href: "/runs", label: "Runs", icon: icons.runs },
-  { href: "/reports", label: "Reports", icon: icons.reports },
-  { href: "/benchmark", label: "Benchmark", icon: icons.benchmark },
-];
+const groups = [
+  {
+    label: "Workspace",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: icons.dashboard },
+      { href: "/setup", label: "Setup", icon: icons.setup },
+      { href: "/agents", label: "Agents", icon: icons.agents },
+      { href: "/scenarios", label: "Scenarios", icon: icons.scenarios },
+    ],
+  },
+  {
+    label: "Evidence",
+    items: [
+      { href: "/runs", label: "Runs", icon: icons.runs },
+      { href: "/reports", label: "Reports", icon: icons.reports },
+      { href: "/benchmark", label: "Benchmark", icon: icons.benchmark },
+    ],
+  },
+] as const;
+
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function NavRail() {
   const pathname = usePathname();
   const { mode, setMode } = useMode();
   const { session } = useSession();
+  const accountActive = pathname.startsWith("/billing");
+  const navGroupsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const navGroups = navGroupsRef.current;
+    if (!navGroups) return;
+
+    let updateFrame = 0;
+    const updateOverflow = () => {
+      cancelAnimationFrame(updateFrame);
+      updateFrame = requestAnimationFrame(() => {
+        const maxScroll = navGroups.scrollWidth - navGroups.clientWidth;
+        navGroups.dataset.overflowLeft = String(navGroups.scrollLeft > 2);
+        navGroups.dataset.overflowRight = String(navGroups.scrollLeft < maxScroll - 2);
+      });
+    };
+
+    const revealActiveRoute = () => {
+      if (!window.matchMedia("(max-width: 760px)").matches) {
+        updateOverflow();
+        return;
+      }
+      navGroups
+        .querySelector<HTMLElement>('[aria-current="page"]')
+        ?.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
+      updateOverflow();
+    };
+
+    revealActiveRoute();
+    navGroups.addEventListener("scroll", updateOverflow, { passive: true });
+    const resizeObserver = new ResizeObserver(revealActiveRoute);
+    resizeObserver.observe(navGroups);
+
+    return () => {
+      cancelAnimationFrame(updateFrame);
+      navGroups.removeEventListener("scroll", updateOverflow);
+      resizeObserver.disconnect();
+    };
+  }, [pathname]);
 
   return (
-    <nav className="no-print sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-edge bg-surface px-3 py-6">
-      <Link href="/" className="focus-ring mb-6 flex items-center gap-2 rounded-md px-2">
-        <span aria-hidden className="inline-block size-2 rounded-full bg-accent" />
-        <span className="font-mono text-xs tracking-[0.18em] text-ink">PREFLIGHT</span>
+    <nav className={`no-print ${styles.rail}`} aria-label="Application navigation">
+      <Link href="/" className={styles.brand} aria-label="Preflight home">
+        <span className={styles.brandSignal} aria-hidden="true" />
+        <span className={styles.brandText}>PREFLIGHT</span>
+        <span className={styles.brandMeta} aria-hidden="true">CONTROL</span>
       </Link>
 
       <button
+        type="button"
         onClick={openPalette}
-        className="focus-ring mb-4 flex h-9 cursor-pointer items-center justify-between rounded-lg border border-edge px-2.5 text-[13px] text-mut transition-colors hover:border-mut hover:text-sub"
+        className={styles.searchButton}
+        aria-label="Open command palette"
+        title="Search Preflight (Ctrl K)"
       >
-        <span className="flex items-center gap-2.5">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-3.5">
+        <span className={styles.searchIcon} aria-hidden="true">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">
             <circle cx="7" cy="7" r="4.5" />
             <path d="M10.5 10.5L14 14" strokeLinecap="round" />
           </svg>
-          Search
         </span>
-        <span className="rounded border border-edge px-1 py-0.5 font-mono text-[9px] tracking-wider">
-          ⌘K
-        </span>
+        <span className={styles.searchText}>Search Preflight</span>
+        <kbd className={styles.shortcut}>CTRL K</kbd>
       </button>
 
-      <div className="flex flex-1 flex-col gap-1">
-        {items.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+      <div className={styles.navGroups} ref={navGroupsRef}>
+        {groups.map((group, groupIndex) => {
+          const groupId = `nav-group-${groupIndex}`;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`focus-ring flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13px] transition-colors duration-150 ${
-                active
-                  ? "bg-raised text-ink"
-                  : "text-sub hover:bg-raised/60 hover:text-ink"
-              }`}
-            >
-              <span className={active ? "text-accent" : "text-mut"}>{item.icon}</span>
-              {item.label}
-            </Link>
+            <section className={styles.navGroup} aria-labelledby={groupId} key={group.label}>
+              <p className={styles.groupLabel} id={groupId}>{group.label}</p>
+              <ul className={styles.navList}>
+                {group.items.map((item) => {
+                  const active = isActive(pathname, item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={`${styles.navLink} ${active ? styles.active : ""}`}
+                        aria-current={active ? "page" : undefined}
+                        aria-label={item.label}
+                        title={item.label}
+                      >
+                        <span className={styles.iconWrap}>{item.icon}</span>
+                        <span className={styles.navLabel}>{item.label}</span>
+                        {active && <span className={styles.activeDot} aria-hidden="true" />}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           );
         })}
       </div>
 
-      {/* Account: workspace + plan, or the way in. */}
-      <div className="mt-6 border-t border-edge pt-4">
-        {session ? (
-          <Link
-            href="/billing"
-            className={`focus-ring flex items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-raised/60 ${
-              pathname.startsWith("/billing") ? "bg-raised" : ""
-            }`}
-          >
-            <span className="min-w-0">
-              <span className="block truncate text-[13px] text-ink">{session.name}</span>
-              <span className="block text-[11px] text-mut">Billing &amp; usage</span>
-            </span>
-            <span className="shrink-0 rounded border border-edge px-1.5 py-0.5 font-mono text-[9px] tracking-[0.12em] text-sub">
-              {planById(session.plan).name.toUpperCase()}
-            </span>
-          </Link>
-        ) : (
-          <Link
-            href="/signup"
-            className="focus-ring flex items-center justify-between rounded-lg px-2 py-2 text-[13px] text-sub transition-colors hover:bg-raised/60 hover:text-ink"
-          >
-            <span>Create workspace</span>
-            <span className="font-mono text-[9px] tracking-[0.12em] text-accent">250 FREE</span>
-          </Link>
-        )}
-      </div>
-
-      {/* Mode indicator + switch — subtle but always visible. */}
-      <div className="mt-3 border-t border-edge pt-4">
-        <button
-          onClick={() => setMode(mode === "demo" ? "live" : "demo")}
-          className="focus-ring group flex w-full items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-raised/60 cursor-pointer"
-          title={`Switch to ${mode === "demo" ? "Live" : "Demo"} mode`}
-        >
-          {mode === "demo" ? (
-            <span className="inline-flex h-6 items-center rounded-md border border-accent/40 px-2 font-mono text-[10px] tracking-[0.14em] text-accent/80">
-              DEMO
-            </span>
+      <div className={styles.railFooter}>
+        <div className={styles.accountArea}>
+          {session ? (
+            <Link
+              href="/billing"
+              className={`${styles.account} ${accountActive ? styles.accountActive : ""}`}
+              aria-current={accountActive ? "page" : undefined}
+              aria-label={`${session.name}, billing and usage`}
+              title={`${session.name} - Billing & usage`}
+            >
+              <span className={styles.avatar} aria-hidden="true">
+                {session.name.trim().charAt(0).toUpperCase() || "P"}
+              </span>
+              <span className={styles.accountCopy}>
+                <span className={styles.accountName}>{session.name}</span>
+                <span className={styles.accountDetail}>Billing &amp; usage</span>
+              </span>
+              <span className={styles.planBadge}>{planById(session.plan).name.toUpperCase()}</span>
+            </Link>
           ) : (
-            <span className="inline-flex h-6 items-center rounded-md bg-accent px-2 font-mono text-[10px] tracking-[0.14em] text-on-accent">
-              LIVE
-            </span>
+            <Link
+              href="/signup"
+              className={styles.account}
+              aria-label="Create a Preflight workspace"
+              title="Create workspace - 250 scenarios free"
+            >
+              <span className={styles.avatar} aria-hidden="true">+</span>
+              <span className={styles.accountCopy}>
+                <span className={styles.accountName}>Create workspace</span>
+                <span className={styles.accountDetail}>250 scenarios free</span>
+              </span>
+              <span className={styles.planBadge}>FREE</span>
+            </Link>
           )}
-          <span className="text-[11px] text-mut transition-colors group-hover:text-sub">
-            switch
-          </span>
-        </button>
+        </div>
+
+        <div className={styles.modeArea}>
+          <button
+            type="button"
+            onClick={() => setMode(mode === "demo" ? "live" : "demo")}
+            className={styles.modeButton}
+            aria-pressed={mode === "live"}
+            aria-label={`${mode === "demo" ? "Demo" : "Live"} mode. Switch to ${mode === "demo" ? "live" : "demo"} mode`}
+            title={`Switch to ${mode === "demo" ? "Live" : "Demo"} mode`}
+          >
+            <span className={`${styles.modeIndicator} ${mode === "live" ? styles.modeLive : ""}`}>
+              <span className={styles.modeDot} aria-hidden="true" />
+              <span className={styles.modeWord}>{mode.toUpperCase()}</span>
+            </span>
+            <span className={styles.modeCopy}>switch environment</span>
+          </button>
+        </div>
       </div>
     </nav>
   );

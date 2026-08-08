@@ -7,6 +7,7 @@ import { demoAgents } from "@/lib/fixtures/agents";
 import { pastRuns } from "@/lib/fixtures/runs";
 import { getScenarioById, scenarios } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
+import styles from "./command-palette.module.css";
 
 /**
  * ⌘K — jump to anything with a URL: pages, agents, runs, scenarios.
@@ -177,9 +178,13 @@ export function CommandPalette() {
   };
 
   return (
-    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal aria-label="Command palette">
-      <div className="animate-fade-in absolute inset-0 bg-black/50" onClick={close} />
-      <div className="animate-fade-up absolute left-1/2 top-24 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border border-edge bg-raised shadow-2xl">
+    <div ref={dialogRef} className={`${styles.dialog} fixed inset-0 z-50`} role="dialog" aria-modal aria-label="Command palette">
+      <div className={`${styles.backdrop} animate-fade-in absolute inset-0`} onClick={close} />
+      <div className={`${styles.panel} animate-fade-up absolute left-1/2 top-24 w-full max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border`}>
+        <div className={styles.meta} aria-hidden>
+          <span className={styles.metaLabel}>PREFLIGHT / COMMAND INDEX</span>
+          <kbd>ESC</kbd>
+        </div>
         <input
           ref={inputRef}
           role="combobox"
@@ -208,9 +213,9 @@ export function CommandPalette() {
             }
           }}
           placeholder="Jump to a page, agent, run, or scenario…"
-          className="w-full border-b border-edge bg-transparent px-5 py-4 text-sm text-ink placeholder:text-mut outline-none"
+          className={`${styles.input} w-full bg-transparent px-5 py-4 text-sm text-ink placeholder:text-mut outline-none`}
         />
-        <div id="palette-listbox" role="listbox" aria-label="Results" className="max-h-80 overflow-y-auto py-2">
+        <div id="palette-listbox" role="listbox" aria-label="Results" className={`${styles.list} max-h-80 overflow-y-auto py-2`}>
           {results.length === 0 && (
             <p className="px-5 py-6 text-center text-sm text-mut">No matches.</p>
           )}
@@ -219,7 +224,7 @@ export function CommandPalette() {
             return (
               <div key={`${e.type}:${e.href}`}>
                 {showHeading && (
-                  <div aria-hidden className="px-5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-mut">
+                  <div aria-hidden className={`${styles.heading} px-5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider`}>
                     {e.type}
                   </div>
                 )}
@@ -230,8 +235,8 @@ export function CommandPalette() {
                   tabIndex={-1}
                   onClick={() => go(e.href)}
                   onMouseEnter={() => setCursor(i)}
-                  className={`flex w-full cursor-pointer items-baseline justify-between gap-3 px-5 py-2 text-left text-[13px] ${
-                    i === cursor ? "bg-surface text-ink" : "text-sub"
+                  className={`${styles.option} flex w-full cursor-pointer items-baseline justify-between gap-3 px-5 py-2 text-left text-[13px] ${
+                    i === cursor ? `${styles.optionSelected} text-ink` : "text-sub"
                   }`}
                 >
                   <span className="min-w-0 truncate">
@@ -239,7 +244,7 @@ export function CommandPalette() {
                     {e.detail && <span className="ml-2 text-[12px] text-mut">{e.detail}</span>}
                   </span>
                   {i === cursor && (
-                    <span aria-hidden className="shrink-0 font-mono text-[11px] text-accent">
+                    <span aria-hidden className={`${styles.enter} shrink-0 font-mono text-[11px] text-accent`}>
                       ↵
                     </span>
                   )}
@@ -248,7 +253,7 @@ export function CommandPalette() {
             );
           })}
         </div>
-        <div className="border-t border-edge px-5 py-2.5 font-mono text-[10px] tracking-wider text-mut">
+        <div className={`${styles.footer} px-5 py-2.5 font-mono text-[10px] tracking-wider text-mut`}>
           ↑↓ NAVIGATE · ↵ OPEN · ESC CLOSE
         </div>
       </div>
