@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppGuide } from "@/components/app-guide";
 import { openPalette } from "@/components/command-palette";
 import { useMode } from "@/lib/mode";
@@ -83,11 +83,70 @@ function isActive(pathname: string, href: string) {
 
 export function NavRail() {
   const pathname = usePathname();
+  const router = useRouter();
   const { mode, setMode } = useMode();
-  const { session } = useSession();
+  const { session, signOut } = useSession();
   const { open: guideOpen, showGuide } = useAppGuide();
   const accountActive = pathname.startsWith("/billing");
   const navGroupsRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const logOut = () => {
+    setAccountOpen(false);
+    signOut();
+    router.replace("/login");
+  };
+
+  const openQuickJump = useCallback(() => {
+    setAccountOpen(false);
+    window.requestAnimationFrame(() => {
+      accountButtonRef.current?.focus();
+      openPalette();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const mobileRail = window.matchMedia("(max-width: 760px)");
+    const frame = window.requestAnimationFrame(() => {
+      accountMenuRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    });
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        !accountMenuRef.current?.contains(target) &&
+        !accountButtonRef.current?.contains(target)
+      ) {
+        setAccountOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        openQuickJump();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setAccountOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    };
+    const onBreakpointChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) setAccountOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    mobileRail.addEventListener("change", onBreakpointChange);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown, true);
+      mobileRail.removeEventListener("change", onBreakpointChange);
+    };
+  }, [accountOpen, openQuickJump]);
 
   useEffect(() => {
     const navGroups = navGroupsRef.current;
@@ -133,23 +192,6 @@ export function NavRail() {
         <span className={styles.brandText}>PREFLIGHT</span>
         <span className={styles.brandMeta} aria-hidden="true">CONTROL</span>
       </Link>
-
-      <button
-        type="button"
-        onClick={openPalette}
-        className={styles.searchButton}
-        aria-label="Open command palette"
-        title="Search Preflight (Ctrl K)"
-      >
-        <span className={styles.searchIcon} aria-hidden="true">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">
-            <circle cx="7" cy="7" r="4.5" />
-            <path d="M10.5 10.5L14 14" strokeLinecap="round" />
-          </svg>
-        </span>
-        <span className={styles.searchText}>Search Preflight</span>
-        <kbd className={styles.shortcut}>CTRL K</kbd>
-      </button>
 
       <div className={styles.navGroups} ref={navGroupsRef}>
         {groups.map((group, groupIndex) => {
@@ -203,24 +245,72 @@ export function NavRail() {
       </div>
 
       <div className={styles.railFooter}>
-        <div className={styles.accountArea}>
+        <div
+          className={styles.accountArea}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false);
+          }}
+        >
           {session ? (
-            <Link
-              href="/billing"
-              className={`${styles.account} ${accountActive ? styles.accountActive : ""}`}
-              aria-current={accountActive ? "page" : undefined}
-              aria-label={`${session.name}, billing and usage`}
-              title={`${session.name} - Billing & usage`}
-            >
-              <span className={styles.avatar} aria-hidden="true">
-                {session.name.trim().charAt(0).toUpperCase() || "P"}
-              </span>
-              <span className={styles.accountCopy}>
-                <span className={styles.accountName}>{session.name}</span>
-                <span className={styles.accountDetail}>Billing &amp; usage</span>
-              </span>
-              <span className={styles.planBadge}>{planById(session.plan).name.toUpperCase()}</span>
-            </Link>
+            <>
+              <Link
+                href="/billing"
+                className={`${styles.account} ${styles.desktopAccount} ${accountActive ? styles.accountActive : ""}`}
+                aria-current={accountActive ? "page" : undefined}
+                aria-label={`${session.name}, billing and usage`}
+                title={`${session.name} - Billing & usage`}
+              >
+                <span className={styles.avatar} aria-hidden="true">
+                  {session.name.trim().charAt(0).toUpperCase() || "P"}
+                </span>
+                <span className={styles.accountCopy}>
+                  <span className={styles.accountName}>{session.name}</span>
+                  <span className={styles.accountDetail}>Billing &amp; usage</span>
+                </span>
+                <span className={styles.planBadge}>{planById(session.plan).name.toUpperCase()}</span>
+              </Link>
+              <button
+                ref={accountButtonRef}
+                type="button"
+                className={`${styles.account} ${styles.mobileAccount} ${accountOpen ? styles.accountActive : ""}`}
+                onClick={() => setAccountOpen((current) => !current)}
+                aria-label={`Account actions for ${session.name}`}
+                aria-haspopup="dialog"
+                aria-expanded={accountOpen}
+                aria-controls="mobile-account-actions"
+              >
+                <span className={styles.avatar} aria-hidden="true">
+                  {session.name.trim().charAt(0).toUpperCase() || "P"}
+                </span>
+              </button>
+              {accountOpen && (
+                <div
+                  id="mobile-account-actions"
+                  ref={accountMenuRef}
+                  className={styles.accountMenu}
+                  role="dialog"
+                  aria-label="Account actions"
+                >
+                  <div className={styles.accountMenuHeader}>
+                    <strong>{session.name}</strong>
+                    <span>{session.email}</span>
+                    <small>{planById(session.plan).name} workspace</small>
+                  </div>
+                  <Link href="/billing" onClick={() => setAccountOpen(false)}>
+                    <span aria-hidden="true">01</span>
+                    <span><strong>Billing &amp; usage</strong><small>Plan and allowance</small></span>
+                  </Link>
+                  <button type="button" onClick={openQuickJump}>
+                    <span aria-hidden="true">02</span>
+                    <span><strong>Jump anywhere</strong><small>Ctrl / Cmd + K</small></span>
+                  </button>
+                  <button type="button" onClick={logOut}>
+                    <span aria-hidden="true">03</span>
+                    <span><strong>Log out</strong><small>End this browser session</small></span>
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <Link
               href="/signup"
@@ -254,6 +344,20 @@ export function NavRail() {
             <span className={styles.modeCopy}>switch environment</span>
           </button>
         </div>
+        {session && (
+          <div className={styles.logoutArea}>
+            <button
+              type="button"
+              className={styles.logoutButton}
+              onClick={logOut}
+              aria-label={`Log out ${session.name}`}
+              title="Log out"
+            >
+              <span className={styles.logoutIcon} aria-hidden="true" />
+              <span className={styles.logoutCopy}>Log out</span>
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );

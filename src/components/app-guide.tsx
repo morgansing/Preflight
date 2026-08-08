@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { useMode } from "@/lib/mode";
+import { openPalette } from "./command-palette";
 import styles from "./app-guide.module.css";
 
 type GuideContextValue = {
@@ -175,6 +176,15 @@ export function AppGuideProvider({ children }: { children: React.ReactNode }) {
     setOpen(false);
   }, []);
 
+  const openQuickJump = useCallback(() => {
+    const returnTarget = openerRef.current;
+    setOpen(false);
+    window.requestAnimationFrame(() => {
+      returnTarget?.focus();
+      openPalette();
+    });
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
@@ -258,6 +268,14 @@ export function AppGuideProvider({ children }: { children: React.ReactNode }) {
                   {mode === "demo" ? "Try a fake run" : "Open the run launcher"} <span aria-hidden="true">→</span>
                 </Link>
               </section>
+
+              <button type="button" className={styles.quickJump} onClick={openQuickJump}>
+                <span>
+                  <strong>Jump anywhere</strong>
+                  <small>Open a page, agent, run or scenario</small>
+                </span>
+                <kbd>CTRL / CMD K</kbd>
+              </button>
 
               <div className={styles.sectionHeading}>
                 <span>THE FIVE-STEP FLIGHT PLAN</span>
