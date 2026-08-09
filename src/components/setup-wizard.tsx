@@ -57,7 +57,7 @@ function dedupe(existing: LocalRule[], drafts: DraftRule[]): LocalRule[] {
   return [...existing, ...fresh];
 }
 
-export function SetupWizard() {
+export function SetupWizard({ framed = false }: { framed?: boolean }) {
   const { mode } = useMode();
   const { agents } = useLiveAgents();
   const [step, setStep] = useState(0);
@@ -280,26 +280,38 @@ export function SetupWizard() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-12">
-      <div className="flex items-center justify-between">
-        <Eyebrow>Setup</Eyebrow>
+    <div
+      className={
+        framed
+          ? "w-full px-6 py-7 sm:px-8 sm:py-9"
+          : "mx-auto max-w-3xl px-8 py-12"
+      }
+    >
+      <div
+        className={`flex items-center ${framed ? "justify-end" : "justify-between"}`}
+      >
+        {!framed && <Eyebrow>Setup</Eyebrow>}
         {mode === "demo" ? (
           <span className="font-mono text-[10px] tracking-[0.14em] text-mut">DEMO · SCRIPTED</span>
         ) : provider === "mock" ? (
           <MockBadge />
         ) : null}
       </div>
-      <h1 className="font-display mt-3 text-3xl tracking-tight text-ink">
-        Teach Preflight your agent
-      </h1>
-      <p className="mt-2 max-w-xl text-sm leading-relaxed text-sub">
-        Five short steps to a Rulebook — the set of testable rules your custom
-        scenarios will be generated from. Every step has a light path; the more
-        you give it, the sharper the test.
-      </p>
+      {!framed && (
+        <>
+          <h1 className="font-display mt-3 text-3xl tracking-tight text-ink">
+            Teach Preflight your agent
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-sub">
+            Five short steps to a Rulebook — the set of testable rules your
+            custom scenarios will be generated from. Every step has a light
+            path; the more you give it, the sharper the test.
+          </p>
+        </>
+      )}
 
       {/* Stepper */}
-      <div className="mt-8 flex items-center gap-2">
+      <div className="mt-8 flex items-center gap-2 overflow-x-auto pb-2">
         {STEPS.map((label, i) => (
           <button
             key={label}

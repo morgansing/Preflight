@@ -308,39 +308,41 @@ export function NavRail() {
           )}
         </div>
 
-        <div className={styles.guideArea}>
-          <button
-            type="button"
-            className={styles.guideButton}
-            onClick={(event) => showGuide(event.currentTarget)}
-            aria-label="How Preflight works"
-            aria-haspopup="dialog"
-            aria-expanded={guideOpen}
-            aria-controls="preflight-guide"
-            title="How Preflight works"
-          >
-            <span className={styles.guideIcon} aria-hidden="true">?</span>
-            <span className={styles.guideCopy}>
-              <strong>How it works</strong>
-            </span>
-          </button>
-        </div>
+        <div className={styles.utilityRow}>
+          <div className={styles.guideArea}>
+            <button
+              type="button"
+              className={styles.guideButton}
+              onClick={(event) => showGuide(event.currentTarget)}
+              aria-label="How Preflight works"
+              aria-haspopup="dialog"
+              aria-expanded={guideOpen}
+              aria-controls="preflight-guide"
+              title="How Preflight works"
+            >
+              <span className={styles.guideIcon} aria-hidden="true">?</span>
+              <span className={styles.guideCopy}>
+                <strong>How it works</strong>
+              </span>
+            </button>
+          </div>
 
-        <div className={styles.modeArea}>
-          <button
-            type="button"
-            onClick={() => setMode(mode === "demo" ? "live" : "demo")}
-            className={styles.modeButton}
-            aria-pressed={mode === "live"}
-            aria-label={`${mode === "demo" ? "Demo" : "Live"} mode. Switch to ${mode === "demo" ? "live" : "demo"} mode`}
-            title={`Switch to ${mode === "demo" ? "Live" : "Demo"} mode`}
-          >
-            <span className={`${styles.modeIndicator} ${mode === "live" ? styles.modeLive : ""}`}>
-              <span className={styles.modeDot} aria-hidden="true" />
-              <span className={styles.modeWord}>{mode.toUpperCase()}</span>
-            </span>
-            <span className={styles.modeCopy}>switch environment</span>
-          </button>
+          <div className={styles.modeArea}>
+            <button
+              type="button"
+              onClick={() => setMode(mode === "demo" ? "live" : "demo")}
+              className={styles.modeButton}
+              aria-pressed={mode === "live"}
+              aria-label={`${mode === "demo" ? "Demo" : "Live"} mode. Switch to ${mode === "demo" ? "live" : "demo"} mode`}
+              title={`Switch to ${mode === "demo" ? "Live" : "Demo"} mode`}
+            >
+              <span className={`${styles.modeIndicator} ${mode === "live" ? styles.modeLive : ""}`}>
+                <span className={styles.modeDot} aria-hidden="true" />
+                <span className={styles.modeWord}>{mode.toUpperCase()}</span>
+              </span>
+              <span className={styles.modeCopy}>switch environment</span>
+            </button>
+          </div>
         </div>
         {session && (
           <div className={styles.logoutArea}>

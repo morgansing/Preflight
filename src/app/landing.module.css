@@ -247,6 +247,7 @@
 
 .hero h1,
 .sectionCopy h2,
+.coverageCopy h2,
 .evidenceHeading h2,
 .closingCta h2 {
   font-family: var(--font-display);
@@ -263,6 +264,7 @@
 
 .hero h1 em,
 .sectionCopy h2 em,
+.coverageCopy h2 em,
 .evidenceHeading h2 em,
 .closingCta h2 em {
   font-style: italic;

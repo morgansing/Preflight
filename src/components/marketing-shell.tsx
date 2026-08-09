@@ -68,6 +68,18 @@ export function MarketingMain({
 
   return (
     <main id="main-content" tabIndex={-1} className={classes}>
+      <div className={styles.motionField} aria-hidden="true">
+        <span className={`${styles.signalLane} ${styles.signalLaneOne}`} />
+        <span className={`${styles.signalLane} ${styles.signalLaneTwo}`} />
+        <span className={`${styles.signalLane} ${styles.signalLaneThree}`} />
+        <span className={`${styles.signalLane} ${styles.signalLaneFour}`} />
+        <span className={`${styles.fieldNode} ${styles.fieldNodeOne}`} />
+        <span className={`${styles.fieldNode} ${styles.fieldNodeTwo}`} />
+        <span className={`${styles.fieldNode} ${styles.fieldNodeThree}`} />
+        <span className={`${styles.fieldNode} ${styles.fieldNodeFour}`} />
+        <span className={`${styles.fieldFlare} ${styles.fieldFlareOne}`} />
+        <span className={`${styles.fieldFlare} ${styles.fieldFlareTwo}`} />
+      </div>
       {children}
     </main>
   );
