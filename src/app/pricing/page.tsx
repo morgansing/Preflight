@@ -170,7 +170,6 @@ export default function PricingPage() {
         <div className={styles.grid} />
         <div className={styles.flareOne} />
         <div className={styles.flareTwo} />
-        <div className={styles.scan} />
       </div>
 
       <MarketingHeader active="pricing" />

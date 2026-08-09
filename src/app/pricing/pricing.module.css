@@ -32,7 +32,6 @@
   border-radius: 999px;
   filter: blur(2px);
   opacity: 0.55;
-  animation: drift 15s ease-in-out infinite alternate;
 }
 
 .flareOne {
@@ -49,19 +48,6 @@
   width: 42rem;
   height: 42rem;
   background: radial-gradient(circle, rgba(61, 220, 132, 0.09), transparent 68%);
-  animation-delay: -7s;
-}
-
-.scan {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  opacity: 0.35;
-  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.65), transparent);
-  box-shadow: 0 0 30px rgba(61, 220, 132, 0.18);
-  animation: scan 12s linear infinite;
 }
 
 .header {
@@ -1361,24 +1347,6 @@
   outline-offset: 3px;
 }
 
-@keyframes drift {
-  from {
-    transform: translate3d(0, -2%, 0) scale(0.96);
-  }
-  to {
-    transform: translate3d(5%, 5%, 0) scale(1.04);
-  }
-}
-
-@keyframes scan {
-  from {
-    transform: translateY(-1px);
-  }
-  to {
-    transform: translateY(2400px);
-  }
-}
-
 @keyframes signal {
   0% {
     opacity: 0.8;
@@ -1733,9 +1701,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flareOne,
-  .flareTwo,
-  .scan,
   .brandSignal::after,
   .liveState i,
   .flowRail span,

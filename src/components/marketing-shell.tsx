@@ -69,27 +69,15 @@ export function MarketingMain({
   return (
     <main id="main-content" tabIndex={-1} className={classes}>
       <div className={styles.motionField} aria-hidden="true">
-        <div className={`${styles.evidenceRail} ${styles.evidenceRailOne}`}>
-          <span className={styles.railGrid} />
-          <span className={styles.railPasses} />
-          <span className={styles.railAnomaly} />
-          <span className={styles.railReview} />
-          <span className={styles.railScan} />
-        </div>
-        <div className={`${styles.evidenceRail} ${styles.evidenceRailTwo}`}>
-          <span className={styles.railGrid} />
-          <span className={styles.railPasses} />
-          <span className={styles.railAnomaly} />
-          <span className={styles.railReview} />
-          <span className={styles.railScan} />
-        </div>
-        <div className={`${styles.evidenceRail} ${styles.evidenceRailThree}`}>
-          <span className={styles.railGrid} />
-          <span className={styles.railPasses} />
-          <span className={styles.railAnomaly} />
-          <span className={styles.railReview} />
-          <span className={styles.railScan} />
-        </div>
+        <span className={`${styles.auroraGlow} ${styles.auroraHero}`} />
+        <span className={`${styles.auroraGlow} ${styles.auroraLower}`} />
+        <span className={`${styles.dataTrace} ${styles.dataTraceHero}`}>
+          <span className={styles.tracePacket} />
+        </span>
+        <span className={`${styles.dataTrace} ${styles.dataTraceMiddle}`}>
+          <span className={styles.tracePacket} />
+        </span>
+        <span className={`${styles.dataTrace} ${styles.dataTraceLower}`} />
       </div>
       {children}
     </main>
