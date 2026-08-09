@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { MarketingAtmosphere } from "./marketing-atmosphere";
 import styles from "./marketing-shell.module.css";
 
 export type MarketingPage =
@@ -68,17 +69,7 @@ export function MarketingMain({
 
   return (
     <main id="main-content" tabIndex={-1} className={classes}>
-      <div className={styles.motionField} aria-hidden="true">
-        <span className={`${styles.auroraGlow} ${styles.auroraHero}`} />
-        <span className={`${styles.auroraGlow} ${styles.auroraLower}`} />
-        <span className={`${styles.dataTrace} ${styles.dataTraceHero}`}>
-          <span className={styles.tracePacket} />
-        </span>
-        <span className={`${styles.dataTrace} ${styles.dataTraceMiddle}`}>
-          <span className={styles.tracePacket} />
-        </span>
-        <span className={`${styles.dataTrace} ${styles.dataTraceLower}`} />
-      </div>
+      <MarketingAtmosphere />
       {children}
     </main>
   );

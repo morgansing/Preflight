@@ -102,10 +102,6 @@ export default function Landing() {
     <div className={styles.page}>
       <div aria-hidden className={styles.ambient}>
         <div className={styles.grid} />
-        <div className={styles.signalField} />
-        <div className={styles.orbOne} />
-        <div className={styles.orbTwo} />
-        <div className={styles.orbThree} />
         <div className={styles.noise} />
       </div>
 

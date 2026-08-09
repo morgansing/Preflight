@@ -43,12 +43,7 @@
 .mainContent::before {
   top: min(48rem, 42vw);
   bottom: 0;
-  background:
-    radial-gradient(circle at 8% 14%, rgba(61, 220, 132, 0.055), transparent 25rem),
-    radial-gradient(circle at 94% 34%, rgba(151, 164, 181, 0.035), transparent 28rem),
-    radial-gradient(circle at 78% 59%, rgba(61, 220, 132, 0.045), transparent 29rem),
-    radial-gradient(circle at 12% 82%, rgba(224, 163, 64, 0.025), transparent 24rem),
-    linear-gradient(180deg, transparent, rgba(13, 16, 18, 0.36) 14%, transparent 31%, rgba(14, 18, 18, 0.4) 63%, transparent 84%);
+  background: linear-gradient(180deg, transparent, rgba(13, 16, 18, 0.36) 14%, transparent 31%, rgba(14, 18, 18, 0.4) 63%, transparent 84%);
 }
 
 .mainContent::after {
@@ -71,110 +66,116 @@
   outline-offset: 4px;
 }
 
-/* A shared, page-length signal field for the public site. Only the small
- * children move; the viewport-sized container and its paint area stay still. */
-.motionField {
-  position: absolute;
-  top: 0;
-  right: calc(50% - 50vw);
-  bottom: 0;
-  left: calc(50% - 50vw);
+/* A borderless echo of the real run wall. The field stays in the viewport
+ * while one observer advances its evidence phase; there is no scroll loop. */
+.marketingAtmosphere {
+  position: fixed;
+  inset: 0;
   z-index: -1;
   overflow: hidden;
   contain: layout paint style;
   pointer-events: none;
 }
 
-/* The public site shares one ambient flight path: soft bounded aurora light
- * and thin data traces. Only the hero glow and the three small packets move. */
-.auroraGlow {
+.atmosphereConstellation {
   position: absolute;
-  width: min(38rem, 54vw);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  opacity: 0.2;
-  background:
-    radial-gradient(ellipse at 42% 46%, rgba(61, 220, 132, 0.22), rgba(61, 220, 132, 0.07) 34%, transparent 68%),
-    radial-gradient(ellipse at 68% 35%, rgba(137, 255, 190, 0.09), transparent 54%);
+  top: clamp(4.5rem, 10vh, 7rem);
+  right: -4vw;
+  width: min(62rem, 86vw);
+  height: clamp(13rem, 27vh, 19rem);
+  opacity: 0.78;
+  -webkit-mask-image: radial-gradient(ellipse 76% 72% at 57% 48%, #000 44%, rgba(0, 0, 0, 0.76) 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 76% 72% at 57% 48%, #000 44%, rgba(0, 0, 0, 0.76) 70%, transparent 100%);
 }
 
-.auroraHero {
-  top: -13rem;
-  right: -10rem;
-  animation: auroraDrift 30s ease-in-out infinite alternate;
-  will-change: transform, opacity;
-}
-
-.auroraLower {
-  top: 61%;
-  left: -14rem;
-  width: min(34rem, 48vw);
-  opacity: 0.15;
-  background:
-    radial-gradient(ellipse at 52% 50%, rgba(61, 220, 132, 0.18), rgba(61, 220, 132, 0.045) 38%, transparent 70%),
-    radial-gradient(ellipse at 35% 62%, rgba(120, 255, 181, 0.06), transparent 52%);
-}
-
-.dataTrace {
+.mutedCells,
+.resolvedCells {
   position: absolute;
-  height: 5px;
-  overflow: hidden;
-  opacity: 0.62;
-  background:
-    linear-gradient(90deg, transparent, rgba(84, 119, 102, 0.16) 12%, rgba(61, 220, 132, 0.34) 48%, rgba(84, 119, 102, 0.14) 86%, transparent) center / 100% 1px no-repeat,
-    repeating-linear-gradient(90deg, transparent 0 4.2rem, rgba(121, 192, 154, 0.28) 4.2rem calc(4.2rem + 2px), transparent calc(4.2rem + 2px) 8.4rem) center / 100% 3px no-repeat;
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  inset: 0;
 }
 
-.dataTraceHero {
-  top: clamp(4.5rem, 9vw, 7rem);
-  left: 8%;
-  width: min(58rem, 78vw);
-  transform: rotate(-7deg);
+.mutedCells {
+  opacity: 0.36;
 }
 
-.dataTraceMiddle {
-  top: 43%;
-  left: -5%;
-  width: min(48rem, 64vw);
-  transform: rotate(6deg);
+.resolvedCells {
+  animation: wakeResolve 800ms var(--ease-out-quad) both;
 }
 
-.dataTraceLower {
-  top: 77%;
-  right: -5%;
-  width: min(52rem, 68vw);
-  transform: rotate(-5deg);
-}
-
-.tracePacket {
+.scenarioCell {
   position: absolute;
-  top: 2px;
-  left: 0;
-  width: 17%;
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 0.12rem;
+  transform: translate3d(-50%, -50%, 0);
+}
+
+.cellMuted {
+  border: 1px solid rgba(127, 145, 137, 0.22);
+  background: rgba(110, 127, 120, 0.08);
+}
+
+.cellPass {
+  border: 1px solid rgba(61, 220, 132, 0.34);
+  background: rgba(61, 220, 132, 0.3);
+  box-shadow: 0 0 9px rgba(61, 220, 132, 0.12);
+}
+
+.cellFail {
+  border: 1px solid rgba(255, 89, 89, 0.62);
+  background: rgba(255, 89, 89, 0.5);
+  box-shadow: 0 0 11px rgba(255, 89, 89, 0.18);
+}
+
+.cellFail::after {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  width: 1px;
+  height: 1.15rem;
+  content: "";
+  opacity: 0.5;
+  background: linear-gradient(rgba(255, 89, 89, 0.74), transparent);
+  transform: rotate(12deg);
+  transform-origin: top;
+}
+
+.cellReview {
+  border: 1px solid rgba(224, 163, 64, 0.52);
+  background: rgba(224, 163, 64, 0.38);
+  box-shadow: 0 0 9px rgba(224, 163, 64, 0.12);
+}
+
+.replayCursorAnchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  animation: cursorResolve 720ms 100ms var(--ease-out-quad) both;
+}
+
+.replayCursor {
+  --pointer-shift: 0px;
+  position: absolute;
+  top: 0.2rem;
+  right: 0.1rem;
+  width: 3.2rem;
   height: 1px;
-  opacity: 0;
-  background: linear-gradient(90deg, transparent, rgba(185, 255, 216, 0.72), rgba(61, 220, 132, 0.98));
-  box-shadow: 0 0 11px rgba(61, 220, 132, 0.24);
-  animation: traceTravel 14s linear -4s infinite;
-  will-change: transform, opacity;
+  background: linear-gradient(90deg, transparent, rgba(255, 89, 89, 0.7));
+  box-shadow: 0 0 9px rgba(255, 89, 89, 0.14);
+  transform: translate3d(var(--pointer-shift), 0, 0) rotate(-8deg);
+  transform-origin: right;
 }
 
-.tracePacket::after {
+.replayCursor::after {
   position: absolute;
-  top: -2px;
+  top: -1px;
   right: 0;
-  width: 5px;
-  height: 5px;
+  width: 3px;
+  height: 3px;
   border-radius: 1px;
   content: "";
-  background: rgba(156, 255, 201, 0.92);
-  box-shadow: 0 0 12px rgba(61, 220, 132, 0.52);
-}
-
-.dataTraceMiddle .tracePacket {
-  animation-delay: -10s;
-  animation-duration: 17s;
+  background: rgba(255, 112, 112, 0.9);
+  box-shadow: 0 0 8px rgba(255, 89, 89, 0.28);
 }
 
 
@@ -334,50 +335,24 @@
     background-size: 48px 48px;
   }
 
-  .auroraGlow {
-    width: min(30rem, 80vw);
+  .atmosphereConstellation {
+    top: 5rem;
+    right: -12vw;
+    width: 112vw;
+    height: 14rem;
+    opacity: 0.62;
   }
 
-  .auroraHero {
-    top: -11rem;
-    right: -12rem;
-    opacity: 0.17;
-    animation: none;
-    will-change: auto;
-  }
-
-  .auroraLower {
-    top: 64%;
-    left: -12rem;
-    width: min(28rem, 76vw);
-    opacity: 0.11;
-  }
-
-  .dataTrace {
-    width: min(34rem, 88vw);
-    opacity: 0.48;
-  }
-
-  .dataTraceHero {
-    top: 4rem;
-    left: -5%;
-  }
-
-  .dataTraceMiddle {
-    top: 47%;
-    left: -14%;
-    width: min(32rem, 84vw);
-  }
-
-  .dataTraceMiddle .tracePacket {
+  .scenarioCell:nth-child(odd) {
     display: none;
   }
 
-  .dataTraceLower {
-    top: 78%;
-    right: -18%;
-    width: min(32rem, 84vw);
-    opacity: 0.32;
+  .resolvedCells {
+    animation-duration: 760ms;
+  }
+
+  .replayCursor {
+    width: 2.7rem;
   }
 
   .header,
@@ -418,16 +393,21 @@
 }
 
 @media (max-width: 420px) {
-  .tracePacket {
+  .scenarioCell:nth-child(4n + 2) {
     display: none;
   }
 
-  .auroraHero {
-    opacity: 0.14;
+  .atmosphereConstellation {
+    top: 4.5rem;
+    right: -17vw;
+    width: 124vw;
+    height: 11rem;
+    opacity: 0.46;
   }
 
-  .dataTrace {
-    opacity: 0.34;
+  .resolvedCells,
+  .replayCursorAnchor {
+    animation: none;
   }
 
   .header,
@@ -459,55 +439,42 @@
     animation: none;
   }
 
-  .auroraHero {
-    opacity: 0.15;
+  .resolvedCells,
+  .replayCursorAnchor {
     animation: none;
-    transform: none;
-    will-change: auto;
   }
 
-  .tracePacket {
-    display: none;
-  }
-
-  .dataTrace {
-    opacity: 0.36;
+  .atmosphereConstellation {
+    opacity: 0.46;
   }
 }
 
-@keyframes traceTravel {
-  0%,
-  16% {
-    opacity: 0;
-    transform: translate3d(-120%, 0, 0);
-  }
-
-  20% {
-    opacity: 0.9;
-    transform: translate3d(-70%, 0, 0);
-  }
-
-  43% {
-    opacity: 0.62;
-    transform: translate3d(520%, 0, 0);
-  }
-
-  48%,
-  100% {
-    opacity: 0;
-    transform: translate3d(610%, 0, 0);
-  }
-}
-
-@keyframes auroraDrift {
+@keyframes wakeResolve {
   from {
-    opacity: 0.16;
-    transform: translate3d(-10px, -6px, 0) scale(0.99);
+    opacity: 0;
+    transform: translate3d(-10px, 4px, 0) scale(0.995);
+  }
+
+  58% {
+    opacity: 0.86;
   }
 
   to {
-    opacity: 0.22;
-    transform: translate3d(18px, 14px, 0) scale(1.03);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cursorResolve {
+  0%,
+  32% {
+    opacity: 0;
+    transform: translate3d(-12px, 4px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 

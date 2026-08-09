@@ -87,7 +87,6 @@ export default function GauntletPage() {
     <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.ambientGrid} />
-        <div className={styles.ambientGlow} />
       </div>
 
       <MarketingHeader active="gauntlet" />

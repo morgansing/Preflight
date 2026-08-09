@@ -21,8 +21,6 @@ export default function ProductPage() {
     <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.grid} />
-        <div className={styles.glow} />
-        <div className={styles.glowTwo} />
       </div>
 
       <MarketingHeader active="product" />

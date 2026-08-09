@@ -168,8 +168,6 @@ export default function PricingPage() {
     <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.grid} />
-        <div className={styles.flareOne} />
-        <div className={styles.flareTwo} />
       </div>
 
       <MarketingHeader active="pricing" />

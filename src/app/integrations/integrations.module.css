@@ -30,30 +30,6 @@
   animation: none;
 }
 
-.beam {
-  position: absolute;
-  top: 6rem;
-  left: 48%;
-  width: 1px;
-  height: 42rem;
-  background: linear-gradient(transparent, rgba(61, 220, 132, 0.28), transparent);
-  box-shadow: 0 0 42px rgba(61, 220, 132, 0.16);
-  transform: rotate(32deg);
-  animation: none;
-}
-
-.glow {
-  position: absolute;
-  top: 160rem;
-  right: -18rem;
-  width: 42rem;
-  height: 42rem;
-  border-radius: 999px;
-  background: rgba(61, 220, 132, 0.06);
-  filter: blur(100px);
-  animation: none;
-}
-
 .shell {
   position: relative;
   width: min(100% - 2.5rem, 1180px);
@@ -1268,24 +1244,6 @@
   }
 }
 
-@keyframes gridDrift {
-  to {
-    transform: translate3d(62px, 62px, 0);
-  }
-}
-
-@keyframes beamSweep {
-  to {
-    transform: translateX(22vw) rotate(32deg);
-  }
-}
-
-@keyframes glowFloat {
-  to {
-    transform: translate(-22vw, 9rem) scale(1.1);
-  }
-}
-
 @keyframes networkFloat {
   0%,
   100% {
@@ -1537,8 +1495,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .grid,
-  .beam,
-  .glow,
   .brandSignal::after,
   .heroCopy,
   .network,

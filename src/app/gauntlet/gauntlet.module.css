@@ -30,22 +30,6 @@
   mask-image: linear-gradient(to bottom, black, transparent 72rem);
 }
 
-.ambientGlow {
-  position: absolute;
-  top: -24rem;
-  left: 48%;
-  width: 68rem;
-  height: 68rem;
-  border-radius: 999px;
-  opacity: 0.42;
-  background: radial-gradient(
-    circle,
-    rgba(61, 220, 132, 0.1),
-    rgba(61, 220, 132, 0.025) 42%,
-    transparent 70%
-  );
-}
-
 .shell {
   position: relative;
   z-index: 1;

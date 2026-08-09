@@ -30,81 +30,11 @@
   animation: none;
 }
 
-.signalField {
-  position: absolute;
-  inset: 0;
-  opacity: 0.32;
-  background-image: radial-gradient(circle, rgba(61, 220, 132, 0.42) 0 1px, transparent 1.5px);
-  background-size: 184px 184px;
-  mask-image: linear-gradient(to bottom, #000 2%, transparent 36%, transparent 68%, #000);
-  animation: none;
-}
-
-.signalField::before,
-.signalField::after {
-  position: absolute;
-  left: -18%;
-  width: 76%;
-  height: 1px;
-  content: "";
-  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.1), rgba(61, 220, 132, 0.6), transparent);
-  box-shadow: 30vw 0 28px rgba(61, 220, 132, 0.1);
-  transform: rotate(-9deg);
-  animation: none;
-}
-
-.signalField::before {
-  top: 8%;
-}
-
-.signalField::after {
-  top: 64%;
-  left: 42%;
-  width: 66%;
-  transform: rotate(11deg);
-  animation-delay: -6s;
-}
-
 .noise {
   position: absolute;
   inset: 0;
   opacity: 0.022;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
-}
-
-.orbOne,
-.orbTwo,
-.orbThree {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(96px);
-}
-
-.orbOne {
-  top: 3rem;
-  right: -8rem;
-  width: 31rem;
-  height: 31rem;
-  background: rgba(61, 220, 132, 0.085);
-  animation: none;
-}
-
-.orbTwo {
-  top: 105rem;
-  left: -14rem;
-  width: 36rem;
-  height: 36rem;
-  background: rgba(61, 220, 132, 0.052);
-  animation: none;
-}
-
-.orbThree {
-  top: 270rem;
-  right: -16rem;
-  width: 38rem;
-  height: 38rem;
-  background: rgba(232, 234, 237, 0.035);
-  animation: none;
 }
 
 .shell {
@@ -1574,48 +1504,6 @@
   }
 }
 
-@keyframes gridDrift {
-  to {
-    transform: translate3d(62px, 62px, 0);
-  }
-}
-
-@keyframes signalDrift {
-  to {
-    background-position: 184px 368px;
-  }
-}
-
-@keyframes signalSweep {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: translateX(-12%) rotate(-9deg);
-  }
-  50% {
-    opacity: 0.86;
-    transform: translateX(62%) rotate(-9deg);
-  }
-}
-
-@keyframes orbOne {
-  to {
-    transform: translate(-17vw, 9rem) scale(1.12);
-  }
-}
-
-@keyframes orbTwo {
-  to {
-    transform: translate(22vw, 8rem) scale(0.9);
-  }
-}
-
-@keyframes orbThree {
-  to {
-    transform: translate(-18vw, -7rem) scale(1.08);
-  }
-}
-
 @keyframes heroGridMove {
   to {
     transform: translate3d(38px, 38px, 0);
@@ -1987,12 +1875,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .grid,
-  .signalField,
-  .signalField::before,
-  .signalField::after,
-  .orbOne,
-  .orbTwo,
-  .orbThree,
   .brandSignal::after,
   .heroCopy,
   .heroVisual,

@@ -31,31 +31,6 @@
   animation: none;
 }
 
-.glow,
-.glowTwo {
-  position: absolute;
-  border-radius: 999px;
-  background: rgba(61, 220, 132, 0.07);
-  filter: blur(90px);
-}
-
-.glow {
-  top: 10rem;
-  right: -14rem;
-  width: 34rem;
-  height: 34rem;
-  animation: none;
-}
-
-.glowTwo {
-  top: 180rem;
-  left: -16rem;
-  width: 38rem;
-  height: 38rem;
-  opacity: 0.65;
-  animation: none;
-}
-
 .shell {
   position: relative;
   width: min(100% - 2.5rem, 1180px);
@@ -1511,24 +1486,6 @@
   }
 }
 
-@keyframes gridDrift {
-  to {
-    transform: translate3d(64px, 64px, 0);
-  }
-}
-
-@keyframes glowFloat {
-  to {
-    transform: translate(-16vw, 10rem) scale(1.1);
-  }
-}
-
-@keyframes glowFloatTwo {
-  to {
-    transform: translate(22vw, -8rem) scale(0.88);
-  }
-}
-
 @keyframes systemFloat {
   0%,
   100% {
@@ -1838,8 +1795,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .grid,
-  .glow,
-  .glowTwo,
   .brandSignal::after,
   .heroCopy,
   .heroSystem,

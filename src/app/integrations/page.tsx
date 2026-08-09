@@ -56,8 +56,6 @@ export default function IntegrationsPage() {
     <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.grid} />
-        <div className={styles.beam} />
-        <div className={styles.glow} />
       </div>
 
       <MarketingHeader active="integrations" />

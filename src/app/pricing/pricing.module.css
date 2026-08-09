@@ -26,30 +26,6 @@
   mask-image: linear-gradient(to bottom, black, transparent 33%, transparent 78%, black);
 }
 
-.flareOne,
-.flareTwo {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(2px);
-  opacity: 0.55;
-}
-
-.flareOne {
-  top: 6rem;
-  left: -16rem;
-  width: 36rem;
-  height: 36rem;
-  background: radial-gradient(circle, rgba(61, 220, 132, 0.15), transparent 67%);
-}
-
-.flareTwo {
-  top: 64rem;
-  right: -19rem;
-  width: 42rem;
-  height: 42rem;
-  background: radial-gradient(circle, rgba(61, 220, 132, 0.09), transparent 68%);
-}
-
 .header {
   position: relative;
   z-index: 20;
