@@ -125,7 +125,7 @@ export default function Landing() {
             </h1>
             <p>
               Preflight puts AI agents through realistic conversations,
-              adversarial edge cases, and your own operating policies—then
+              adversarial edge cases, and your own operating policies. Then it
               shows you the exact decision that broke.
             </p>
 
@@ -258,8 +258,8 @@ export default function Landing() {
                 <em>for judgement.</em>
               </h2>
               <p>
-                Teams put agents into real jobs—refunds, orders,
-                escalations—and discover how they handle fraud by watching
+                Teams put agents into real jobs such as refunds, orders, and
+                escalations, then discover how they handle fraud by watching
                 them fail on real customers. Preflight is where those decisions
                 fail safely first.
               </p>
@@ -427,15 +427,15 @@ export default function Landing() {
                 <em>Run the hard decisions.</em>
               </h2>
               <p>
-                The Gauntlet isolates the 23 difficulty 4–5 scenarios already
-                included in Standard and larger runs: boundary collisions,
-                conflicting evidence, fraud, legal threats, and decisions that
-                should demand a human.
+                The Gauntlet isolates the difficulty 4–5 scenarios already
+                threaded through coverage. Smoke includes 7 of 23; Standard
+                and every larger run include all 23.
               </p>
               <p>
-                Rerun that hard slice alone after a fix. Then send 16
-                prompt-injection attacks through the store data your agent
-                reads, while the visible customer request stays ordinary.
+                Run the focused slice after a fix to put the hardest decisions
+                under the microscope. Then send 16 prompt-injection attacks
+                through the store data your agent reads while the visible
+                customer request stays ordinary.
               </p>
               <Link href="/gauntlet" className={styles.textLink}>
                 Enter The Gauntlet <span aria-hidden>→</span>

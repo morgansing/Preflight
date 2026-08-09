@@ -23,7 +23,7 @@ export default function LoginPage() {
         </p>
         <h1>Welcome back.</h1>
         <p>
-          Sign in to your workspace — your agents, Rulebook, runs and baselines are where you left
+          Sign in to your workspace. Your agents, Rulebook, runs and baselines are where you left
           them.
         </p>
       </div>
@@ -99,7 +99,7 @@ export default function LoginPage() {
 
       <p className={formStyles.alternate}>
         New to Preflight?{" "}
-        <Link href="/signup">Create a workspace</Link> — first 250 simulations free.
+        <Link href="/signup">Create a workspace</Link>. Your first 250 simulations are free.
       </p>
     </AuthShell>
   );

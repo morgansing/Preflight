@@ -22,7 +22,44 @@
 }
 
 .mainContent {
+  position: relative;
+  isolation: isolate;
   scroll-margin-top: 1rem;
+}
+
+.mainContent::before,
+.mainContent::after {
+  position: absolute;
+  right: calc(50% - 50vw);
+  left: calc(50% - 50vw);
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+}
+
+/* Long marketing pages used to lose all atmosphere once the hero glow ended.
+ * These quiet, static signal fields keep later sections visually separated
+ * without adding another always-running compositor animation. */
+.mainContent::before {
+  top: min(48rem, 42vw);
+  bottom: 0;
+  background:
+    radial-gradient(circle at 8% 14%, rgba(61, 220, 132, 0.055), transparent 25rem),
+    radial-gradient(circle at 94% 34%, rgba(151, 164, 181, 0.035), transparent 28rem),
+    radial-gradient(circle at 78% 59%, rgba(61, 220, 132, 0.045), transparent 29rem),
+    radial-gradient(circle at 12% 82%, rgba(224, 163, 64, 0.025), transparent 24rem),
+    linear-gradient(180deg, transparent, rgba(13, 16, 18, 0.36) 14%, transparent 31%, rgba(14, 18, 18, 0.4) 63%, transparent 84%);
+}
+
+.mainContent::after {
+  top: clamp(54rem, 58vw, 68rem);
+  bottom: 8rem;
+  opacity: 0.14;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, transparent, #000 9%, transparent 29%, transparent 43%, #000 56%, transparent 74%, #000 91%, transparent);
 }
 
 .mainContent:focus {
@@ -181,6 +218,15 @@
 }
 
 @media (max-width: 780px) {
+  .mainContent::before {
+    top: 42rem;
+  }
+
+  .mainContent::after {
+    top: 48rem;
+    background-size: 48px 48px;
+  }
+
   .header,
   .footer {
     width: min(calc(100% - 2rem), 1180px);

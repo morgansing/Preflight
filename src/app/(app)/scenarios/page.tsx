@@ -10,6 +10,7 @@ import { DIFFICULTY_LABELS, type Difficulty, type Scenario, type Severity } from
 import { useMode } from "@/lib/mode";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 import { LiveEmpty } from "@/components/live-empty";
+import styles from "@/components/evidence-browser.module.css";
 
 const PAGE_SIZE = 100;
 
@@ -41,149 +42,237 @@ export default function ScenariosPage() {
   if (mode === "live") return <LiveEmpty surface="the scenario library" />;
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-10">
-      <div className="flex items-start justify-between">
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
         <div>
-          <h1 className="font-display text-3xl tracking-tight text-ink">
-            Scenarios
+          <div className={styles.kicker}>Scenario library</div>
+          <h1 className={styles.pageTitle}>
+            Browse the tests.
+            <br />
+            <em>Open the evidence.</em>
           </h1>
-          <p className="mt-2 text-sm text-sub">
-            {all.length.toLocaleString()} scenarios · Ecommerce Support Suite v2
+          <p className={styles.pageSubtitle}>
+            Ecommerce Support Suite v2. Filter the measured library, inspect the
+            correct path, and see how each agent handled the same decision.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>New scenario</Button>
-      </div>
+        <div className={styles.headerSide}>
+          <div className={styles.headerMetrics} aria-label="Scenario library summary">
+            <div className={styles.headerMetric}>
+              <span className={styles.metricLabel}>Library</span>
+              <strong className={`${styles.metricValue} ${styles.metricValueAccent}`}>
+                {all.length.toLocaleString()}
+              </strong>
+              <span className={styles.metricNote}>scenarios loaded</span>
+            </div>
+            <div className={styles.headerMetric}>
+              <span className={styles.metricLabel}>Current view</span>
+              <strong className={styles.metricValue}>{filtered.length.toLocaleString()}</strong>
+              <span className={styles.metricNote}>match the filters</span>
+            </div>
+          </div>
+          <Button className={styles.headerAction} onClick={() => setCreating(true)}>
+            New scenario
+          </Button>
+        </div>
+      </header>
 
-      {/* Library size — the first 200 are the hand-shaped base suite;
-          larger sizes extend it deterministically, up to 10,000. */}
-      <div className="mt-8 flex flex-wrap items-center gap-2">
-        <Eyebrow className="mr-2">Library size</Eyebrow>
-        {LIBRARY_SIZES.map((n) => (
-          <button
-            key={n}
-            onClick={() => {
-              setLibrarySize(n);
-              setPage(0);
-            }}
-            aria-pressed={librarySize === n}
-            className={`focus-ring h-8 rounded-md border px-3 font-mono text-[12px] tabular-nums transition-colors duration-150 cursor-pointer ${
-              librarySize === n
-                ? "border-accent/50 bg-accent/10 text-accent"
-                : "border-edge text-sub hover:border-mut hover:text-ink"
-            }`}
-          >
-            {n.toLocaleString()}
-          </button>
-        ))}
-        <span className="ml-2 text-[12px] text-mut">
-          sizes past 200 extend the base suite deterministically
-        </span>
-      </div>
+      <section className={styles.filterPanel} aria-labelledby="scenario-filters-title">
+        <div className={styles.panelTopbar}>
+          <span className={styles.panelKicker} id="scenario-filters-title">
+            <strong>01</strong> · Shape the view
+          </span>
+          <span className={styles.panelSummary}>
+            {filtered.length.toLocaleString()} / {all.length.toLocaleString()} visible
+          </span>
+        </div>
+        <div className={styles.filterBody}>
+          {/* Library size — the first 200 are the hand-shaped base suite;
+              larger sizes extend it deterministically, up to 10,000. */}
+          <div className={styles.filterGroup}>
+            <div className={styles.filterLabel}>
+              Library size
+              <span>Past 200, the base suite extends deterministically.</span>
+            </div>
+            <div className={styles.chipRail}>
+              {LIBRARY_SIZES.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    setLibrarySize(size);
+                    setPage(0);
+                  }}
+                  aria-pressed={librarySize === size}
+                  className={`${styles.chip} ${styles.sizeChip}`}
+                >
+                  {size.toLocaleString()}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Category filter */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <FilterChip
-          label="All"
-          active={filter === null}
-          onClick={() => {
-            setFilter(null);
-            setPage(0);
-          }}
-        />
-        {cats.map((c) => (
-          <FilterChip
-            key={c}
-            label={c}
-            active={filter === c}
-            onClick={() => {
-              setFilter(filter === c ? null : c);
-              setPage(0);
-            }}
-          />
-        ))}
-      </div>
+          <div className={styles.filterGroup}>
+            <div className={styles.filterLabel}>Category</div>
+            <div className={styles.chipRail}>
+              <FilterChip
+                label="All"
+                active={filter === null}
+                onClick={() => {
+                  setFilter(null);
+                  setPage(0);
+                }}
+              />
+              {cats.map((category) => (
+                <FilterChip
+                  key={category}
+                  label={category}
+                  active={filter === category}
+                  onClick={() => {
+                    setFilter(filter === category ? null : category);
+                    setPage(0);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
 
-      {/* Difficulty filter — routine warm-ups to brutal adversaries */}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Eyebrow className="mr-2">Difficulty</Eyebrow>
-        <FilterChip
-          label="All"
-          active={difficulty === null}
-          onClick={() => {
-            setDifficulty(null);
-            setPage(0);
-          }}
-        />
-        {([1, 2, 3, 4, 5] as const).map((d) => (
-          <FilterChip
-            key={d}
-            label={`${d} · ${DIFFICULTY_LABELS[d]}`}
-            active={difficulty === d}
-            onClick={() => {
-              setDifficulty(difficulty === d ? null : d);
-              setPage(0);
-            }}
-          />
-        ))}
-      </div>
+          {/* Difficulty filter — routine warm-ups to brutal adversaries. */}
+          <div className={styles.filterGroup}>
+            <div className={styles.filterLabel}>Difficulty</div>
+            <div className={styles.chipRail}>
+              <FilterChip
+                label="All"
+                active={difficulty === null}
+                onClick={() => {
+                  setDifficulty(null);
+                  setPage(0);
+                }}
+              />
+              {([1, 2, 3, 4, 5] as const).map((level) => (
+                <FilterChip
+                  key={level}
+                  label={`${level} · ${DIFFICULTY_LABELS[level]}`}
+                  active={difficulty === level}
+                  onClick={() => {
+                    setDifficulty(difficulty === level ? null : level);
+                    setPage(0);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-edge">
-        <table className="w-full text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-edge bg-surface font-mono text-[10px] uppercase tracking-wider text-mut">
-              <th className="h-10 px-4 font-medium">ID</th>
-              <th className="h-10 px-4 font-medium">Scenario</th>
-              <th className="h-10 px-4 font-medium">Category</th>
-              <th className="h-10 px-4 font-medium">Severity</th>
-              <th className="hidden h-10 px-4 font-medium lg:table-cell">Difficulty</th>
-              <th className="hidden h-10 px-4 font-medium xl:table-cell">
-                Correct outcome
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
+      <section className={styles.tablePanel} aria-labelledby="scenario-results-title">
+        <div className={styles.tableTopbar}>
+          <span className={styles.tableTitle} id="scenario-results-title">
+            Scenarios in view
+          </span>
+          <span className={styles.panelSummary}>
+            {rows.length === 0
+              ? "No matches"
+              : `${(safePage * PAGE_SIZE + 1).toLocaleString()}–${Math.min(
+                  filtered.length,
+                  (safePage + 1) * PAGE_SIZE,
+                ).toLocaleString()} of ${filtered.length.toLocaleString()}`}
+          </span>
+        </div>
+        <div className={styles.scenarioTableWrap}>
+          <table className={styles.scenarioTable}>
+            <caption className="sr-only">
+              Filtered scenario definitions. Open a row to inspect its evidence.
+            </caption>
+            <thead>
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-mut">
-                  No scenarios match these filters — try clearing the category or
-                  difficulty.
-                </td>
+                <th>ID</th>
+                <th>Scenario</th>
+                <th>Category</th>
+                <th>Severity</th>
+                <th>Difficulty</th>
+                <th>Correct outcome</th>
               </tr>
-            )}
-            {rows.map((s) => (
-              <tr
-                key={s.id}
-                onClick={() => setSelected(s)}
-                className="h-12 cursor-pointer border-b border-edge/60 transition-colors last:border-0 hover:bg-surface"
-              >
-                <td className="px-4 font-mono text-[12px] text-mut">{s.id}</td>
-                <td className="max-w-64 truncate px-4 text-ink">{s.name}</td>
-                <td className="px-4 text-sub">{s.category}</td>
-                <td className="px-4">
-                  <SeverityLabel severity={s.severity} />
-                </td>
-                <td className="hidden px-4 lg:table-cell">
-                  <DifficultyLabel level={s.difficulty} />
-                </td>
-                <td className="hidden max-w-96 truncate px-4 text-sub xl:table-cell">
-                  {s.rubric}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className={styles.emptyRow}>
+                    No scenarios match these filters — try clearing the category or
+                    difficulty.
+                  </td>
+                </tr>
+              )}
+              {rows.map((scenario) => (
+                <tr
+                  key={scenario.id}
+                  onClick={() => setSelected(scenario)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelected(scenario);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-label={`Open ${scenario.id}: ${scenario.name}`}
+                  className={styles.scenarioRow}
+                >
+                  <td className={styles.scenarioId}>{scenario.id}</td>
+                  <td><span className={styles.scenarioName}>{scenario.name}</span></td>
+                  <td><span className={styles.scenarioCategory}>{scenario.category}</span></td>
+                  <td>
+                    <SeverityLabel severity={scenario.severity} />
+                  </td>
+                  <td>
+                    <DifficultyLabel level={scenario.difficulty} />
+                  </td>
+                  <td>
+                    <span className={styles.scenarioRubric}>{scenario.rubric}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.mobileScenarioList}>
+          {rows.length === 0 && (
+            <p className={styles.failureEmpty}>
+              No scenarios match these filters. Try clearing the category or
+              difficulty.
+            </p>
+          )}
+          {rows.map((scenario) => (
+            <button
+              key={scenario.id}
+              type="button"
+              className={styles.mobileScenarioCard}
+              onClick={() => setSelected(scenario)}
+            >
+              <span className={styles.mobileScenarioTop}>
+                <span className={styles.scenarioId}>{scenario.id}</span>
+                <SeverityLabel severity={scenario.severity} />
+              </span>
+              <span className={styles.scenarioName}>{scenario.name}</span>
+              <span className={styles.mobileScenarioMeta}>
+                <span className={styles.scenarioCategory}>{scenario.category}</span>
+                <DifficultyLabel level={scenario.difficulty} />
+              </span>
+              <span className={styles.mobileScenarioRubric}>{scenario.rubric}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Pagination */}
       {pageCount > 1 && (
-        <div className="mt-4 flex items-center justify-between text-[13px]">
-          <span className="font-mono text-[12px] tabular-nums text-mut">
+        <div className={styles.pagination}>
+          <span className={styles.paginationMeta}>
             {(safePage * PAGE_SIZE + 1).toLocaleString()}–
             {Math.min(filtered.length, (safePage + 1) * PAGE_SIZE).toLocaleString()} of{" "}
             {filtered.length.toLocaleString()}
           </span>
-          <div className="flex items-center gap-2">
+          <div className={styles.paginationActions}>
             <Button
               variant="secondary"
               size="sm"
@@ -192,7 +281,7 @@ export default function ScenariosPage() {
             >
               ← Prev
             </Button>
-            <span className="font-mono text-[12px] tabular-nums text-mut">
+            <span className={styles.pageCounter}>
               {safePage + 1} / {pageCount}
             </span>
             <Button
@@ -212,6 +301,7 @@ export default function ScenariosPage() {
           <ScenarioDetail
             scenario={selected}
             outcome={demoOutcomes.get(selected.id)}
+            compact
             // Drafts live in this tab only — no page to link to.
             permalinkHref={drafts.includes(selected) ? undefined : `/scenarios/${selected.id}`}
           />
@@ -245,13 +335,10 @@ function FilterChip({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`focus-ring h-8 rounded-full border px-3.5 text-[12px] transition-colors duration-150 cursor-pointer ${
-        active
-          ? "border-accent/50 bg-accent/10 text-accent"
-          : "border-edge text-sub hover:border-mut hover:text-ink"
-      }`}
+      className={styles.chip}
     >
       {label}
     </button>
@@ -286,35 +373,39 @@ function Drawer({
   }, [onClose]);
 
   return (
-    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal aria-label={title}>
+    <div
+      ref={dialogRef}
+      className={styles.drawerDialog}
+      role="dialog"
+      aria-modal
+      aria-label={title}
+    >
       <div
-        className="animate-fade-in absolute inset-0 bg-black/50"
+        className={styles.drawerBackdrop}
         onClick={onClose}
       />
-      <div className="animate-fade-up absolute inset-y-0 right-0 w-full max-w-lg overflow-y-auto border-l border-edge bg-raised p-8 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="text-lg font-medium text-ink">{title}</h2>
+      <div className={styles.drawerPanel}>
+        <div className={styles.drawerHeader}>
+          <h2>{title}</h2>
           <button
+            type="button"
             ref={closeRef}
             onClick={onClose}
             aria-label="Close"
-            className="focus-ring rounded-md p-1 text-mut transition-colors hover:text-ink cursor-pointer"
+            className={styles.drawerClose}
           >
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4">
               <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
             </svg>
           </button>
         </div>
-        <div className="mt-6">{children}</div>
+        <div className={styles.drawerBody}>{children}</div>
       </div>
     </div>
   );
 }
 
-const inputCls =
-  "focus-ring w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 text-sm text-ink " +
-  "placeholder:text-mut transition-shadow duration-200 focus:border-accent/50 " +
-  "focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-accent)_12%,transparent)] outline-none";
+const inputCls = styles.input;
 
 function NewScenarioForm({
   nextIndex,
@@ -335,13 +426,23 @@ function NewScenarioForm({
     passCriteria: "",
     mustNot: "",
   });
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
-  const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
+  const set =
+    (key: keyof typeof form) =>
+    (
+      event: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >,
+    ) =>
+      setForm((current) => ({ ...current, [key]: event.target.value }));
+  const lines = (value: string) =>
+    value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
 
   return (
     <form
-      className="space-y-5"
+      className={styles.form}
       onSubmit={(e) => {
         e.preventDefault();
         onCreate({
@@ -359,16 +460,16 @@ function NewScenarioForm({
         });
       }}
     >
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Name</Eyebrow>
         <input className={inputCls} value={form.name} onChange={set("name")} placeholder="Refund demanded for a gift card purchase" required />
       </label>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <label className="block space-y-2">
+      <div className={styles.formRow}>
+        <label className={styles.formLabel}>
           <Eyebrow>Category</Eyebrow>
           <input className={inputCls} value={form.category} onChange={set("category")} />
         </label>
-        <label className="block space-y-2">
+        <label className={styles.formLabel}>
           <Eyebrow>Severity</Eyebrow>
           <select className={inputCls} value={form.severity} onChange={set("severity")}>
             <option value="critical">critical</option>
@@ -377,7 +478,7 @@ function NewScenarioForm({
             <option value="low">low</option>
           </select>
         </label>
-        <label className="block space-y-2">
+        <label className={styles.formLabel}>
           <Eyebrow>Difficulty</Eyebrow>
           <select
             className={inputCls}
@@ -394,32 +495,32 @@ function NewScenarioForm({
           </select>
         </label>
       </div>
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Correct outcome (one line)</Eyebrow>
         <input className={inputCls} value={form.rubric} onChange={set("rubric")} required />
       </label>
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Customer persona</Eyebrow>
         <input className={inputCls} value={form.persona} onChange={set("persona")} />
       </label>
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Opening message</Eyebrow>
         <textarea className={inputCls} rows={2} value={form.openingMessage} onChange={set("openingMessage")} />
       </label>
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Hidden facts (one per line)</Eyebrow>
         <textarea className={inputCls} rows={2} value={form.hiddenFacts} onChange={set("hiddenFacts")} />
       </label>
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Pass criteria (one per line)</Eyebrow>
         <textarea className={inputCls} rows={3} value={form.passCriteria} onChange={set("passCriteria")} />
       </label>
-      <label className="block space-y-2">
+      <label className={styles.formLabel}>
         <Eyebrow>Must not (one per line)</Eyebrow>
         <textarea className={inputCls} rows={2} value={form.mustNot} onChange={set("mustNot")} />
       </label>
-      <div className="pt-2">
-        <Button type="submit" className="w-full">
+      <div>
+        <Button type="submit" className={styles.formSubmit}>
           Add to suite
         </Button>
       </div>

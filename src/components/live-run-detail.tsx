@@ -10,6 +10,7 @@ import { scoreOf, type LiveCellResult, type LiveRunSummary } from "@/lib/live-ty
 import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { suiteLabel } from "@/lib/suite-tiers";
 import { DIFFICULTY_LABELS, verdictFor, type Difficulty } from "@/lib/types";
+import reportStyles from "./report-surface.module.css";
 
 /**
  * Live run detail — one real run, settled: the wall, the result strip
@@ -148,32 +149,37 @@ export function LiveRunDetail({ runId }: { runId: string }) {
   const showGlyph = cellPx >= 16;
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
+    <div className={reportStyles.reportPage}>
       <Link
         href="/runs/history"
-        className="focus-ring rounded font-mono text-[11px] tracking-wider text-mut hover:text-sub"
+        className={`focus-ring ${reportStyles.runBack}`}
       >
         ← RUN HISTORY
       </Link>
 
       {/* Header */}
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-6">
+      <header className={`${reportStyles.reportHeader} ${reportStyles.runHeader}`}>
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-3xl tracking-tight text-ink">{run.agentName}</h1>
+            <h1 className={reportStyles.reportTitle}>{run.agentName}</h1>
             {run.provider === "mock" && <MockBadge />}
           </div>
-          <p className="mt-2 font-mono text-[12px] text-mut">
-            {run.id} · {suiteLabel(run.suite, n)} · {agoLabel(run.startedAt)} ·{" "}
-            {fmtClock(durationMs)} · ${cost.toFixed(2)}
-          </p>
+          <div className={reportStyles.reportMeta}>
+            <span className="font-mono">{run.id}</span>
+            <span className={reportStyles.metaDivider} aria-hidden />
+            <span>{suiteLabel(run.suite, n)}</span>
+            <span className={reportStyles.metaDivider} aria-hidden />
+            <span>{agoLabel(run.startedAt)}</span>
+            <span className={reportStyles.metaDivider} aria-hidden />
+            <span>{fmtClock(durationMs)} · ${cost.toFixed(2)}</span>
+          </div>
           {run.status === "error" && run.error && (
             <p className="mt-2 max-w-lg rounded-lg border border-warn/40 bg-warn/8 p-2.5 text-[13px] text-warn">
               Run error: {run.error}
             </p>
           )}
         </div>
-        <div className="text-right">
+        <div className={reportStyles.runScore}>
           <div className="numeral text-5xl text-ink">
             {score}
             <span className="text-2xl text-mut">%</span>
@@ -182,10 +188,10 @@ export function LiveRunDetail({ runId }: { runId: string }) {
             {verdictFor(score)}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* CTAs */}
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className={`no-print ${reportStyles.runActions}`}>
         <ButtonLink href={`/reports?run=${run.id}`} size="sm">
           Open readiness report →
         </ButtonLink>
@@ -204,10 +210,13 @@ export function LiveRunDetail({ runId }: { runId: string }) {
       </div>
 
       {/* The wall, settled */}
-      <section className="mt-12">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="font-display text-xl text-ink">The wall</h2>
-          <span className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+      <section className={reportStyles.reportSection}>
+        <div className={reportStyles.sectionHeader}>
+          <div className={reportStyles.sectionTitleGroup}>
+            <span className={reportStyles.sectionIndex}>EVIDENCE / SCENARIO WALL</span>
+            <h2 className={reportStyles.sectionTitle}>Every judged scenario</h2>
+          </div>
+          <span className={`${reportStyles.wallFilters} flex items-center gap-2 font-mono text-[11px] tabular-nums`}>
             {(
               [
                 { id: "all" as const, label: `All ${n.toLocaleString()}`, cls: "text-sub" },
@@ -288,10 +297,13 @@ export function LiveRunDetail({ runId }: { runId: string }) {
 
       {/* By difficulty */}
       {difficulties.length > 1 && (
-        <section className="mt-12">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-xl text-ink">By difficulty</h2>
-            <span className="font-mono text-[11px] text-mut">
+        <section className={reportStyles.reportSection}>
+          <div className={reportStyles.sectionHeader}>
+            <div className={reportStyles.sectionTitleGroup}>
+              <span className={reportStyles.sectionIndex}>ANALYSIS / PRESSURE</span>
+              <h2 className={reportStyles.sectionTitle}>By difficulty</h2>
+            </div>
+            <span className={reportStyles.sectionNote}>
               severity is what a miss costs · difficulty is how likely it is
             </span>
           </div>
@@ -322,8 +334,14 @@ export function LiveRunDetail({ runId }: { runId: string }) {
 
       {/* Category results */}
       {categories.length > 0 && (
-        <section className="mt-12">
-          <h2 className="font-display text-xl text-ink">Category results</h2>
+        <section className={reportStyles.reportSection}>
+          <div className={reportStyles.sectionHeader}>
+            <div className={reportStyles.sectionTitleGroup}>
+              <span className={reportStyles.sectionIndex}>ANALYSIS / CAPABILITY</span>
+              <h2 className={reportStyles.sectionTitle}>Category results</h2>
+            </div>
+            <span className={reportStyles.sectionNote}>Weakest capability areas first.</span>
+          </div>
           <Card className="mt-4 divide-y divide-edge p-0">
             {categories.map((c) => {
               const pct = Math.round((c.pass / c.total) * 100);

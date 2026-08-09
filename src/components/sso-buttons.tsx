@@ -63,7 +63,7 @@ export function SsoButtons({ verb = "Continue" }: { verb?: string }) {
       </div>
       {note && (
         <p className={styles.note} role="status" aria-live="polite">
-          SSO lands with the hosted beta — use email below for now.
+          SSO arrives with the hosted beta. Use email below for now.
         </p>
       )}
       <div className={styles.divider} aria-hidden>

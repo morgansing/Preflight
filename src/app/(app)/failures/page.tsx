@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
+import { OutcomeChip, SeverityLabel } from "@/components/ui";
+import styles from "@/components/evidence-browser.module.css";
 import { LiveEmpty } from "@/components/live-empty";
 import { demoAgents } from "@/lib/fixtures/agents";
 import { latestRunOutcomes } from "@/lib/fixtures/runs";
@@ -90,46 +91,106 @@ function FailuresView() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-10">
-      <h1 className="font-display text-3xl tracking-tight text-ink">Failures</h1>
-      <p className="mt-2 text-sm text-sub">
-        {all.length} open misses across {demoAgents.length} agents&apos; latest runs ·{" "}
-        <span className="text-fail">{criticalFails} critical fails</span>
-      </p>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <div>
+          <div className={`${styles.kicker} ${styles.failureKicker}`}>
+            Latest-run triage
+          </div>
+          <h1 className={styles.pageTitle}>
+            Find the miss.
+            <br />
+            <em>Open the proof.</em>
+          </h1>
+          <p className={styles.pageSubtitle}>
+            Every scenario an agent missed on its latest run, ordered by
+            severity and connected to the retained replay when one exists.
+          </p>
+        </div>
+        <div className={styles.headerSide}>
+          <div className={styles.failureSummary} aria-label="Failure triage summary">
+            <div className={styles.failureMetric}>
+              <span className={styles.metricLabel}>Open misses</span>
+              <strong className={styles.metricValue}>{all.length}</strong>
+              <span className={styles.metricNote}>latest runs</span>
+            </div>
+            <div className={styles.failureMetric}>
+              <span className={styles.metricLabel}>Critical fails</span>
+              <strong className={`${styles.metricValue} ${styles.metricValueFail}`}>
+                {criticalFails}
+              </strong>
+              <span className={styles.metricNote}>highest priority</span>
+            </div>
+            <div className={styles.failureMetric}>
+              <span className={styles.metricLabel}>Agents</span>
+              <strong className={styles.metricValue}>{demoAgents.length}</strong>
+              <span className={styles.metricNote}>latest runs compared</span>
+            </div>
+          </div>
+        </div>
+      </header>
 
-      {/* Filters */}
-      <div className="mt-8 flex flex-wrap items-center gap-2">
-        <Eyebrow className="mr-2">Agent</Eyebrow>
-        <Chip label="All" active={agentFilter === null} onClick={() => setAgentFilter(null)} />
-        {demoAgents.map((a) => (
-          <Chip
-            key={a.id}
-            label={`${a.name} ${a.version}`}
-            active={agentFilter === a.id}
-            onClick={() => setAgentFilter(agentFilter === a.id ? null : a.id)}
-          />
-        ))}
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Eyebrow className="mr-2">Severity</Eyebrow>
-        <Chip
-          label="All"
-          active={severityFilter === null}
-          onClick={() => setSeverityFilter(null)}
-        />
-        {SEVERITIES.map((s) => (
-          <Chip
-            key={s}
-            label={s}
-            active={severityFilter === s}
-            onClick={() => setSeverityFilter(severityFilter === s ? null : s)}
-          />
-        ))}
-      </div>
+      <section className={styles.filterPanel} aria-labelledby="failure-filters-title">
+        <div className={styles.panelTopbar}>
+          <span className={styles.panelKicker} id="failure-filters-title">
+            <strong>01</strong> · Narrow the triage queue
+          </span>
+          <span className={styles.panelSummary}>
+            {rows.length} / {all.length} visible
+          </span>
+        </div>
+        <div className={styles.filterBody}>
+          <div className={styles.filterGroup}>
+            <div className={styles.filterLabel}>Agent</div>
+            <div className={styles.chipRail}>
+              <Chip
+                label="All"
+                active={agentFilter === null}
+                onClick={() => setAgentFilter(null)}
+              />
+              {demoAgents.map((agent) => (
+                <Chip
+                  key={agent.id}
+                  label={`${agent.name} ${agent.version}`}
+                  active={agentFilter === agent.id}
+                  onClick={() =>
+                    setAgentFilter(agentFilter === agent.id ? null : agent.id)
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          <div className={styles.filterGroup}>
+            <div className={styles.filterLabel}>Severity</div>
+            <div className={styles.chipRail}>
+              <Chip
+                label="All"
+                active={severityFilter === null}
+                onClick={() => setSeverityFilter(null)}
+              />
+              {SEVERITIES.map((severity) => (
+                <Chip
+                  key={severity}
+                  label={severity}
+                  active={severityFilter === severity}
+                  onClick={() =>
+                    setSeverityFilter(severityFilter === severity ? null : severity)
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* The list */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-edge">
-        <div className="hidden border-b border-edge bg-surface px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-mut md:grid md:grid-cols-[5.5rem_minmax(0,1fr)_11rem_9rem_5.5rem_6.5rem_5.5rem]">
+      <section className={styles.failureList} aria-labelledby="failure-results-title">
+        <div className={styles.tableTopbar}>
+          <span className={styles.tableTitle} id="failure-results-title">
+            Open misses
+          </span>
+          <span className={styles.panelSummary}>{rows.length} in this view</span>
+        </div>
+        <div className={styles.failureHeader} aria-hidden>
           <span>ID</span>
           <span>Scenario</span>
           <span>Agent</span>
@@ -138,53 +199,61 @@ function FailuresView() {
           <span>Outcome</span>
           <span className="text-right">Replay</span>
         </div>
-        <div className="divide-y divide-edge/60">
+        <div className={styles.failureRows}>
           {rows.length === 0 && (
-            <p className="px-5 py-10 text-center text-sm text-mut">
+            <p className={styles.failureEmpty}>
               Nothing matches these filters.
             </p>
           )}
           {rows.map((r) => (
             <div
               key={`${r.agentId}:${r.scenarioId}`}
-              className="grid grid-cols-2 items-center gap-y-1 px-5 py-2.5 text-[13px] md:grid-cols-[5.5rem_minmax(0,1fr)_11rem_9rem_5.5rem_6.5rem_5.5rem]"
+              className={styles.failureRow}
             >
               <Link
                 href={`/scenarios/${r.scenarioId}`}
-                className="focus-ring rounded font-mono text-[12px] text-mut hover:text-accent"
+                className={styles.failureId}
               >
                 {r.scenarioId}
               </Link>
-              <span className="min-w-0 truncate text-ink" title={r.name}>
+              <span className={styles.failureName} title={r.name}>
                 {r.name}
               </span>
               <Link
                 href={`/agents/${r.agentId}`}
-                className="focus-ring min-w-0 truncate rounded text-sub hover:text-accent"
+                className={styles.failureAgentLink}
               >
+                <span className={styles.mobileLabel}>Agent</span>
                 {r.agentLabel}
               </Link>
-              <span className="min-w-0 truncate text-sub">{r.category}</span>
-              <SeverityLabel severity={r.severity} />
-              <span>
+              <span className={styles.failureCategory}>
+                <span className={styles.mobileLabel}>Category</span>
+                {r.category}
+              </span>
+              <span className={styles.failureSeverity}>
+                <SeverityLabel severity={r.severity} />
+              </span>
+              <span className={styles.failureOutcome}>
                 <OutcomeChip outcome={r.outcome} />
               </span>
-              <span className="text-right">
-                {r.replayHref && (
+              <span className={styles.replayCell}>
+                {r.replayHref ? (
                   <Link
                     href={r.replayHref}
-                    className="focus-ring rounded font-mono text-[11px] text-accent hover:underline"
+                    className={styles.replayLink}
                   >
                     watch →
                   </Link>
+                ) : (
+                  <span className={styles.notRetained}>not retained</span>
                 )}
               </span>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      <p className="mt-4 text-[12px] text-mut">
+      <p className={styles.listNote}>
         Replay links open transcripts that show the failure; misses without one are
         outside the retained demo run.
       </p>
@@ -203,13 +272,10 @@ function Chip({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`focus-ring h-8 cursor-pointer rounded-full border px-3.5 text-[12px] transition-colors duration-150 ${
-        active
-          ? "border-accent/50 bg-accent/10 text-accent"
-          : "border-edge text-sub hover:border-mut hover:text-ink"
-      }`}
+      className={styles.chip}
     >
       {label}
     </button>

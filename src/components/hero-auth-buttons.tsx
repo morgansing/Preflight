@@ -61,7 +61,7 @@ export function HeroAuthButtons() {
       <div className="mt-3 min-h-4 text-center text-[12px]" aria-live="polite">
         {message && (
           <p className="animate-fade-in text-warn">
-            SSO lands with the hosted beta—use Start free for now.
+            SSO lands with the hosted beta. Use Start free for now.
           </p>
         )}
       </div>

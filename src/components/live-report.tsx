@@ -18,6 +18,7 @@ import {
 } from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
 import { suiteLabel, tierById } from "@/lib/suite-tiers";
+import styles from "./report-surface.module.css";
 
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
@@ -171,20 +172,26 @@ export function LiveReport() {
   const ciMargin = wilsonMarginPts(counts.pass, scoredN);
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-16">
-      <div className="flex items-start justify-between">
+    <div className={styles.reportPage}>
+      <header className={styles.reportHeader}>
         <div>
           <div className="flex items-center gap-3">
             <Eyebrow>Readiness report · {run.id}</Eyebrow>
             {run.provider === "mock" && <MockBadge />}
           </div>
-          <h1 className="font-display mt-3 text-4xl tracking-tight text-ink">{run.agentName}</h1>
-          <p className="mt-2 text-sm text-sub">
-            {suiteLabel(run.suite, run.scenarioIds.length)} ·{" "}
-            {new Date(run.startedAt).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })}
-          </p>
+          <h1 className={styles.reportTitle}>{run.agentName}</h1>
+          <div className={styles.reportMeta}>
+            <span>{suiteLabel(run.suite, run.scenarioIds.length)}</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>
+              {new Date(run.startedAt).toLocaleString("en-US", {
+                dateStyle: "long",
+                timeStyle: "short",
+              })}
+            </span>
+          </div>
         </div>
-        <div className="no-print flex shrink-0 items-center gap-2">
+        <div className={`no-print ${styles.reportActions}`}>
           <Button
             variant="secondary"
             size="sm"
@@ -196,9 +203,9 @@ export function LiveReport() {
             Print / share
           </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="mt-10">
+      <div className={styles.readinessFrame}>
         <ReadinessCard
           score={report.score}
           strengths={report.strengths}
@@ -208,9 +215,10 @@ export function LiveReport() {
         />
       </div>
 
-      <SharePanel runId={run.id} score={report.score} />
-
-      <CoveragePanel run={run} allRuns={allRuns} />
+      <div className={styles.supportGrid}>
+        <CoveragePanel run={run} allRuns={allRuns} />
+        <SharePanel runId={run.id} score={report.score} />
+      </div>
 
       <UpgradeNudge simsThisRun={run.results.length} />
 
@@ -219,29 +227,39 @@ export function LiveReport() {
       <RootCauses runId={run.id} />
 
       {report.risks.length > 0 && (
-        <section className="mt-16">
-          <h2 className="font-display text-2xl tracking-tight text-ink">
-            The {report.risks.length} risks that matter
-          </h2>
-          <ol className="mt-6 space-y-6">
+        <section className={styles.reportSection} aria-labelledby="top-risks-heading">
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionTitleGroup}>
+              <span className={styles.sectionIndex}>EVIDENCE / DECISION BLOCKERS</span>
+              <h2 id="top-risks-heading" className={styles.sectionTitle}>
+                The {report.risks.length} risks that matter
+              </h2>
+            </div>
+            <p className={styles.sectionNote}>
+              Ordered by severity. Every card opens the transcript and tool evidence behind it.
+            </p>
+          </div>
+          <ol className={styles.riskGrid}>
             {report.risks.map((risk, i) => {
               const name = risk.name ?? getScenarioById(risk.scenarioId)?.name ?? risk.scenarioId;
               return (
-                <li key={risk.scenarioId} className="flex gap-5">
-                  <span className="numeral mt-0.5 text-2xl text-mut">{i + 1}</span>
-                  <div>
-                    <h3 className="text-[15px] font-medium text-ink">
-                      {name}
-                      <span className="ml-2 font-mono text-[11px] uppercase tracking-wider text-sub">
+                <li key={risk.scenarioId} className={styles.riskCard}>
+                  <span className={styles.riskNumber}>{String(i + 1).padStart(2, "0")}</span>
+                  <div className={styles.riskBody}>
+                    <div className={styles.riskHeading}>
+                      <h3>{name}</h3>
+                      <span className={styles.severity} data-severity={risk.severity}>
                         {risk.severity}
                       </span>
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-sub">{risk.failureReason}</p>
+                    </div>
+                    <p className={styles.riskReason}>
+                      {risk.failureReason || "The judge did not return a diagnostic for this failure."}
+                    </p>
                     <Link
                       href={`/replay/${risk.scenarioId}?run=${run.id}`}
-                      className="focus-ring no-print mt-2 inline-block rounded text-[13px] text-accent hover:underline"
+                      className={`focus-ring no-print ${styles.riskLink}`}
                     >
-                      Watch the replay →
+                      Open replay evidence →
                     </Link>
                   </div>
                 </li>
@@ -252,19 +270,10 @@ export function LiveReport() {
       )}
 
       {report.errors.length > 0 && (
-        <section className="mt-12 rounded-lg border border-warn/40 bg-warn/8 p-5">
-          <Eyebrow>Run errors · excluded from the score</Eyebrow>
-          <ul className="mt-3 space-y-1.5 text-[13px] text-warn">
-            {report.errors.map((e) => (
-              <li key={e.scenarioId}>
-                <span className="font-mono">{e.scenarioId}</span> — {e.failureReason}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ExcludedRunEvidence errors={report.errors} runId={run.id} />
       )}
 
-      <section className="mt-20 border-t border-edge pt-6">
+      <section className={styles.signoff}>
         <div className="flex flex-wrap items-baseline justify-between gap-4 font-mono text-[12px] text-mut">
           <span>
             {run.agentName} · {run.agentKind} · provider {run.provider}
@@ -276,6 +285,80 @@ export function LiveReport() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ExcludedRunEvidence({
+  errors,
+  runId,
+}: {
+  errors: LiveRunSummary["results"];
+  runId: string;
+}) {
+  const previewCount = 3;
+  const preview = errors.slice(0, previewCount);
+  const remaining = errors.slice(previewCount);
+
+  return (
+    <section className={styles.excludedPanel} aria-labelledby="excluded-evidence-heading">
+      <div className={styles.excludedHeader}>
+        <div>
+          <div id="excluded-evidence-heading">
+            <Eyebrow>Infrastructure evidence</Eyebrow>
+          </div>
+          <p>
+            These scenarios ended in transport or provider errors. They remain attached to the
+            run, but are excluded from the agent readiness score.
+          </p>
+        </div>
+        <span className={styles.excludedCount} aria-label={`${errors.length} excluded scenarios`}>
+          {errors.length.toLocaleString()}
+        </span>
+      </div>
+
+      <ul className={styles.excludedList}>
+        {preview.map((error) => (
+          <ExcludedEvidenceRow key={error.scenarioId} error={error} runId={runId} />
+        ))}
+      </ul>
+
+      {remaining.length > 0 && (
+        <details className={styles.excludedDetails}>
+          <summary>
+            Show {remaining.length.toLocaleString()} remaining raw error
+            {remaining.length === 1 ? "" : "s"}
+          </summary>
+          <ul className={styles.excludedList}>
+            {remaining.map((error) => (
+              <ExcludedEvidenceRow key={error.scenarioId} error={error} runId={runId} />
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function ExcludedEvidenceRow({
+  error,
+  runId,
+}: {
+  error: LiveRunSummary["results"][number];
+  runId: string;
+}) {
+  return (
+    <li className={styles.excludedRow}>
+      <span className={styles.excludedId}>{error.scenarioId}</span>
+      <span className={styles.excludedReason}>
+        {error.failureReason || "No infrastructure diagnostic was returned."}
+      </span>
+      <Link
+        href={`/replay/${error.scenarioId}?run=${runId}`}
+        className={`focus-ring no-print ${styles.excludedLink}`}
+      >
+        inspect →
+      </Link>
+    </li>
   );
 }
 
@@ -453,7 +536,7 @@ function SharePanel({ runId, score }: { runId: string; score: number }) {
           <div className="flex items-center gap-3">
             {/* The badge itself, live from the endpoint. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={badgeUrl} alt={`Preflight score badge: ${score}`} className="h-5" />
+            <img src={badgeUrl} alt={`Preflight score badge: ${score}`} className="h-6" />
             <span className="font-mono text-[11px] text-mut">← this badge is live at the URL below</span>
           </div>
           <ShareRow label="Public page" value={shareUrl} copied={copied} onCopy={copy} />
@@ -477,14 +560,14 @@ function ShareRow({
   onCopy: (label: string, text: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-32 shrink-0 font-mono text-[10px] uppercase tracking-wider text-mut">
+    <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-mut sm:w-32">
         {label}
       </span>
       <code className="min-w-0 flex-1 truncate rounded-md border border-edge bg-raised px-2.5 py-1.5 font-mono text-[11px] text-sub">
         {value}
       </code>
-      <Button variant="ghost" size="sm" onClick={() => onCopy(label, value)}>
+      <Button className="self-end sm:self-auto" variant="ghost" size="sm" onClick={() => onCopy(label, value)}>
         {copied === label ? "Copied ✓" : "Copy"}
       </Button>
     </div>
@@ -555,24 +638,28 @@ function PlanReport({ plan, tierRun }: { plan: LivePlan; tierRun: LiveRunSummary
           : "Your own policies were not part of this job.";
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-16">
-      <div className="flex items-start justify-between">
+    <div className={styles.reportPage}>
+      <header className={styles.reportHeader}>
         <div>
           <Eyebrow>
             {planKindLabel(plan.planKind)} · {plan.planId}
           </Eyebrow>
-          <h1 className="font-display mt-3 text-4xl tracking-tight text-ink">{plan.agentName}</h1>
-          <p className="mt-2 text-sm text-sub">
-            {steps.length} suites, run in sequence against a clean store each.
-          </p>
+          <h1 className={styles.reportTitle}>{plan.agentName}</h1>
+          <div className={styles.reportMeta}>
+            <span>{steps.length} suites</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>Run in sequence against a clean store each</span>
+          </div>
         </div>
-        <Button variant="secondary" size="sm" className="no-print" onClick={() => window.print()}>
-          Print / share
-        </Button>
-      </div>
+        <div className={`no-print ${styles.reportActions}`}>
+          <Button variant="secondary" size="sm" onClick={() => window.print()}>
+            Print / share
+          </Button>
+        </div>
+      </header>
 
       {/* The verdict — a checklist outcome, not an average. */}
-      <div className="mt-10 rounded-xl border border-edge bg-surface p-8 text-center shadow-card">
+      <div className={`${styles.verdictCard} rounded-xl border p-8 text-center shadow-card`}>
         <div
           className={`font-display text-4xl tracking-tight ${
             ready ? "text-accent" : plan.done ? "text-warn" : "text-sub"
@@ -652,7 +739,7 @@ function PlanReport({ plan, tierRun }: { plan: LivePlan; tierRun: LiveRunSummary
         </p>
       )}
 
-      <section className="mt-20 border-t border-edge pt-6">
+      <section className={styles.signoff}>
         <div className="flex flex-wrap items-baseline justify-between gap-4 font-mono text-[12px] text-mut">
           <span>
             {plan.agentName} · {planKindLabel(plan.planKind).toLowerCase()}

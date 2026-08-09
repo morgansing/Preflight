@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { ButtonLink, Card, Eyebrow } from "@/components/ui";
+import { ButtonLink } from "@/components/ui";
 import { LiveEmpty } from "@/components/live-empty";
 import { Sparkline } from "@/components/sparkline";
 import { demoAgents } from "@/lib/fixtures/agents";
@@ -11,253 +11,290 @@ import { toPastRun, useSessionRuns } from "@/lib/demo-runs";
 import { failingReplayId } from "@/lib/fixtures/scenarios";
 import { useMode } from "@/lib/mode";
 import { verdictFor } from "@/lib/types";
+import styles from "../agents.module.css";
 
 /**
- * Agent detail — the drill-down behind each agent card. Its readiness
- * trend, a per-category performance breakdown, a run history, and the
- * areas to fix first, each linking to a replay. Demo-mode fixture data.
+ * Agent detail: the drill-down behind each agent card. Its readiness
+ * trend, per-category performance, run history, and areas to fix first.
+ * Demo-mode fixture data.
  */
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { mode } = useMode();
   const sessionRuns = useSessionRuns();
-  const agent = demoAgents.find((a) => a.id === id);
+  const agent = demoAgents.find((candidate) => candidate.id === id);
 
   if (mode === "live") return <LiveEmpty surface="each agent's detail page" />;
 
   if (!agent) {
     return (
-      <div className="mx-auto max-w-2xl px-8 py-24 text-center">
-        <Eyebrow>Agent</Eyebrow>
-        <h1 className="font-display mt-3 text-3xl tracking-tight text-ink">Agent not found</h1>
-        <p className="mt-3 text-sm text-sub">This agent isn&apos;t in the demo workspace.</p>
-        <div className="mt-8">
-          <ButtonLink href="/agents" variant="secondary">
-            ← Back to agents
-          </ButtonLink>
+      <div className={styles.journey}>
+        <div className={styles.ambient} aria-hidden />
+        <div className={`${styles.shell} ${styles.notFound}`}>
+          <div className={styles.notFoundInner}>
+            <div className={styles.panelEyebrow}>Agent inventory</div>
+            <h1>Agent not found</h1>
+            <p>This agent isn&apos;t in the demo workspace.</p>
+            <div>
+              <ButtonLink href="/agents" variant="secondary">
+                ← Back to agents
+              </ButtonLink>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const score = agent.scoreHistory[agent.scoreHistory.length - 1];
+  const score = agent.scoreHistory.at(-1)!;
   const ready = score >= agent.threshold;
+  const thresholdDelta = score - agent.threshold;
   const breakdown = agent.breakdown ?? [];
-  const worst = [...breakdown].filter((b) => b.pass < b.total).sort(
-    (a, b) => a.pass / a.total - b.pass / b.total,
-  );
+  const worst = [...breakdown]
+    .filter((category) => category.pass < category.total)
+    .sort((a, b) => a.pass / a.total - b.pass / b.total);
   // A replay link should show the failure it advertises; categories
   // with no failing replay on file get no link.
   const repScenario = failingReplayId;
 
   const fixtureHistory = runsByAgent.get(agent.id) ?? [];
   // Fake tests from this browser lead the list; the category-trend grid
-  // stays fixture-only (per-category data isn't stored for fake runs).
+  // stays fixture-only because per-category data is not stored for fake runs.
   const history = [
-    ...sessionRuns.filter((r) => r.agentId === agent.id).map((r) => toPastRun(r)),
+    ...sessionRuns.filter((run) => run.agentId === agent.id).map((run) => toPastRun(run)),
     ...fixtureHistory,
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-8 py-10">
-      <Link
-        href="/agents"
-        className="focus-ring rounded font-mono text-[11px] tracking-wider text-mut hover:text-sub"
-      >
-        ← AGENTS
-      </Link>
+    <div className={styles.journey}>
+      <div className={styles.ambient} aria-hidden />
+      <div className={styles.shell}>
+        <Link href="/agents" className={styles.backLink}>
+          ← AGENT INVENTORY
+        </Link>
 
-      {/* Header */}
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span
-              aria-hidden
-              className="size-2 rounded-full"
-              style={{ background: ready ? "var(--color-accent)" : "var(--color-fail)" }}
-            />
-            <h1 className="font-display text-3xl tracking-tight text-ink">
-              {agent.name} <span className="text-sub">{agent.version}</span>
+        <header className={styles.detailHero}>
+          <div className={styles.detailIdentity}>
+            <div className={styles.detailStatus} data-ready={ready}>
+              <span className={styles.agentDot} aria-hidden />
+              {ready ? "Clears deployment threshold" : "Below deployment threshold"}
+            </div>
+            <h1>
+              {agent.name} <span>{agent.version}</span>
             </h1>
+            <div className={styles.detailMeta}>
+              <span>{agent.connection}</span>
+              <span>threshold {agent.threshold}%</span>
+              <span>last run {agent.lastRun.agoLabel}</span>
+            </div>
+            {agent.note && <p className={styles.detailNote}>{agent.note}</p>}
+            <div className={styles.detailActions}>
+              <ButtonLink href="/reports" size="sm">
+                Open readiness report →
+              </ButtonLink>
+              <ButtonLink href="/runs" variant="secondary" size="sm">
+                View the run wall →
+              </ButtonLink>
+              <ButtonLink href="/benchmark" variant="secondary" size="sm">
+                Compare versions →
+              </ButtonLink>
+            </div>
           </div>
-          <p className="mt-2 font-mono text-[12px] text-mut">
-            {agent.connection} · deployment threshold {agent.threshold}% · last run{" "}
-            {agent.lastRun.agoLabel}
-          </p>
-          {agent.note && <p className="mt-2 max-w-lg text-[13px] leading-relaxed text-sub">{agent.note}</p>}
-        </div>
-        <div className="text-right">
-          <div className="numeral text-5xl text-ink">
-            {score}
-            <span className="text-2xl text-mut">%</span>
-          </div>
-          <div className={`text-sm font-medium ${ready ? "text-accent" : "text-sub"}`}>
-            {verdictFor(score)}
-          </div>
-          <div className="mt-2 flex justify-end">
-            <Sparkline values={agent.scoreHistory} threshold={agent.threshold} width={140} height={36} />
-          </div>
-        </div>
-      </div>
 
-      {/* CTAs */}
-      <div className="mt-6 flex flex-wrap gap-3">
-        <ButtonLink href="/reports" size="sm">
-          Open readiness report →
-        </ButtonLink>
-        <ButtonLink href="/runs" variant="secondary" size="sm">
-          View the run wall →
-        </ButtonLink>
-        <ButtonLink href="/benchmark" variant="secondary" size="sm">
-          Compare versions →
-        </ButtonLink>
-      </div>
+          <div className={styles.detailScore}>
+            <div className={styles.detailScoreValue}>
+              {score}<span>%</span>
+            </div>
+            <div className={styles.detailVerdict} data-ready={ready}>
+              {verdictFor(score)}
+            </div>
+            <Sparkline
+              values={agent.scoreHistory}
+              threshold={agent.threshold}
+              width={160}
+              height={40}
+            />
+          </div>
 
-      {/* Category performance */}
-      <section className="mt-12">
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-display text-xl text-ink">Category performance</h2>
-          <span className="font-mono text-[11px] text-mut">
-            {agent.lastRun.passed} / {agent.lastRun.total} scenarios passed
-          </span>
-        </div>
-        <Card className="mt-4 divide-y divide-edge p-0">
-          {[...breakdown]
-            .sort((a, b) => a.pass / a.total - b.pass / b.total)
-            .map((b) => {
-              const pct = Math.round((b.pass / b.total) * 100);
-              const tint = pct === 100 ? "bg-accent" : pct >= 70 ? "bg-warn" : "bg-fail";
-              const rep = b.pass < b.total ? repScenario(b.category) : undefined;
-              const Row = (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
-                  <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">{b.category}</span>
-                  <div className="h-1.5 min-w-36 flex-1 overflow-hidden rounded-full bg-raised">
-                    <div className={`h-full rounded-full ${tint}`} style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
-                    {b.pass}/{b.total}
-                  </span>
-                  {rep ? (
-                    <span className="w-24 shrink-0 text-right font-mono text-[11px] text-accent">
-                      replay →
-                    </span>
-                  ) : (
-                    <span aria-hidden className="w-24 shrink-0" />
-                  )}
-                </div>
-              );
-              return rep ? (
-                <Link
-                  key={b.category}
-                  href={`/replay/${rep}`}
-                  className="focus-ring block transition-colors hover:bg-surface"
-                >
-                  {Row}
-                </Link>
-              ) : (
-                <div key={b.category}>{Row}</div>
-              );
-            })}
-        </Card>
-      </section>
+          <div className={styles.heroEvidence} aria-label="Latest run evidence">
+            <div className={styles.heroEvidenceCell}>
+              <span>Scenario coverage</span>
+              <strong data-tone="accent">
+                {agent.lastRun.passed} / {agent.lastRun.total} passed
+              </strong>
+            </div>
+            <div className={styles.heroEvidenceCell}>
+              <span>Critical failures</span>
+              <strong data-tone={agent.lastRun.critical > 0 ? "fail" : "accent"}>
+                {agent.lastRun.critical} found
+              </strong>
+            </div>
+            <div className={styles.heroEvidenceCell}>
+              <span>Threshold margin</span>
+              <strong data-tone={thresholdDelta >= 0 ? "accent" : "fail"}>
+                {thresholdDelta >= 0 ? "+" : ""}{thresholdDelta} points
+              </strong>
+            </div>
+            <div className={styles.heroEvidenceCell}>
+              <span>Evidence run</span>
+              <strong>{agent.lastRun.runId}</strong>
+            </div>
+          </div>
+        </header>
 
-      {/* Fix these first */}
-      {worst.length > 0 && (
-        <section className="mt-12">
-          <h2 className="font-display text-xl text-ink">Fix these first</h2>
-          <div className="mt-4 space-y-3">
-            {worst.slice(0, 3).map((b, i) => {
-              const rep = repScenario(b.category);
-              return (
-                <div key={b.category} className="flex items-baseline gap-4 rounded-lg border border-edge bg-surface p-4">
-                  <span className="numeral text-2xl text-mut">{i + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-medium text-ink">{b.category}</div>
-                    <p className="mt-0.5 text-[13px] text-sub">
-                      Fails {b.total - b.pass} of {b.total} — a{" "}
-                      {Math.round(((b.total - b.pass) / b.total) * 100)}% miss rate in this category.
-                    </p>
-                  </div>
-                  {rep && (
+        <div className={styles.detailGrid}>
+          <section className={styles.detailSection} aria-labelledby="category-performance-title">
+            <div className={styles.detailSectionHeader}>
+              <div>
+                <div className={styles.sectionEyebrow}>Latest evaluation</div>
+                <h2 id="category-performance-title">Category performance</h2>
+              </div>
+              <span>{agent.lastRun.passed} / {agent.lastRun.total} scenarios passed</span>
+            </div>
+            <div className={styles.surface}>
+              {[...breakdown]
+                .sort((a, b) => a.pass / a.total - b.pass / b.total)
+                .map((category) => {
+                  const pct = Math.round((category.pass / category.total) * 100);
+                  const barClass =
+                    pct === 100
+                      ? styles.barPass
+                      : pct >= 70
+                        ? styles.barWarn
+                        : styles.barFail;
+                  const replay =
+                    category.pass < category.total ? repScenario(category.category) : undefined;
+                  const content = (
+                    <>
+                      <span className={styles.performanceCategory}>{category.category}</span>
+                      <span
+                        className={styles.performanceTrack}
+                        role="progressbar"
+                        aria-label={`${category.category} pass rate`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={pct}
+                      >
+                        <span className={barClass} style={{ width: `${pct}%` }} />
+                      </span>
+                      <span className={styles.performanceCount}>
+                        {category.pass}/{category.total}
+                      </span>
+                      <span className={styles.replayCue} aria-hidden={!replay}>
+                        {replay ? "replay →" : ""}
+                      </span>
+                    </>
+                  );
+
+                  return replay ? (
                     <Link
-                      href={`/replay/${rep}`}
-                      className="focus-ring shrink-0 rounded text-[13px] text-accent hover:underline"
+                      key={category.category}
+                      href={`/replay/${replay}`}
+                      className={styles.performanceRow}
                     >
-                      Watch a replay →
+                      {content}
                     </Link>
-                  )}
+                  ) : (
+                    <div key={category.category} className={styles.performanceRow}>
+                      {content}
+                    </div>
+                  );
+                })}
+            </div>
+          </section>
+
+          {worst.length > 0 && (
+            <section className={styles.detailSection} aria-labelledby="priorities-title">
+              <div className={styles.detailSectionHeader}>
+                <div>
+                  <div className={styles.sectionEyebrow}>Priority queue</div>
+                  <h2 id="priorities-title">Fix these first</h2>
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+              </div>
+              <div className={styles.priorityList}>
+                {worst.slice(0, 3).map((category, index) => {
+                  const replay = repScenario(category.category);
+                  return (
+                    <article key={category.category} className={styles.priorityCard}>
+                      <span className={styles.priorityIndex}>{String(index + 1).padStart(2, "0")}</span>
+                      <div>
+                        <h3>{category.category}</h3>
+                        <p>
+                          Fails {category.total - category.pass} of {category.total}, a{" "}
+                          {Math.round(((category.total - category.pass) / category.total) * 100)}%
+                          miss rate in this category.
+                        </p>
+                        {replay && <Link href={`/replay/${replay}`}>Watch a replay →</Link>}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
-      {/* Category trend — did each category actually get better, run over run? */}
-      {fixtureHistory.length > 1 && (
-        <section className="mt-12">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-xl text-ink">Category trend</h2>
-            <span className="flex items-center gap-4 font-mono text-[11px] text-mut">
-              <TrendLegend glyph="✓" colorClass="text-accent" label="clean" />
-              <TrendLegend glyph="◐" colorClass="text-warn" label="degraded" />
-              <TrendLegend glyph="✗" colorClass="text-fail" label="failing" />
-            </span>
-          </div>
-          <p className="mt-1.5 text-[13px] text-sub">
-            Every category across the last {fixtureHistory.length} runs, oldest to newest —
-            each cell opens its run.
-          </p>
-          <Card className="mt-4 overflow-x-auto">
-            <CategoryTrend history={fixtureHistory} />
-          </Card>
-        </section>
-      )}
+          {fixtureHistory.length > 1 && (
+            <section className={styles.detailSection} aria-labelledby="category-trend-title">
+              <div className={styles.detailSectionHeader}>
+                <div>
+                  <div className={styles.sectionEyebrow}>Run over run</div>
+                  <h2 id="category-trend-title">Category trend</h2>
+                </div>
+                <span className={styles.trendLegend}>
+                  <TrendLegend glyph="✓" colorClass="text-accent" label="clean" />
+                  <TrendLegend glyph="◐" colorClass="text-warn" label="degraded" />
+                  <TrendLegend glyph="✕" colorClass="text-fail" label="failing" />
+                </span>
+              </div>
+              <p className={styles.trendCopy}>
+                Every category across the last {fixtureHistory.length} runs, oldest to newest.
+                Each cell opens its run.
+              </p>
+              <div className={`${styles.surface} ${styles.trendSurface}`}>
+                <CategoryTrend history={fixtureHistory} />
+              </div>
+            </section>
+          )}
 
-      {/* Run history */}
-      <section className="mt-12">
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-display text-xl text-ink">Run history</h2>
-          <Link
-            href="/runs/history"
-            className="focus-ring rounded font-mono text-[11px] text-accent hover:underline"
-          >
-            all runs →
-          </Link>
+          <section className={styles.detailSection} aria-labelledby="run-history-title">
+            <div className={styles.detailSectionHeader}>
+              <div>
+                <div className={styles.sectionEyebrow}>Evidence history</div>
+                <h2 id="run-history-title">Run history</h2>
+              </div>
+              <Link href="/runs/history">all runs →</Link>
+            </div>
+            <div className={styles.surface}>
+              {history.map((run) => {
+                const above = run.score >= agent.threshold;
+                const deltaTone =
+                  run.delta !== undefined && run.delta > 0
+                    ? "pass"
+                    : run.delta !== undefined && run.delta < 0
+                      ? "fail"
+                      : undefined;
+                return (
+                  <Link key={run.id} href={`/runs/${run.id}`} className={styles.historyRow}>
+                    <span className={styles.historyPrimary}>
+                      <strong>{run.score}%</strong>
+                      <span>{run.label}</span>
+                      <small>{above ? "cleared the bar" : "below threshold"}</small>
+                    </span>
+                    <span className={styles.delta} data-tone={deltaTone}>
+                      {run.delta === undefined || run.delta === 0
+                        ? "—"
+                        : run.delta > 0
+                          ? `+${run.delta}`
+                          : run.delta}
+                    </span>
+                    <span className={styles.historyId}>{run.id} →</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
         </div>
-        <Card className="mt-4 divide-y divide-edge p-0">
-          {history.map((r) => {
-            const above = r.score >= agent.threshold;
-            return (
-              <Link
-                key={r.id}
-                href={`/runs/${r.id}`}
-                className="focus-ring flex items-center gap-4 px-5 py-3 transition-colors hover:bg-surface"
-              >
-                <span className="w-24 shrink-0 font-mono text-[12px] text-mut">{r.label}</span>
-                <span className="numeral w-14 shrink-0 text-lg text-ink">{r.score}%</span>
-                <span
-                  className={`w-16 shrink-0 font-mono text-[11px] tabular-nums ${
-                    r.delta !== undefined && r.delta > 0
-                      ? "text-accent"
-                      : r.delta !== undefined && r.delta < 0
-                        ? "text-fail"
-                        : "text-mut"
-                  }`}
-                >
-                  {r.delta === undefined || r.delta === 0 ? "—" : r.delta > 0 ? `+${r.delta}` : r.delta}
-                </span>
-                <span className={`flex-1 text-[12px] ${above ? "text-sub" : "text-mut"}`}>
-                  {above ? "cleared the bar" : "below threshold"}
-                </span>
-                <span className="shrink-0 font-mono text-[11px] text-accent">
-                  {r.id} →
-                </span>
-              </Link>
-            );
-          })}
-        </Card>
-      </section>
+      </div>
     </div>
   );
 }
@@ -267,7 +304,7 @@ const trendTint = (pct: number) =>
     ? { cell: "bg-accent/15 text-accent", glyph: "✓" }
     : pct >= 70
       ? { cell: "bg-warn/15 text-warn", glyph: "◐" }
-      : { cell: "bg-fail/18 text-fail", glyph: "✗" };
+      : { cell: "bg-fail/18 text-fail", glyph: "✕" };
 
 function TrendLegend({
   glyph,
@@ -279,27 +316,24 @@ function TrendLegend({
   label: string;
 }) {
   return (
-    <span className="flex items-center gap-1.5">
-      <span aria-hidden className={colorClass}>
-        {glyph}
-      </span>
+    <span>
+      <span aria-hidden className={colorClass}>{glyph}</span>
       {label}
     </span>
   );
 }
 
-/** Category × run grid: each row a category, each cell one run's
- * pass/total for it — the regression story at a glance. */
+/** Category by run grid. Each cell links to the source run. */
 function CategoryTrend({ history }: { history: PastRun[] }) {
   const chrono = [...history].reverse();
   const perRun = chrono.map(
-    (r) => new Map(categoryResults(r.id).map((c) => [c.category, c])),
+    (run) => new Map(categoryResults(run.id).map((category) => [category.category, category])),
   );
   const latest = perRun[perRun.length - 1];
-  const cats = [...latest.keys()].sort((a, b) => {
-    const A = latest.get(a)!;
-    const B = latest.get(b)!;
-    return A.pass / A.total - B.pass / B.total;
+  const categories = [...latest.keys()].sort((a, b) => {
+    const categoryA = latest.get(a)!;
+    const categoryB = latest.get(b)!;
+    return categoryA.pass / categoryA.total - categoryB.pass / categoryB.total;
   });
 
   return (
@@ -307,31 +341,31 @@ function CategoryTrend({ history }: { history: PastRun[] }) {
       <div className="flex items-center gap-4">
         <span className="w-44 shrink-0" aria-hidden />
         <div className="flex gap-1">
-          {chrono.map((r) => (
+          {chrono.map((run) => (
             <span
-              key={r.id}
-              title={`${r.id} · ${r.label}`}
+              key={run.id}
+              title={`${run.id} · ${run.label}`}
               className="w-6 text-center font-mono text-[9px] text-mut"
             >
-              {r.id.slice(-2)}
+              {run.id.slice(-2)}
             </span>
           ))}
         </div>
       </div>
       <div className="mt-1.5 space-y-1">
-        {cats.map((cat) => (
-          <div key={cat} className="flex items-center gap-4">
-            <span className="w-44 shrink-0 truncate text-[13px] text-ink">{cat}</span>
+        {categories.map((category) => (
+          <div key={category} className="flex items-center gap-4">
+            <span className="w-44 shrink-0 truncate text-[13px] text-ink">{category}</span>
             <div className="flex gap-1">
-              {chrono.map((r, i) => {
-                const c = perRun[i].get(cat)!;
-                const pct = Math.round((c.pass / c.total) * 100);
+              {chrono.map((run, index) => {
+                const result = perRun[index].get(category)!;
+                const pct = Math.round((result.pass / result.total) * 100);
                 const tint = trendTint(pct);
                 return (
                   <Link
-                    key={r.id}
-                    href={`/runs/${r.id}`}
-                    title={`${r.id} · ${cat} · ${c.pass}/${c.total}`}
+                    key={run.id}
+                    href={`/runs/${run.id}`}
+                    title={`${run.id} · ${category} · ${result.pass}/${result.total}`}
                     className="focus-ring rounded-[3px]"
                   >
                     <span

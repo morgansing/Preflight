@@ -193,232 +193,483 @@
   line-height: 1.75;
 }
 
-.reportCard {
+.flightDeck {
   position: relative;
+  height: 18.6rem;
   overflow: hidden;
-  margin-top: 2.4rem;
-  border: 1px solid rgba(61, 220, 132, 0.18);
-  border-radius: 0.85rem;
-  background:
-    linear-gradient(145deg, rgba(26, 29, 35, 0.93), rgba(12, 14, 17, 0.98)),
-    var(--color-surface);
+  contain: layout paint;
+  margin-top: 2.2rem;
+  border: 1px solid rgba(84, 92, 104, 0.46);
+  border-radius: 0.88rem;
+  background: #090b0d;
   box-shadow:
-    0 30px 75px rgba(0, 0, 0, 0.38),
-    0 0 60px rgba(61, 220, 132, 0.045),
+    0 32px 80px rgba(0, 0, 0, 0.42),
+    0 0 70px rgba(61, 220, 132, 0.04),
     inset 0 1px rgba(255, 255, 255, 0.025);
+  animation: deckRise 680ms 180ms var(--ease-out-quad) both;
 }
 
-.reportCard::after {
+.flightDeck::before {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -25%;
-  width: 22%;
+  z-index: 2;
+  top: -3rem;
+  right: 15%;
+  width: 13rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.055);
+  filter: blur(38px);
   content: "";
-  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.055), transparent);
-  transform: skewX(-12deg);
-  animation: cardSweep 1.8s ease-out 900ms 1 both;
   pointer-events: none;
 }
 
-.reportHeader,
-.reportFooter {
-  display: flex;
-  min-height: 2.9rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-inline: 1rem;
-  color: var(--color-mut);
+.flightDeckInner {
+  display: grid;
+  height: 100%;
+  grid-template-rows: 2.7rem minmax(0, 1fr) 2.55rem;
+}
+
+.flightHeader,
+.flightFooter,
+.panelHeading,
+.evidenceHeader,
+.wallMetrics,
+.traceRow span,
+.traceRow b {
   font-family: var(--font-mono);
-  font-size: 0.51rem;
-  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.reportHeader {
+.flightHeader {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
   border-bottom: 1px solid var(--color-edge);
-}
-
-.reportHeader > span:first-child,
-.reportFooter strong {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.reportHeader i,
-.reportFooter i {
-  width: 0.35rem;
-  height: 0.35rem;
-  border-radius: 999px;
-  background: var(--color-accent);
-  box-shadow: 0 0 10px rgba(61, 220, 132, 0.55);
-}
-
-.reportBody {
-  padding: 1rem;
-}
-
-.reportSummary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.reportSummary p {
+  background: rgba(24, 27, 32, 0.92);
+  padding-inline: 0.9rem;
   color: var(--color-mut);
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.reportSummary strong {
-  display: block;
-  margin-top: 0.2rem;
-  color: var(--color-ink);
-  font-family: var(--font-display);
-  font-size: 2.1rem;
-  font-weight: 430;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.reportSummary strong span {
-  color: var(--color-sub);
-  font-family: var(--font-sans);
-  font-size: 0.67rem;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.completeChip {
-  border: 1px solid rgba(61, 220, 132, 0.3);
-  border-radius: 999px;
-  background: rgba(61, 220, 132, 0.07);
-  padding: 0.35rem 0.55rem;
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  font-size: 0.48rem;
+  font-size: 0.46rem;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
-.outcomeTrack {
+.flightIdentity {
   display: flex;
-  height: 0.3rem;
-  gap: 0.16rem;
-  margin-top: 0.95rem;
+  align-items: center;
+  gap: 0.45rem;
 }
 
-.outcomeTrack span {
-  display: block;
-  min-width: 0.18rem;
+.flightIdentity i {
+  width: 0.34rem;
+  height: 0.34rem;
   border-radius: 999px;
-}
-
-.trackPass {
-  flex: 193;
   background: var(--color-accent);
-  box-shadow: 0 0 14px rgba(61, 220, 132, 0.2);
+  box-shadow: 0 0 11px rgba(61, 220, 132, 0.6);
 }
 
-.trackFail {
-  flex: 5;
+.flightHeader strong {
+  border: 1px solid rgba(61, 220, 132, 0.28);
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.06);
+  padding: 0.28rem 0.45rem;
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.flightBody {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.15fr) minmax(12.8rem, 0.85fr);
+  gap: 1px;
+  background: var(--color-edge);
+}
+
+.wallPanel,
+.evidencePanel {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(61, 220, 132, 0.035), transparent 44%),
+    #090b0d;
+  padding: 0.8rem;
+}
+
+.panelHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.panelHeading > div {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.panelHeading span,
+.wallTelemetry {
+  color: var(--color-mut);
+  font-size: 0.45rem;
+  letter-spacing: 0.11em;
+}
+
+.panelHeading strong {
+  color: var(--color-sub);
+  font-size: 0.56rem;
+  font-weight: 520;
+  letter-spacing: 0.02em;
+}
+
+.wallTelemetry {
+  flex: none;
+  color: var(--color-accent) !important;
+}
+
+.coverageTrack {
+  position: relative;
+  height: 0.25rem;
+  overflow: hidden;
+  margin-top: 0.62rem;
+  border-radius: 999px;
+  background: rgba(84, 92, 104, 0.2);
+}
+
+.coverageFill,
+.coverageBlock,
+.coverageReview {
+  position: absolute;
+  inset-block: 0;
+}
+
+.coverageFill {
+  right: 3%;
+  left: 0;
+  border-radius: inherit;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.2);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: coverageResolve 1.45s 520ms var(--ease-out-quad) both;
+}
+
+.coverageBlock {
+  right: 1%;
+  width: 1.5%;
   background: var(--color-fail);
 }
 
-.trackReview {
-  flex: 2;
+.coverageReview {
+  right: 0;
+  width: 0.7%;
   background: var(--color-warn);
 }
 
-.metrics {
+.wallGrid {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin-top: 1rem;
-  border-block: 1px solid var(--color-edge);
+  overflow: hidden;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 0.2rem;
+  margin-top: 0.7rem;
 }
 
-.metrics > div {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  padding: 0.75rem 0.6rem;
-}
-
-.metrics > div + div {
-  border-left: 1px solid var(--color-edge);
-}
-
-.metrics strong {
-  font-family: var(--font-display);
-  font-size: 1.28rem;
-  font-weight: 430;
-}
-
-.metrics > div:nth-child(1) strong {
-  color: var(--color-accent);
-}
-
-.metrics > div:nth-child(2) strong {
-  color: var(--color-fail);
-}
-
-.metrics > div:nth-child(3) strong {
-  color: var(--color-warn);
-}
-
-.metrics span {
-  color: var(--color-mut);
-  font-size: 0.58rem;
-}
-
-.wall {
-  display: grid;
-  grid-template-columns: repeat(14, minmax(0, 1fr));
-  gap: 0.28rem;
-  margin-top: 1rem;
-}
-
-.wall span {
+.wallCell {
+  --cell-color: rgba(61, 220, 132, 0.68);
+  position: relative;
   aspect-ratio: 1;
-  border-radius: 0.14rem;
-  opacity: 0.72;
-}
-
-.passCell {
-  background: rgba(61, 220, 132, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.015);
+  border-radius: 0.13rem;
+  background: rgba(84, 92, 104, 0.16);
+  opacity: 0.22;
+  transform: scale(0.72);
+  animation: wallResolve 520ms var(--ease-out-quad) both;
+  animation-delay: calc(460ms + var(--cell-order) * 11ms);
 }
 
 .failCell {
-  background: rgba(240, 84, 79, 0.64);
+  --cell-color: rgba(240, 84, 79, 0.86);
 }
 
 .reviewCell {
-  background: rgba(224, 163, 64, 0.64);
+  --cell-color: rgba(224, 163, 64, 0.82);
 }
 
-.wall span:nth-child(4n + 1),
-.wall span:nth-child(7n + 2) {
-  opacity: 0.38;
+.selectedCell {
+  z-index: 2;
+  outline: 1px solid rgba(240, 84, 79, 0.75);
+  outline-offset: 1px;
+  animation:
+    wallResolve 520ms var(--ease-out-quad) both,
+    selectedSignal 4.8s 2s ease-in-out infinite;
+  animation-delay:
+    calc(460ms + var(--cell-order) * 11ms),
+    2s;
 }
 
-.wall span:nth-child(13),
-.wall span:nth-child(27),
-.wall span:nth-child(38) {
-  animation: cellPulse 2.8s ease-in-out infinite;
+.wallScan {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: -0.6rem;
+  width: 1px;
+  background: linear-gradient(transparent, rgba(61, 220, 132, 0.75), transparent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.24);
+  animation: wallScan 6.8s 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
 }
 
-.reportFooter {
-  min-height: 2.65rem;
+.wallMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 0.72rem;
   border-top: 1px solid var(--color-edge);
+  padding-top: 0.58rem;
+  color: var(--color-mut);
+  font-size: 0.43rem;
+  letter-spacing: 0.02em;
 }
 
-.reportFooter strong {
-  color: var(--color-accent);
+.wallMetrics span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.wallMetrics strong {
+  color: var(--color-sub);
+  font-size: 0.53rem;
+  font-weight: 570;
+}
+
+.wallMetrics i {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+}
+
+.passSignal {
+  background: var(--color-accent);
+}
+
+.failSignal {
+  background: var(--color-fail);
+}
+
+.reviewSignal {
+  background: var(--color-warn);
+}
+
+.evidencePanel {
+  background:
+    radial-gradient(circle at 60% 25%, rgba(240, 84, 79, 0.04), transparent 44%),
+    #0a0c0e;
+}
+
+.evidencePanel::after {
+  position: absolute;
+  right: 0;
+  bottom: -45%;
+  left: 0;
+  height: 42%;
+  background: linear-gradient(transparent, rgba(240, 84, 79, 0.022), transparent);
+  content: "";
+  animation: evidenceScan 7.4s 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.evidenceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  border-bottom: 1px solid var(--color-edge);
+  padding-bottom: 0.58rem;
+  color: var(--color-mut);
+  font-size: 0.45rem;
+  letter-spacing: 0.1em;
+}
+
+.evidenceHeader strong {
+  color: var(--color-fail);
+  font-weight: 520;
+}
+
+.trace {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.62rem;
+  padding-left: 0.72rem;
+}
+
+.traceLine {
+  position: absolute;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  left: 0.19rem;
+  width: 1px;
+  background: linear-gradient(var(--color-accent), var(--color-fail));
+  opacity: 0.55;
+  transform: scaleY(0);
+  transform-origin: top;
+  animation: traceDraw 1.15s 1.45s var(--ease-out-quad) both;
+}
+
+.traceRow {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 2.45rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(84, 92, 104, 0.32);
+  border-radius: 0.48rem;
+  background: rgba(19, 21, 25, 0.76);
+  padding: 0.42rem 0.48rem;
+  opacity: 0;
+  transform: translate3d(0, 7px, 0);
+  animation: traceReveal 560ms var(--ease-out-quad) both;
+  animation-delay: calc(1.25s + var(--row-order) * 340ms);
+}
+
+.traceRow > i {
+  position: absolute;
+  left: -0.9rem;
+  width: 0.36rem;
+  height: 0.36rem;
+  border: 1px solid rgba(61, 220, 132, 0.6);
+  border-radius: 999px;
+  background: #090b0d;
+  box-shadow: 0 0 8px rgba(61, 220, 132, 0.2);
+}
+
+.traceRow > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.traceRow span {
+  display: block;
+  color: var(--color-mut);
+  font-size: 0.39rem;
+  letter-spacing: 0.1em;
+}
+
+.traceRow p {
+  overflow: hidden;
+  margin-top: 0.2rem;
+  color: var(--color-sub);
+  font-size: 0.55rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.traceRow b {
+  flex: none;
+  color: var(--color-mut);
+  font-size: 0.34rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+}
+
+.actionRow {
+  border-color: rgba(240, 84, 79, 0.48);
+  background: rgba(240, 84, 79, 0.075);
+  box-shadow: 0 0 24px rgba(240, 84, 79, 0.05);
+}
+
+.actionRow > i {
+  border-color: rgba(240, 84, 79, 0.85);
+  box-shadow: 0 0 9px rgba(240, 84, 79, 0.35);
+}
+
+.actionRow span,
+.actionRow b,
+.expectedRow b {
+  color: var(--color-fail);
+}
+
+.actionRow p {
+  color: #e88d89;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+}
+
+.expectedRow {
+  border-color: rgba(61, 220, 132, 0.2);
+}
+
+.flightFooter {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.72rem;
+  border-top: 1px solid var(--color-edge);
+  background: rgba(24, 27, 32, 0.88);
+  padding-inline: 0.9rem;
+  color: var(--color-mut);
+  font-size: 0.42rem;
+  letter-spacing: 0.1em;
+}
+
+.replayTrack {
+  display: flex;
+  min-width: 0;
+  gap: 0.24rem;
+}
+
+.replayTrack i {
+  height: 0.18rem;
+  min-width: 0;
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.65);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: replayResolve 480ms var(--ease-out-quad) both;
+}
+
+.replayTrack i:nth-child(1) {
+  animation-delay: 1.35s;
+}
+
+.replayTrack i:nth-child(2) {
+  animation-delay: 1.5s;
+}
+
+.replayTrack i:nth-child(3) {
+  animation-delay: 1.65s;
+}
+
+.replayTrack i:nth-child(4) {
+  animation-delay: 1.8s;
+}
+
+.replayTrack i:nth-child(5) {
+  animation-delay: 1.95s;
+}
+
+.replayTrack i:nth-child(6) {
+  animation-delay: 2.1s;
+}
+
+.replayTrack i:nth-child(7) {
+  animation-delay: 2.25s;
+}
+
+.replayTrack .replayFailure {
+  background: var(--color-fail);
+}
+
+.flightFooter strong {
+  color: var(--color-sub);
   font-weight: 500;
 }
 
@@ -609,10 +860,36 @@
     font-size: 0.78rem;
   }
 
-  .reportCard {
+  .flightDeck {
     grid-column: 2;
     grid-row: 1 / span 4;
+    height: 17.4rem;
     margin-top: 0;
+  }
+
+  .flightHeader {
+    grid-template-columns: 1fr auto;
+  }
+
+  .flightHeader > span:nth-child(2) {
+    display: none;
+  }
+
+  .flightBody {
+    grid-template-columns: minmax(0, 1fr) minmax(10.8rem, 0.9fr);
+  }
+
+  .wallPanel,
+  .evidencePanel {
+    padding: 0.65rem;
+  }
+
+  .wallGrid {
+    gap: 0.16rem;
+  }
+
+  .traceRow b {
+    display: none;
   }
 
   .proofPoints {
@@ -648,8 +925,13 @@
     max-width: 29rem;
   }
 
-  .reportCard {
+  .flightDeck {
+    height: 18.2rem;
     margin-top: 1.5rem;
+  }
+
+  .flightBody {
+    grid-template-columns: minmax(0, 1.08fr) minmax(11.5rem, 0.92fr);
   }
 
   .formRegion {
@@ -662,23 +944,51 @@
     font-size: 2.55rem;
   }
 
-  .reportHeader > span:last-child,
-  .reportFooter > span:first-child,
+  .flightIdentity,
+  .flightFooter > span:first-child,
   .formCardTop > span:last-child {
     display: none;
   }
 
-  .metrics > div {
-    display: block;
+  .flightDeck {
+    height: 17.2rem;
   }
 
-  .metrics span {
-    display: block;
-    margin-top: 0.15rem;
+  .flightHeader {
+    grid-template-columns: 1fr;
+    justify-items: end;
   }
 
-  .wall {
-    gap: 0.2rem;
+  .flightBody {
+    grid-template-columns: minmax(0, 1fr) minmax(9.4rem, 0.94fr);
+  }
+
+  .wallTelemetry {
+    display: none;
+  }
+
+  .wallGrid {
+    gap: 0.12rem;
+  }
+
+  .wallMetrics {
+    font-size: 0.36rem;
+  }
+
+  .wallMetrics span {
+    gap: 0.15rem;
+  }
+
+  .wallMetrics i {
+    display: none;
+  }
+
+  .traceRow {
+    padding-inline: 0.4rem;
+  }
+
+  .traceRow p {
+    font-size: 0.48rem;
   }
 
   .formRegion {
@@ -689,10 +999,45 @@
 @media (prefers-reduced-motion: reduce) {
   .signalLine,
   .story::after,
+  .storyCopy,
   .brandSignal::after,
-  .reportCard::after,
-  .wall span {
+  .flightDeck,
+  .formCard,
+  .coverageFill,
+  .wallCell,
+  .selectedCell,
+  .wallScan,
+  .evidencePanel::after,
+  .traceLine,
+  .traceRow,
+  .replayTrack i {
     animation: none;
+  }
+
+  .coverageFill,
+  .traceLine,
+  .replayTrack i {
+    transform: none;
+  }
+
+  .wallCell {
+    background: var(--cell-color);
+    opacity: 0.74;
+    transform: none;
+  }
+
+  .selectedCell {
+    box-shadow: 0 0 9px rgba(240, 84, 79, 0.22);
+  }
+
+  .wallScan,
+  .evidencePanel::after {
+    display: none;
+  }
+
+  .traceRow {
+    opacity: 1;
+    transform: none;
   }
 
   .skipLink {
@@ -731,38 +1076,100 @@
   }
 
   50% {
-    transform: translate3d(105vw, 34vh, 0) rotate(-10deg);
+    transform: translate3d(18vw, 6vh, 0) rotate(-10deg);
   }
 }
 
-@keyframes cardSweep {
-  0%,
-  28% {
+@keyframes deckRise {
+  from {
     opacity: 0;
-    transform: translateX(0) skewX(-12deg);
+    transform: translate3d(0, 10px, 0) scale(0.992);
   }
 
-  42%,
-  55% {
+  to {
     opacity: 1;
-  }
-
-  72%,
-  100% {
-    opacity: 0;
-    transform: translateX(580%) skewX(-12deg);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
-@keyframes cellPulse {
+@keyframes coverageResolve {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes wallResolve {
+  to {
+    background: var(--cell-color);
+    opacity: 0.74;
+    transform: scale(1);
+  }
+}
+
+@keyframes selectedSignal {
   0%,
+  70%,
   100% {
-    opacity: 0.35;
+    box-shadow: 0 0 0 rgba(240, 84, 79, 0);
+  }
+
+  82% {
+    box-shadow: 0 0 12px rgba(240, 84, 79, 0.55);
+  }
+}
+
+@keyframes wallScan {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+
+  22%,
+  70% {
+    opacity: 0.82;
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate3d(32rem, 0, 0);
+  }
+}
+
+@keyframes evidenceScan {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
   }
 
   50% {
     opacity: 1;
-    filter: brightness(1.35);
-    transform: scale(1.08);
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -360%, 0);
+  }
+}
+
+@keyframes traceDraw {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes traceReveal {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes replayResolve {
+  to {
+    transform: scaleX(1);
   }
 }

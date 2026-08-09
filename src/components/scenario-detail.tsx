@@ -6,29 +6,34 @@ import { demoAgents } from "@/lib/fixtures/agents";
 import { latestRunOutcomes } from "@/lib/fixtures/runs";
 import type { Scenario } from "@/lib/types";
 
+import styles from "./evidence-browser.module.css";
+
 /** The full scenario definition + how each agent's latest run handled
  * it. Rendered in the library drawer and on the scenario's own page. */
 export function ScenarioDetail({
   scenario,
   outcome,
   permalinkHref,
+  compact = false,
 }: {
   scenario: Scenario;
   /** The demo run's outcome — enables the "last replay" link. */
   outcome?: string;
   /** When set (the drawer), a link to the scenario's own page. */
   permalinkHref?: string;
+  /** Drawer presentation collapses the evidence columns. */
+  compact?: boolean;
 }) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3 font-mono text-[12px] text-mut">
+    <div className={`${styles.detail} ${compact ? styles.detailCompact : ""}`}>
+      <div className={styles.detailMeta}>
         {scenario.id} · {scenario.category}
         <SeverityLabel severity={scenario.severity} />
         <DifficultyLabel level={scenario.difficulty} />
         {outcome && (
           <Link
             href={`/replay/${scenario.id}`}
-            className="focus-ring rounded text-accent hover:underline"
+            className={styles.detailLink}
           >
             last replay →
           </Link>
@@ -36,87 +41,109 @@ export function ScenarioDetail({
         {permalinkHref && (
           <Link
             href={permalinkHref}
-            className="focus-ring rounded text-accent hover:underline"
+            className={styles.detailLink}
           >
             open page →
           </Link>
         )}
       </div>
-      <Field label="Correct outcome">{scenario.rubric}</Field>
-      <Field label="Customer persona">{scenario.persona}</Field>
-      <Field label="Opening message">
-        <p className="rounded-lg border border-edge bg-surface p-4 text-sub">
-          “{scenario.openingMessage}”
-        </p>
-      </Field>
-      <Field label="Hidden facts">
-        <ul className="list-inside space-y-1.5 text-sub">
-          {scenario.hiddenFacts.map((f) => (
-            <li key={f}>· {f}</li>
-          ))}
-        </ul>
-      </Field>
-      <Field label="Pass criteria">
-        <ul className="space-y-1.5">
-          {scenario.passCriteria.map((c) => (
-            <li key={c} className="flex gap-2 text-sub">
-              <span aria-hidden className="font-mono text-accent">✓</span>
-              {c}
-            </li>
-          ))}
-        </ul>
-      </Field>
-      <Field label="Must not">
-        <ul className="space-y-1.5">
-          {scenario.mustNot.map((c) => (
-            <li key={c} className="flex gap-2 text-sub">
-              <span aria-hidden className="font-mono text-mut">⊘</span>
-              {c}
-            </li>
-          ))}
-        </ul>
-      </Field>
-      {/* Pivot from the test to the agents: how each agent's latest run
-          handled this exact scenario. */}
-      <Field label="Agents on this scenario">
-        <div className="space-y-2">
-          {demoAgents.map((a) => {
-            const result = latestRunOutcomes(a.id)?.get(scenario.id);
-            return (
-              <Link
-                key={a.id}
-                href={`/agents/${a.id}`}
-                className="focus-ring flex items-center justify-between gap-3 rounded-lg border border-edge bg-surface px-3.5 py-2.5 transition-colors hover:border-mut"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[13px] text-ink">
-                    {a.name} <span className="text-sub">{a.version}</span>
-                  </span>
-                  <span className="mt-0.5 block font-mono text-[11px] text-mut">
-                    last run {a.lastRun.agoLabel}
-                  </span>
-                </span>
-                {result ? (
-                  <OutcomeChip outcome={result} />
-                ) : (
-                  <span className="shrink-0 font-mono text-[11px] text-mut">
-                    not in last run
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+      <div className={styles.detailGrid}>
+        <div className={styles.detailColumn}>
+          <Field label="Correct outcome" primary>
+            {scenario.rubric}
+          </Field>
+          <Field label="Customer persona">{scenario.persona}</Field>
+          <Field label="Opening message">
+            <p className={styles.openingQuote}>“{scenario.openingMessage}”</p>
+          </Field>
+          <Field label="Hidden facts">
+            <ul className={styles.factList}>
+              {scenario.hiddenFacts.map((fact) => (
+                <li className={styles.factItem} key={fact}>
+                  <span aria-hidden>·</span>
+                  <span>{fact}</span>
+                </li>
+              ))}
+            </ul>
+          </Field>
         </div>
-      </Field>
+
+        <div className={styles.detailColumn}>
+          <Field label="Pass criteria">
+            <ul className={styles.criteriaList}>
+              {scenario.passCriteria.map((criterion) => (
+                <li className={styles.criterion} key={criterion}>
+                  <span aria-hidden className={styles.criterionMark}>✓</span>
+                  <span>{criterion}</span>
+                </li>
+              ))}
+            </ul>
+          </Field>
+          <Field label="Must not">
+            <ul className={styles.criteriaList}>
+              {scenario.mustNot.map((criterion) => (
+                <li className={styles.criterion} key={criterion}>
+                  <span
+                    aria-hidden
+                    className={`${styles.criterionMark} ${styles.mustNotMark}`}
+                  >
+                    ⊘
+                  </span>
+                  <span>{criterion}</span>
+                </li>
+              ))}
+            </ul>
+          </Field>
+          {/* Pivot from the test to the agents: how each agent's latest run
+              handled this exact scenario. */}
+          <Field label="Agents on this scenario">
+            <div className={styles.agentList}>
+              {demoAgents.map((agent) => {
+                const result = latestRunOutcomes(agent.id)?.get(scenario.id);
+                return (
+                  <Link
+                    key={agent.id}
+                    href={`/agents/${agent.id}`}
+                    className={styles.agentLink}
+                  >
+                    <span className={styles.agentIdentity}>
+                      <span className={styles.agentName}>
+                        {agent.name}{" "}
+                        <span className={styles.agentVersion}>{agent.version}</span>
+                      </span>
+                      <span className={styles.agentTime}>
+                        last run {agent.lastRun.agoLabel}
+                      </span>
+                    </span>
+                    {result ? (
+                      <OutcomeChip outcome={result} />
+                    ) : (
+                      <span className={styles.agentMissing}>not in last run</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </Field>
+        </div>
+      </div>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  primary = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  primary?: boolean;
+}) {
   return (
-    <div>
-      <Eyebrow>{label}</Eyebrow>
-      <div className="mt-2 text-sm leading-relaxed text-ink">{children}</div>
+    <div className={`${styles.field} ${primary ? styles.fieldPrimary : ""}`}>
+      <Eyebrow className={styles.fieldLabel}>{label}</Eyebrow>
+      <div className={styles.fieldBody}>{children}</div>
     </div>
   );
 }

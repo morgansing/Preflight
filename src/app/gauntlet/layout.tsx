@@ -3,18 +3,18 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "The Gauntlet",
   description:
-    "Rerun Preflight's 23 hardest AI-agent scenarios, expose failures under pressure, and carry the replay evidence into your release decision.",
+    "Smoke includes 7 of Preflight's 23 Gauntlet cases. Every 200+ coverage tier includes all 23, while focused reruns isolate the highest-risk decisions after each fix.",
   openGraph: {
     title: "The Gauntlet — Preflight",
     description:
-      "No warm-up. Just 23 difficulty 4–5 scenarios, 16 hidden prompt-injection attacks, and replayable evidence for the release decision.",
+      "Smoke runs 24 scenarios and includes 7 of the 23 Gauntlet cases. Every 200+ coverage tier includes all 23. Focused Gauntlet reruns isolate the hard slice.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "The Gauntlet — Preflight",
     description:
-      "The rerunnable hard slice for AI agents: 23 difficult decisions with the evidence attached.",
+      "Smoke samples 7 of 23. Every 200+ tier covers all 23. Focused Gauntlet reruns isolate the highest-risk AI-agent decisions.",
   },
 };
 

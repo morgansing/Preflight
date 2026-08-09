@@ -104,7 +104,7 @@ export default function SignupPage() {
         </div>
 
         <Button type="submit" className={formStyles.submit}>
-          <span>Start simulating — free</span>
+          <span>Start simulating for free</span>
           <span aria-hidden>→</span>
         </Button>
       </form>

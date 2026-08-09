@@ -5,9 +5,16 @@ import {
   MarketingHeader,
   MarketingMain,
 } from "@/components/marketing-shell";
+import {
+  gauntletScenarioIds,
+  scenarioById,
+} from "@/lib/fixtures/scenarios";
 import { paymentRetryDemo } from "@/lib/marketing-demo";
+import { SMOKE_SUITE } from "@/lib/suites";
 
 import styles from "./gauntlet.module.css";
+
+const smokeScenarioIds = new Set(SMOKE_SUITE);
 
 const pressureScenarios = [
   {
@@ -98,10 +105,10 @@ export default function GauntletPage() {
                 <em>Only the decisions that break agents.</em>
               </h1>
               <p>
-                The Gauntlet isolates the 23 difficulty 4–5 scenarios already
-                inside a Standard run. Boundary collisions, conflicting
-                evidence, fraud, legal threats, and decisions that should
-                demand a human—rerunnable on their own after every fix.
+                Smoke touches 7 of the 23 hardest cases. Every coverage tier
+                from 200 scenarios upward includes all 23. The focused
+                Gauntlet pulls that hard slice into its own repeatable run, so
+                each fix meets the decisions most likely to break it.
               </p>
               <div className={styles.heroActions}>
                 <Link href="/runs" className={styles.primaryButton}>
@@ -112,9 +119,9 @@ export default function GauntletPage() {
                 </Link>
               </div>
               <div className={styles.heroProof} aria-label="Gauntlet summary">
-                <span>23 scenarios</span>
-                <span>Difficulty 4–5</span>
-                <span>Included in Standard</span>
+                <span>Smoke 24 · 7 of 23</span>
+                <span>Coverage 200+ · all 23</span>
+                <span>Gauntlet · repeat 23</span>
               </div>
             </div>
 
@@ -134,100 +141,164 @@ export default function GauntletPage() {
                   <small>RERUN THE HARD SLICE</small>
                   <h2>The Gauntlet</h2>
                   <p>
-                    The difficulty 4–5 scenarios already included in Standard
-                    and larger suites.
+                    See how the same 23 high-risk cases sit inside each run
+                    shape, then isolate them for the next fix.
                   </p>
                 </div>
-                <span className={styles.included}>INCLUDED</span>
+                <span className={styles.included}>RISK MAP</span>
               </div>
 
-              <div className={styles.distribution}>
-                <div className={styles.distributionHeader}>
-                  <span>DIFFICULTY DISTRIBUTION</span>
-                  <strong>23 / 23 SELECTED</strong>
+              <div className={styles.scopeMap}>
+                <div className={styles.scopeMapHeader}>
+                  <span>RUN SHAPE</span>
+                  <span>GAUNTLET CASES INCLUDED</span>
                 </div>
-                <div className={styles.scenarioCells} aria-hidden>
-                  {Array.from({ length: 23 }, (_, index) => (
-                    <i
-                      className={
-                        index < 7 ? styles.hardCell : styles.brutalCell
-                      }
-                      key={index}
-                    />
-                  ))}
+
+                <div className={`${styles.scopeRow} ${styles.smokeRow}`}>
+                  <div className={styles.scopeIdentity}>
+                    <small>FAST SIGNAL</small>
+                    <strong>Smoke</strong>
+                    <span>24 total</span>
+                  </div>
+                  <div className={styles.scopeCells} aria-hidden>
+                    {gauntletScenarioIds.map((scenarioId) => (
+                      <i
+                        className={
+                          smokeScenarioIds.has(scenarioId)
+                            ? styles.sampledCell
+                            : undefined
+                        }
+                        key={scenarioId}
+                      />
+                    ))}
+                  </div>
+                  <div className={styles.scopeCount}>
+                    <strong>7 / 23</strong>
+                    <span>sampled</span>
+                  </div>
                 </div>
-                <div className={styles.distributionLegend}>
+
+                <div className={`${styles.scopeRow} ${styles.coverageRow}`}>
+                  <div className={styles.scopeIdentity}>
+                    <small>FULL COVERAGE</small>
+                    <strong>Standard+</strong>
+                    <span>200+ total</span>
+                  </div>
+                  <div className={styles.scopeCells} aria-hidden>
+                    {gauntletScenarioIds.map((scenarioId) => (
+                      <i key={scenarioId} />
+                    ))}
+                  </div>
+                  <div className={styles.scopeCount}>
+                    <strong>23 / 23</strong>
+                    <span>included</span>
+                  </div>
+                </div>
+
+                <div className={`${styles.scopeRow} ${styles.focusRow}`}>
+                  <div className={styles.scopeIdentity}>
+                    <small>FOCUSED PROBE</small>
+                    <strong>Gauntlet</strong>
+                    <span>23 total</span>
+                  </div>
+                  <div className={styles.scopeCells} aria-hidden>
+                    {gauntletScenarioIds.map((scenarioId) => (
+                      <i
+                        className={
+                          scenarioById.get(scenarioId)?.difficulty === 4
+                            ? styles.hardCell
+                            : styles.brutalCell
+                        }
+                        key={scenarioId}
+                      />
+                    ))}
+                  </div>
+                  <div className={styles.scopeCount}>
+                    <strong>23 / 23</strong>
+                    <span>isolated</span>
+                  </div>
+                </div>
+
+                <div className={styles.scopeLegend}>
                   <span>
-                    <i className={styles.hardKey} aria-hidden />
-                    <strong>7</strong> HARD · D4
+                    <i className={styles.hardKey} aria-hidden />7 hard · D4
                   </span>
                   <span>
-                    <i className={styles.brutalKey} aria-hidden />
-                    <strong>16</strong> BRUTAL · D5
+                    <i className={styles.brutalKey} aria-hidden />16 brutal · D5
                   </span>
+                  <strong>FIX · RERUN · COMPARE</strong>
                 </div>
               </div>
 
               <div className={styles.launcherFooter}>
-                <span>STANDARD 200</span>
+                <span>SAMPLE THE RISK</span>
                 <i aria-hidden />
-                <strong>ISOLATE 23</strong>
+                <span>COVER THE SYSTEM</span>
                 <i aria-hidden />
-                <span>FIX + RERUN</span>
+                <strong>ISOLATE + REPEAT</strong>
               </div>
             </div>
           </section>
 
           <section className={styles.definition} aria-labelledby="definition-title">
-            <div className={styles.sectionLabel}>01 / HARDER, NOT BIGGER</div>
+            <div className={styles.sectionLabel}>01 / ONE HARD SLICE</div>
             <div className={styles.definitionHeading}>
               <h2 id="definition-title">
-                A smaller run with a
+                Three run shapes.
                 <br />
-                <em>harder question.</em>
+                <em>One hard slice.</em>
               </h2>
               <p>
-                Coverage asks whether behaviour holds across the system. The
-                Gauntlet asks whether it still holds when evidence conflicts,
-                the customer applies pressure, and the safest answer is to
-                pause. It is a slice of the same measured library—not a second
-                benchmark with a different definition of pass.
+                Smoke is a fast 24-scenario signal and includes 7 Gauntlet
+                cases. Standard and every coverage tier above it include the
+                full 23. Focused Gauntlet does not add hidden tests. It isolates
+                the highest-risk cases so they can be probed repeatedly without
+                rerunning the whole coverage tier.
               </p>
             </div>
 
             <div className={styles.comparison}>
-              <article className={styles.coverageCard}>
+              <article className={styles.smokeCard}>
                 <div className={styles.comparisonTopline}>
-                  <span>BASE LIBRARY</span>
-                  <strong>200</strong>
+                  <span>FAST SIGNAL</span>
+                  <strong>24</strong>
                 </div>
-                <h3>Coverage run</h3>
+                <h3>Smoke samples the risk.</h3>
                 <p>
-                  Broad operational coverage, from routine product questions
-                  through critical refund and escalation paths.
+                  A quick first run across the product. Seven of its 24
+                  scenarios also belong to the 23-case Gauntlet.
                 </p>
-                <div className={styles.coverageTrack} aria-hidden>
-                  {Array.from({ length: 40 }, (_, index) => (
-                    <i className={index > 34 ? styles.selectedCell : ""} key={index} />
-                  ))}
+                <div className={styles.inclusionMeter} aria-hidden>
+                  <i className={styles.smokeMeter} />
                 </div>
-                <small>THE HARD SLICE IS ALREADY INSIDE</small>
+                <small>7 OF 23 GAUNTLET CASES INCLUDED</small>
               </article>
 
-              <div className={styles.sliceArrow} aria-hidden>
-                <span>ISOLATE</span>
-                <i />
-              </div>
+              <article className={styles.coverageCard}>
+                <div className={styles.comparisonTopline}>
+                  <span>COVERAGE TIERS</span>
+                  <strong>200+</strong>
+                </div>
+                <h3>Coverage contains it all.</h3>
+                <p>
+                  Standard and every larger coverage tier include all 23 hard
+                  cases alongside the broader operational library.
+                </p>
+                <div className={styles.inclusionMeter} aria-hidden>
+                  <i className={styles.coverageMeter} />
+                </div>
+                <small>23 OF 23 GAUNTLET CASES INCLUDED</small>
+              </article>
 
               <article className={styles.gauntletCard}>
                 <div className={styles.comparisonTopline}>
-                  <span>THE GAUNTLET</span>
+                  <span>FOCUSED SUITE</span>
                   <strong>23</strong>
                 </div>
-                <h3>Pressure rerun</h3>
+                <h3>Gauntlet repeats the pressure.</h3>
                 <p>
-                  No routine paths and no score-padding. Fix the hard bug, then
-                  rerun only the decisions capable of exposing it again.
+                  Run the same high-risk slice after a fix to see whether the
+                  dangerous decision changed without waiting on broad coverage.
                 </p>
                 <div className={styles.difficultyBars} aria-label="Seven hard and sixteen brutal scenarios">
                   <div>
@@ -339,7 +410,7 @@ export default function GauntletPage() {
               </p>
               <p>
                 Preflight records whether the agent treats retrieved content as
-                untrusted data—or obeys it like a system instruction.
+                untrusted data, or obeys it like a system instruction.
               </p>
               <div className={styles.securityMeta}>
                 <span>16 ATTACKS</span>
@@ -533,7 +604,7 @@ export default function GauntletPage() {
               </h2>
               <p>
                 The Gauntlet is most useful as part of one explicit launch
-                decision—not as an isolated score to celebrate.
+                decision, not as an isolated score to celebrate.
               </p>
             </div>
 

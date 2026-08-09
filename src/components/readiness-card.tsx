@@ -81,9 +81,9 @@ export function ReadinessCard({
 
   return (
     <div
-      className={`rounded-xl border border-edge bg-surface p-8 shadow-card ${className}`}
+      className={`rounded-xl border border-edge bg-surface p-5 shadow-card sm:p-8 ${className}`}
     >
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
         <Eyebrow>Agent readiness</Eyebrow>
         {wallHref && (
           <Link
@@ -97,7 +97,7 @@ export function ReadinessCard({
 
       <div className="mt-8 flex flex-col items-center gap-4">
         <div
-          className="numeral text-[88px] leading-none text-ink"
+          className="numeral text-[72px] leading-none text-ink sm:text-[88px]"
           aria-label={`Readiness score ${score} percent`}
         >
           {shown}
@@ -128,7 +128,7 @@ export function ReadinessCard({
         </div>
       </div>
 
-      <div className="mt-10 grid grid-cols-2 gap-8">
+      <div className="mt-8 grid grid-cols-1 gap-7 sm:mt-10 sm:grid-cols-2 sm:gap-8">
         <div>
           <Eyebrow>Strengths</Eyebrow>
           <CategoryList items={strengths} glyph="✓" glyphClass="text-accent" hrefs={hrefs} maxList={maxList} />
@@ -139,7 +139,7 @@ export function ReadinessCard({
         </div>
       </div>
 
-      <div className="mt-10 flex items-baseline justify-between gap-4 border-t border-edge pt-4 text-[13px] text-mut">
+      <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-edge pt-4 text-[13px] text-mut sm:mt-10 sm:flex-row sm:items-baseline sm:gap-4">
         <span>{meta}</span>
         {reportHref && (
           <Link

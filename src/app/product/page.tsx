@@ -214,7 +214,7 @@ export default function ProductPage() {
                 <p>
                   Each rule is crossed with emotion, boundary amounts,
                   identity, deception, and adversarial tactics. A £500 limit
-                  becomes £499, £500, and £501—not one easy happy path.
+                  becomes £499, £500, and £501 instead of one easy happy path.
                 </p>
               </article>
             </div>
@@ -273,14 +273,15 @@ export default function ProductPage() {
               </Link>
             </h2>
             <p>
-              Run only the 23 difficulty 4–5 scenarios from the base library:
-              boundary collisions, ambiguous identity, conflicting evidence,
-              and high-consequence decisions. No warm-up and no volume theatre.
+              Smoke includes 7 of these 23 difficulty 4–5 scenarios. Every
+              coverage run from Standard upward includes all 23. Run the
+              focused slice to retest the highest-risk decisions without the
+              warm-up or volume theatre.
             </p>
             <div className={styles.cardMeta}>
               <span>23 scenarios</span>
               <span>Difficulty 4–5</span>
-              <span>Rerunnable alone</span>
+              <span>Included from 200+</span>
             </div>
           </article>
 
@@ -321,7 +322,7 @@ export default function ProductPage() {
               Every result opens into the full evidence chain: the customer
               and tool data available to the agent, every action it took, and
               the expected path beside it. The first broken decision is marked,
-              so diagnosis starts at the cause—not the final message.
+              so diagnosis starts at the cause, not the final message.
             </p>
             <Link href="/runs" className={styles.textLink}>
               Explore a demo run <span aria-hidden>→</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Eyebrow, SeverityLabel } from "@/components/ui";
+import { ButtonLink, Card, Eyebrow, SeverityLabel } from "@/components/ui";
 import { LiveBenchmark } from "@/components/live-benchmark";
 import {
   categoryComparison,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/fixtures/benchmark";
 import { useMode } from "@/lib/mode";
 import type { Severity } from "@/lib/types";
+import styles from "@/components/evidence-ledger.module.css";
 
 /**
  * Benchmark — two runs on the same suite, diffed. The "newly broken"
@@ -24,21 +25,42 @@ export default function BenchmarkPage() {
   const delta = b.b.score - b.a.score;
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
-      <h1 className="font-display text-3xl tracking-tight text-ink">Benchmark</h1>
-      <p className="mt-2 text-sm text-sub">
-        {b.a.label} vs {b.b.label} · {b.suite}
-      </p>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <div>
+          <Eyebrow>Evidence ledger / comparison</Eyebrow>
+          <h1 className={styles.pageTitle}>Benchmark</h1>
+          <div className={styles.pageMeta}>
+            <span>{b.a.label}</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>{b.b.label}</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>{b.suite}</span>
+          </div>
+        </div>
+        <div className={`no-print ${styles.pageActions}`}>
+          <ButtonLink href="/runs/history" variant="ghost" size="sm">
+            Run history
+          </ButtonLink>
+          <ButtonLink href="/runs" variant="secondary" size="sm">
+            New run →
+          </ButtonLink>
+        </div>
+      </header>
 
       {/* Score delta */}
-      <Card className="mt-10 flex flex-wrap items-center justify-between gap-8 p-8">
+      <div className={styles.comparisonCard}>
         <RunColumn label={b.a.label} score={b.a.score} date={b.a.date} runId={b.a.runId} />
-        <div className="text-center">
-          <div className="numeral text-6xl text-accent">
+        <div className={styles.deltaColumn}>
+          <div
+            className={styles.deltaValue}
+            data-tone={delta < 0 ? "fail" : "accent"}
+            aria-label={`Score movement ${delta >= 0 ? "plus " : "minus "}${Math.abs(delta)} points`}
+          >
             {delta >= 0 ? "+" : ""}
             {delta}
           </div>
-          <Eyebrow className="mt-2">points</Eyebrow>
+          <span className={styles.deltaRule}>points</span>
         </div>
         <RunColumn
           label={b.b.label}
@@ -47,26 +69,29 @@ export default function BenchmarkPage() {
           runId={b.b.runId}
           align="right"
         />
-      </Card>
+      </div>
+      <p className={styles.comparisonNote}>
+        Same agent, same 200-scenario suite. Score movement is backed by the scenario changes below.
+      </p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
+      <div className={styles.diffGrid}>
         {/* Newly broken — the list that matters */}
-        <section>
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[15px] font-medium text-ink">
-              <span aria-hidden className="mr-2 font-mono text-fail">✗</span>
+        <section className={styles.diffPanel} data-tone="fail">
+          <div className={styles.diffHeader}>
+            <h2 className={styles.diffTitle}>
+              <span aria-hidden className={styles.diffGlyph}>✗</span>
               Newly broken
             </h2>
-            <span className="font-mono text-[12px] tabular-nums text-fail">
+            <span className={styles.diffCount} aria-label={`${b.newlyBroken.length} newly broken scenarios`}>
               {b.newlyBroken.length}
             </span>
           </div>
-          <p className="mt-1.5 text-[13px] text-sub">
+          <p className={styles.diffNote}>
             Passed in {b.a.label.split(" ").pop()}, fails in{" "}
             {b.b.label.split(" ").pop()}. These are regressions your customers
             would have found for you.
           </p>
-          <div className="mt-4 space-y-2">
+          <div className={styles.entryList}>
             {b.newlyBroken.map((e) => (
               <EntryRow key={e.scenarioId} entry={e} tone="fail" />
             ))}
@@ -74,20 +99,20 @@ export default function BenchmarkPage() {
         </section>
 
         {/* Newly passing */}
-        <section>
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[15px] font-medium text-ink">
-              <span aria-hidden className="mr-2 font-mono text-accent">✓</span>
+        <section className={styles.diffPanel} data-tone="accent">
+          <div className={styles.diffHeader}>
+            <h2 className={styles.diffTitle}>
+              <span aria-hidden className={styles.diffGlyph}>✓</span>
               Newly passing
             </h2>
-            <span className="font-mono text-[12px] tabular-nums text-accent">
+            <span className={styles.diffCount} aria-label={`${b.newlyPassing.length} newly passing scenarios`}>
               {b.newlyPassing.length}
             </span>
           </div>
-          <p className="mt-1.5 text-[13px] text-sub">
+          <p className={styles.diffNote}>
             Fixed since {b.a.label.split(" ").pop()} — the work paying off.
           </p>
-          <div className="mt-4 space-y-2">
+          <div className={styles.entryList}>
             {b.newlyPassing.map((e) => (
               <EntryRow key={e.scenarioId} entry={e} tone="accent" />
             ))}
@@ -97,18 +122,21 @@ export default function BenchmarkPage() {
 
       {/* Per-category deep-dive: where the points moved, and which net
           gains hide a regression inside them. */}
-      <section className="mt-12">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[15px] font-medium text-ink">Category deep-dive</h2>
-          <span className="font-mono text-[11px] text-mut">
-            upper bar {b.a.label.split(" ").pop()} · lower bar {b.b.label.split(" ").pop()}
+      <section className={styles.section} aria-labelledby="category-deep-dive-heading">
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionTitleGroup}>
+            <span className={styles.sectionIndex}>EVIDENCE / CAPABILITY</span>
+            <h2 id="category-deep-dive-heading" className={styles.sectionTitle}>Category deep-dive</h2>
+          </div>
+          <span className={styles.sectionNote}>
+            Upper bar {b.a.label.split(" ").pop()} · lower bar {b.b.label.split(" ").pop()}
           </span>
         </div>
-        <p className="mt-1.5 text-[13px] text-sub">
+        <p className="mt-4 max-w-3xl text-[13px] leading-relaxed text-sub">
           The {delta >= 0 ? `+${delta}` : delta}-point move, unpacked. A category can gain
           overall and still break scenarios it used to pass — those regressions are flagged.
         </p>
-        <Card className="mt-4 divide-y divide-edge p-0">
+        <Card className={styles.categoryPanel}>
           {[...categoryComparison]
             .sort((x, y) => (y.bPass - y.aPass) - (x.bPass - x.aPass))
             .map((c) => (
@@ -117,18 +145,27 @@ export default function BenchmarkPage() {
         </Card>
       </section>
 
-      <section className="mt-12 border-t border-edge pt-6">
-        <Eyebrow>Still failing in both · {b.unchangedFails.length}</Eyebrow>
-        <div className="mt-3 flex flex-wrap gap-2">
+      <section className={styles.section} aria-labelledby="unchanged-failures-heading">
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionTitleGroup}>
+            <span className={styles.sectionIndex}>EVIDENCE / OPEN DEBT</span>
+            <h2 id="unchanged-failures-heading" className={styles.sectionTitle}>Still failing in both</h2>
+          </div>
+          <span className={styles.sectionNote}>{b.unchangedFails.length} persistent failures</span>
+        </div>
+        <div className={styles.unchangedPanel}>
+          <Eyebrow>Open replay evidence</Eyebrow>
+          <div className={styles.scenarioLinks}>
           {b.unchangedFails.map((e) => (
             <Link
               key={e.scenarioId}
               href={`/replay/${e.scenarioId}`}
-              className="focus-ring rounded-md border border-edge px-2.5 py-1 font-mono text-[11px] text-sub transition-colors hover:border-mut hover:text-ink"
+              className={`focus-ring ${styles.scenarioLink}`}
             >
               {e.scenarioId}
             </Link>
           ))}
+          </div>
         </div>
       </section>
     </div>
@@ -149,19 +186,19 @@ function RunColumn({
   align?: "left" | "right";
 }) {
   return (
-    <div className={align === "right" ? "text-right" : ""}>
+    <div className={`${styles.runColumn} ${align === "right" ? styles.runColumnRight : ""}`}>
       <Eyebrow>{label}</Eyebrow>
-      <div className="numeral mt-2 text-5xl text-ink">
+      <div className={styles.runScore}>
         {score}
         <span className="text-2xl text-mut">%</span>
       </div>
-      <div className="mt-1 text-[12px] text-mut">{date}</div>
+      <div className={styles.runDate}>{date}</div>
       {runId && (
         <Link
           href={`/runs/${runId}`}
-          className="focus-ring mt-1.5 inline-block rounded font-mono text-[11px] text-accent hover:underline"
+          className={`focus-ring ${styles.runLink}`}
         >
-          {runId} →
+          Open {runId} →
         </Link>
       )}
     </div>
@@ -173,9 +210,9 @@ function CategoryRow({ c }: { c: CategoryComparison }) {
   const bPct = Math.round((c.bPass / c.total) * 100);
   const tint = bPct === 100 ? "bg-accent" : bPct >= 70 ? "bg-warn" : "bg-fail";
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
-      <span className="w-44 shrink-0 text-[13px] text-ink max-sm:w-full">{c.category}</span>
-      <div className="flex min-w-36 flex-1 flex-col gap-[3px]" aria-hidden>
+    <div className={styles.categoryRow}>
+      <span className={styles.categoryName}>{c.category}</span>
+      <div className={styles.categoryBars} aria-hidden>
         <div className="h-1 overflow-hidden rounded-full bg-raised">
           <div
             className="h-full rounded-full bg-mut/50"
@@ -186,24 +223,21 @@ function CategoryRow({ c }: { c: CategoryComparison }) {
           <div className={`h-full rounded-full ${tint}`} style={{ width: `${bPct}%` }} />
         </div>
       </div>
-      <span className="w-28 shrink-0 text-right font-mono text-[12px] tabular-nums text-sub">
+      <span className={styles.categoryValue} data-label="Pass movement">
         {c.aPass} → {c.bPass}
         <span className="text-mut">/{c.total}</span>
       </span>
       <span
-        className={`w-10 shrink-0 text-right font-mono text-[11px] tabular-nums ${
+        data-label="Delta"
+        className={`${styles.categoryDelta} ${
           deltaPass > 0 ? "text-accent" : deltaPass < 0 ? "text-fail" : "text-mut"
         }`}
       >
         {deltaPass > 0 ? `+${deltaPass}` : deltaPass === 0 ? "—" : deltaPass}
       </span>
-      {c.regressions > 0 ? (
-        <span className="w-28 shrink-0 text-right font-mono text-[11px] text-fail">
-          {c.regressions} newly broken
-        </span>
-      ) : (
-        <span aria-hidden className="w-28 shrink-0" />
-      )}
+      <span className={styles.categoryRegression} data-label="Regressions">
+        {c.regressions > 0 ? `${c.regressions} newly broken` : "—"}
+      </span>
     </div>
   );
 }
@@ -212,18 +246,18 @@ function EntryRow({ entry, tone }: { entry: BenchmarkEntry; tone: "fail" | "acce
   return (
     <Link
       href={`/replay/${entry.scenarioId}`}
-      className="focus-ring group flex items-center justify-between gap-4 rounded-lg border border-edge bg-surface px-4 py-3 transition-all duration-200 hover:-translate-y-px hover:border-mut"
+      className={`focus-ring ${styles.entryRow}`}
     >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2.5">
+      <div className={styles.entryMain}>
+        <div className={styles.entryTitle}>
           <span
             aria-hidden
-            className="size-1.5 shrink-0 rounded-full"
+            className={styles.entryDot}
             style={{ background: `var(--color-${tone})` }}
           />
-          <span className="truncate text-[13px] text-ink">{entry.name}</span>
+          <span>{entry.name}</span>
         </div>
-        <div className="mt-1 pl-4 font-mono text-[11px] text-mut">
+        <div className={styles.entryMeta}>
           {entry.scenarioId} · {entry.category}
         </div>
       </div>
