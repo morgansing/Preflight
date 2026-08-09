@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import styles from "./activation-checklist.module.css";
 import { Eyebrow } from "./ui";
 import { useLiveAgents } from "@/lib/live";
 import type { LiveRunListItem } from "@/lib/live-types";
@@ -12,115 +13,244 @@ import type { LiveRunListItem } from "@/lib/live-types";
  * clicking. Disappears once everything is done.
  */
 
+type StepStatus = "complete" | "incomplete" | "unknown";
+type CheckStatus = "loading" | "ready" | "error";
+
+type RemoteCheck<T> =
+  | { status: "loading" }
+  | { status: "ready"; value: T }
+  | { status: "error" };
+
 interface Step {
   label: string;
   detail: string;
   href: string;
-  done: boolean;
+  status: StepStatus;
+  checkStatus?: CheckStatus;
+}
+
+interface SetupResponse {
+  rules?: unknown[];
+}
+
+interface SuiteResponse {
+  suite?: {
+    status?: string;
+  };
+}
+
+function remoteStepStatus<T>(check: RemoteCheck<T>, isComplete: (value: T) => boolean): StepStatus {
+  if (check.status !== "ready") return "unknown";
+  return isComplete(check.value) ? "complete" : "incomplete";
+}
+
+/**
+ * Activation is sequential: an unknown earlier check must not promote a
+ * later action as the next step. This prevents a false call to action while
+ * policy or suite state is still being verified.
+ */
+function firstActionableStep(steps: Step[]) {
+  for (let index = 0; index < steps.length; index += 1) {
+    if (steps[index].status === "unknown") return -1;
+    if (steps[index].status === "incomplete") return index;
+  }
+  return -1;
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m3.25 8.35 2.7 2.7 6.8-6.8" />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" />
+    </svg>
+  );
 }
 
 export function ActivationChecklist({ runs }: { runs: LiveRunListItem[] }) {
   const { agents } = useLiveAgents();
-  const [rulesCount, setRulesCount] = useState<number>(0);
-  const [suiteReady, setSuiteReady] = useState(false);
+  const [rulesCheck, setRulesCheck] = useState<RemoteCheck<number>>({ status: "loading" });
+  const [suiteCheck, setSuiteCheck] = useState<RemoteCheck<boolean>>({ status: "loading" });
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/setup")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d?.rules) setRulesCount(d.rules.length);
+
+    void fetch("/api/setup")
+      .then((response) => {
+        if (!response.ok) throw new Error("Setup status unavailable");
+        return response.json() as Promise<SetupResponse>;
       })
-      .catch(() => {});
-    fetch("/api/generate")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d?.suite?.status === "ready") setSuiteReady(true);
+      .then((data) => {
+        if (alive) {
+          setRulesCheck({
+            status: "ready",
+            value: Array.isArray(data.rules) ? data.rules.length : 0,
+          });
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setRulesCheck({ status: "error" });
+      });
+
+    void fetch("/api/generate")
+      .then((response) => {
+        if (!response.ok) throw new Error("Suite status unavailable");
+        return response.json() as Promise<SuiteResponse>;
+      })
+      .then((data) => {
+        if (alive) {
+          setSuiteCheck({ status: "ready", value: data.suite?.status === "ready" });
+        }
+      })
+      .catch(() => {
+        if (alive) setSuiteCheck({ status: "error" });
+      });
+
     return () => {
       alive = false;
     };
   }, []);
 
-  const ownAgent = agents.some((a) => a.kind !== "reference");
+  const ownAgent = agents.some(
+    (agent) => agent.kind === "http" || agent.kind === "openai",
+  );
   const anyRun = runs.length > 0;
   const realRun = runs.some(
-    (r) => r.agentKind === "http" || r.agentKind === "openai" || r.provider === "anthropic",
+    (run) =>
+      run.status === "complete" &&
+      run.provider !== "mock" &&
+      (run.agentKind === "http" || run.agentKind === "openai"),
   );
 
   const steps: Step[] = [
     {
       label: "Run a sandbox test",
-      detail: "free, offline, zero setup",
+      detail: "Free, offline, zero setup",
       href: "/runs",
-      done: anyRun,
+      status: anyRun ? "complete" : "incomplete",
     },
     {
       label: "Connect your own agent",
       detail: "HTTP or OpenAI-compatible endpoint",
       href: "/agents/connect",
-      done: ownAgent,
+      status: ownAgent ? "complete" : "incomplete",
     },
     {
       label: "Teach Preflight your policy",
-      detail: "docs, prompt, real conversations, or 7 questions",
+      detail: "Docs, prompt, conversations, or seven questions",
       href: "/setup",
-      done: rulesCount > 0,
+      status: remoteStepStatus(rulesCheck, (count) => count > 0),
+      checkStatus: rulesCheck.status,
     },
     {
       label: "Generate your Rulebook suite",
-      detail: "scenarios written for your rules",
+      detail: "Scenarios written for your rules",
       href: "/setup",
-      done: suiteReady,
+      status: remoteStepStatus(suiteCheck, Boolean),
+      checkStatus: suiteCheck.status,
     },
     {
       label: "Run your agent for real",
-      detail: "the score that means something",
+      detail: "The score that means something",
       href: "/runs",
-      done: realRun,
+      status: realRun ? "complete" : "incomplete",
     },
   ];
 
-  const remaining = steps.filter((s) => !s.done).length;
-  if (remaining === 0) return null;
+  const completeCount = steps.filter((step) => step.status === "complete").length;
+  const nextStepIndex = firstActionableStep(steps);
+  const verificationInFlight = steps.some((step) => step.checkStatus === "loading");
+  const verificationUnavailable = steps.some((step) => step.checkStatus === "error");
+
+  if (completeCount === steps.length) return null;
+
+  const summary = nextStepIndex >= 0
+    ? "Your next action is marked below. Everything after it stays in sequence."
+    : verificationInFlight
+      ? "Checking your policy and generated suite before choosing the next action."
+      : verificationUnavailable
+        ? "Some setup status could not be verified. Open Setup to review it."
+        : "Your activation path is up to date.";
 
   return (
-    <section className="mt-10 rounded-xl border border-edge bg-surface p-6">
-      <div className="flex items-baseline justify-between">
-        <Eyebrow>Getting to a real evaluation</Eyebrow>
-        <span className="font-mono text-[11px] tabular-nums text-mut">
-          {steps.length - remaining}/{steps.length}
-        </span>
+    <section
+      className={styles.checklist}
+      aria-labelledby="activation-checklist-title"
+      aria-busy={verificationInFlight}
+    >
+      <div className={styles.header}>
+        <div className={styles.heading}>
+          <div id="activation-checklist-title">
+            <Eyebrow>Getting to a real evaluation</Eyebrow>
+          </div>
+          <p aria-live="polite">{summary}</p>
+        </div>
+        <div
+          className={styles.progress}
+          aria-label={`${completeCount} of ${steps.length} activation steps complete`}
+        >
+          <strong>{completeCount}</strong>
+          <span>/{steps.length}</span>
+        </div>
       </div>
-      <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {steps.map((s, i) => (
-          <li key={s.label}>
-            <Link
-              href={s.href}
-              className={`focus-ring block h-full rounded-lg border p-3 transition-colors ${
-                s.done
-                  ? "border-accent/30 bg-accent/5"
-                  : "border-edge hover:border-mut"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span
-                  aria-hidden
-                  className={`flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] ${
-                    s.done ? "border-accent/60 text-accent" : "border-edge text-mut"
-                  }`}
-                >
-                  {s.done ? "✓" : i + 1}
+
+      <ol className={styles.steps}>
+        {steps.map((step, index) => {
+          const isNext = index === nextStepIndex;
+          const isComplete = step.status === "complete";
+          const isUnknown = step.status === "unknown";
+          const stateClass = isNext
+            ? styles.stepNext
+            : isComplete
+              ? styles.stepComplete
+              : isUnknown
+                ? styles.stepUnknown
+                : styles.stepQuiet;
+
+          return (
+            <li key={step.label} className={`${styles.step} ${stateClass}`}>
+              <Link
+                href={step.href}
+                className={`focus-ring ${styles.stepLink}`}
+                aria-current={isNext ? "step" : undefined}
+              >
+                <span className={styles.stepTop}>
+                  <span className={styles.marker} aria-hidden="true">
+                    {isComplete ? <CheckIcon /> : index + 1}
+                  </span>
+                  <span className={styles.label}>
+                    <span className="sr-only">
+                      {isComplete ? "Complete: " : isNext ? "Next: " : ""}
+                    </span>
+                    {step.label}
+                  </span>
+                  {isNext && <span className={styles.nextBadge}>Next</span>}
                 </span>
-                <span className={`text-[13px] font-medium ${s.done ? "text-sub line-through" : "text-ink"}`}>
-                  {s.label}
-                </span>
-              </span>
-              <span className="mt-1 block pl-6 text-[11px] leading-snug text-mut">{s.detail}</span>
-            </Link>
-          </li>
-        ))}
+
+                <span className={styles.detail}>{step.detail}</span>
+
+                {isUnknown && (
+                  <span className={styles.checkBadge}>
+                    {step.checkStatus === "loading" ? "Checking" : "Unavailable"}
+                  </span>
+                )}
+
+                {isNext && (
+                  <span className={styles.primaryAction}>
+                    Continue
+                    <ArrowIcon />
+                  </span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

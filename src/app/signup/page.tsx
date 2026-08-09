@@ -8,10 +8,12 @@ import { AuthShell } from "@/components/auth-shell";
 import { SsoButtons } from "@/components/sso-buttons";
 import { Button } from "@/components/ui";
 import { useSession } from "@/lib/auth";
+import { useMode } from "@/lib/mode";
 
 export default function SignupPage() {
   const router = useRouter();
   const { signIn } = useSession();
+  const { setMode } = useMode();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
@@ -40,6 +42,7 @@ export default function SignupPage() {
         className={formStyles.form}
         onSubmit={(event) => {
           event.preventDefault();
+          setMode("live");
           signIn({ name, email, company: company || undefined });
           router.push("/setup");
         }}

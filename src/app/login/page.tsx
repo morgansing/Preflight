@@ -7,12 +7,13 @@ import formStyles from "@/components/auth-form.module.css";
 import { AuthShell } from "@/components/auth-shell";
 import { SsoButtons } from "@/components/sso-buttons";
 import { Button } from "@/components/ui";
-import { useSession } from "@/lib/auth";
+import { isSameSessionEmail, normalizeSessionEmail, useSession } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { session, signIn } = useSession();
+  const { session, signIn, setSessionPersistence } = useSession();
   const [email, setEmail] = useState("");
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
 
   return (
     <AuthShell>
@@ -35,9 +36,16 @@ export default function LoginPage() {
         className={formStyles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          // V0: restore the local session, or start one for this email.
-          if (!session || session.email !== email) {
-            signIn({ name: email.split("@")[0], email });
+          const persistence = keepSignedIn ? "persistent" : "session";
+          const normalizedEmail = normalizeSessionEmail(email);
+          // V0: restore the browser session, or start one for this email.
+          if (!session || !isSameSessionEmail(session.email, normalizedEmail)) {
+            signIn(
+              { name: normalizedEmail.split("@")[0], email: normalizedEmail },
+              persistence,
+            );
+          } else {
+            setSessionPersistence(persistence);
           }
           router.push("/dashboard");
         }}
@@ -69,7 +77,17 @@ export default function LoginPage() {
         </div>
 
         <div className={formStyles.formMeta}>
-          <span className={formStyles.sessionNote}>Stored on this browser</span>
+          <label className={formStyles.sessionNote}>
+            <input
+              type="checkbox"
+              checked={keepSignedIn}
+              onChange={(event) => setKeepSignedIn(event.target.checked)}
+            />
+            <span className={formStyles.sessionCopy}>
+              <strong>Keep me signed in</strong>
+              <small>{keepSignedIn ? "Stored on this browser" : "This tab only"}</small>
+            </span>
+          </label>
           <span className={formStyles.unavailable}>Password recovery arrives with hosted auth</span>
         </div>
 

@@ -33,6 +33,7 @@ import { useSession } from "@/lib/auth";
 import { useBillingPrefs } from "@/lib/billing";
 import { fetchFreeAllowance } from "@/lib/live-api";
 import { computeFingerprint } from "@/lib/identity";
+import { useRegressionSuite } from "@/lib/regression-suite";
 import shellStyles from "./run-wall-shell.module.css";
 
 /**
@@ -76,6 +77,9 @@ function CreditsLine({ simsNeeded }: { simsNeeded: number }) {
 export function LiveMissionControl() {
   const router = useRouter();
   const { agents } = useLiveAgents();
+  const { entries: regressionEntries, scenarioIds: regressionScenarioIds } =
+    useRegressionSuite();
+  const regressionScenarioCount = regressionEntries.length;
   const { session } = useSession();
   const [provider, setProvider] = useState<
     "anthropic" | "mock" | null | undefined | "unreachable"
@@ -94,6 +98,8 @@ export function LiveMissionControl() {
   const pendingRef = useRef<LiveEvent[]>([]);
 
   const [agentChoice, setAgentChoice] = useState("reference");
+  const agentChoiceTouchedRef = useRef(false);
+  const agentChoiceQueryAppliedRef = useRef(false);
   const [suite, setSuite] = useState<string>("smoke");
   // Clicking a coverage tier opens its detail sheet; selecting happens there.
   const [tierModal, setTierModal] = useState<SuiteTier | null>(null);
@@ -105,6 +111,34 @@ export function LiveMissionControl() {
   // every step has finished.
   const [planMeta, setPlanMeta] = useState<{ planId: string; total: number; kind: string } | null>(null);
   const [planDone, setPlanDone] = useState<LivePlan | null>(null);
+
+  // A connection hands its registered agent to this launcher via the URL.
+  // The registry hydrates from localStorage after the server snapshot, so wait
+  // until the requested runnable agent exists. Never override a choice the
+  // person has already made while that hydration is happening.
+  useEffect(() => {
+    if (agentChoiceTouchedRef.current || agentChoiceQueryAppliedRef.current) return;
+    const requestedAgentId = new URLSearchParams(window.location.search).get("agent");
+    if (!requestedAgentId) {
+      agentChoiceQueryAppliedRef.current = true;
+      return;
+    }
+    const requestedAgent = agents.find(
+      (agent) =>
+        agent.id === requestedAgentId &&
+        (agent.kind === "reference" || agent.kind === "http" || agent.kind === "openai"),
+    );
+    if (!requestedAgent) return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || agentChoiceTouchedRef.current || agentChoiceQueryAppliedRef.current) return;
+      agentChoiceQueryAppliedRef.current = true;
+      setAgentChoice(requestedAgent.id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [agents]);
 
   const attach = useCallback(async (runId: string) => {
     const summary = await fetchRun(runId);
@@ -266,10 +300,12 @@ export function LiveMissionControl() {
         ? SECURITY_SUITE_SIZE
         : suiteId === "gauntlet"
           ? GAUNTLET_SUITE_SIZE
+          : suiteId === "regression"
+            ? regressionScenarioCount
           : suiteId.startsWith("custom:")
             ? (customSuite?.scenarioCount ?? 0)
             : (tierById(suiteId)?.size ?? 0),
-    [customSuite],
+    [customSuite, regressionScenarioCount],
   );
 
   const launch = async () => {
@@ -285,6 +321,7 @@ export function LiveMissionControl() {
       authToken: chosen?.authToken,
       systemPrompt: chosen?.systemPrompt,
       suite,
+      ...(suite === "regression" ? { scenarioIds: regressionScenarioIds } : {}),
       plan: session?.plan ?? "free",
       identity: { email: session?.email, fingerprint: computeFingerprint() },
       sandbox: provider === null,
@@ -385,14 +422,17 @@ export function LiveMissionControl() {
             <select
               className="focus-ring w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 text-sm text-ink outline-none"
               value={agentChoice}
-              onChange={(e) => setAgentChoice(e.target.value)}
+              onChange={(e) => {
+                agentChoiceTouchedRef.current = true;
+                setAgentChoice(e.target.value);
+              }}
             >
               <option value="reference">Reference agent (built-in, deliberately imperfect)</option>
               {agents
-                .filter((a) => a.kind !== "reference")
+                .filter((a) => a.kind !== "mcp")
                 .map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} — {a.kind.toUpperCase()} {a.endpoint ?? ""}
+                    {a.name} — {a.kind === "reference" ? "SAVED REFERENCE" : a.kind.toUpperCase()} {a.endpoint ?? ""}
                   </option>
                 ))}
             </select>
@@ -453,6 +493,35 @@ export function LiveMissionControl() {
                   it writes scenarios for exactly that.
                 </div>
               </Link>
+            </div>
+          )}
+
+          {regressionScenarioCount > 0 && (
+            <div className="space-y-2">
+              <Eyebrow>Regression</Eyebrow>
+              <button
+                type="button"
+                onClick={() => setSuite("regression")}
+                aria-pressed={suite === "regression"}
+                className={`focus-ring flex w-full items-center justify-between gap-4 rounded-lg border px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
+                  suite === "regression"
+                    ? "border-accent/50 bg-raised"
+                    : "border-edge hover:border-mut"
+                }`}
+              >
+                <span className="min-w-0 text-[12px] leading-relaxed text-sub">
+                  <span className="font-medium text-ink">Saved failure set</span> — rerun only
+                  the scenarios your team kept for regression.
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="numeral block text-lg leading-none text-ink">
+                    {regressionScenarioCount.toLocaleString()}
+                  </span>
+                  <span className="font-mono text-[10px] tabular-nums text-mut">
+                    {fmtEstimate(regressionScenarioCount, pace)}
+                  </span>
+                </span>
+              </button>
             </div>
           )}
 
@@ -637,6 +706,11 @@ export function LiveMissionControl() {
 
   // ------------------------------------------------- The wall
   const n = run.scenarioIds.length;
+  const completedReportHref = planDone
+    ? `/reports?plan=${planDone.planId}`
+    : finished?.status === "complete" && !run.planId
+      ? `/reports?run=${run.id}`
+      : null;
   const shownIds =
     wallFilter === "all"
       ? run.scenarioIds
@@ -654,8 +728,8 @@ export function LiveMissionControl() {
   return (
     <div className="flex min-h-screen flex-col">
       <div className={`${shellStyles.stickyHeader} sticky z-10 border-b border-edge bg-raised/95 px-8 py-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
+        <div className={`${shellStyles.headerInner} flex flex-wrap items-center justify-between gap-4`}>
+          <div className={shellStyles.headerIdentity}>
             <div className="flex items-center gap-3">
               <Eyebrow>Live run {run.id}</Eyebrow>
               {run.planKind && planMeta && planMeta.planId === run.planId && (
@@ -666,38 +740,72 @@ export function LiveMissionControl() {
               )}
               {run.provider === "mock" && <MockBadge />}
             </div>
-            <div className="mt-1 text-[15px] font-medium text-ink">
+            <div className={`${shellStyles.headerRunName} mt-1 text-[15px] font-medium text-ink`}>
               {run.agentName}
-              <span className="ml-2 text-sub">· {suiteLabel(run.suite, n)}</span>
+              <span className="ml-2 text-sub">
+                ·{" "}
+                {run.suite === "regression"
+                  ? `Regression suite · ${n.toLocaleString()} scenarios`
+                  : suiteLabel(run.suite, n)}
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-8 font-mono text-sm tabular-nums">
-            <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
-            <HeaderStat label="Complete" value={`${stats.resolved}/${n}`} />
-            <HeaderStat
-              label="Elapsed"
-              value={`${Math.floor(elapsed / 60000)}:${String(Math.floor(elapsed / 1000) % 60).padStart(2, "0")}`}
-            />
-            <HeaderStat label="Cost" value={`$${stats.costUsd.toFixed(2)}`} />
-            <ButtonLink variant="ghost" size="sm" href="/runs/history">
-              Run history
-            </ButtonLink>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                unsubscribeRef.current?.();
-                setRun(null);
-                setFinished(null);
-                setResults(new Map());
-                setCells(new Map());
-                setPlanDone(null);
-                setPlanMeta(null);
-                window.history.replaceState(null, "", "/runs");
-              }}
-            >
-              New run
-            </Button>
+          <div className={`${shellStyles.headerControls} flex flex-wrap items-center justify-end gap-x-5 gap-y-2`}>
+            <div className={`${shellStyles.headerStats} flex items-center gap-5 font-mono text-sm tabular-nums`}>
+              <HeaderStat label="Pass rate" value={`${stats.passRate}%`} accent />
+              <HeaderStat label="Complete" value={`${stats.resolved}/${n}`} />
+              <HeaderStat
+                className={shellStyles.secondaryStat}
+                label="Elapsed"
+                value={`${Math.floor(elapsed / 60000)}:${String(Math.floor(elapsed / 1000) % 60).padStart(2, "0")}`}
+              />
+              <HeaderStat
+                className={shellStyles.secondaryStat}
+                label="Cost"
+                value={`$${stats.costUsd.toFixed(2)}`}
+              />
+            </div>
+            <div className={`${shellStyles.headerActions} flex flex-wrap items-center justify-end gap-1.5`}>
+              {completedReportHref && (
+                <>
+                  <ButtonLink size="sm" href={completedReportHref}>
+                    Open report
+                  </ButtonLink>
+                  {stats.fail > 0 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      aria-pressed={wallFilter === "fail"}
+                      onClick={() => setWallFilter("fail")}
+                    >
+                      {run.planId
+                        ? `Review ${stats.fail.toLocaleString()} suite ${stats.fail === 1 ? "failure" : "failures"}`
+                        : `Review ${stats.fail.toLocaleString()} ${stats.fail === 1 ? "failure" : "failures"}`}
+                    </Button>
+                  )}
+                </>
+              )}
+              <ButtonLink variant="ghost" size="sm" href="/runs/history">
+                Run history
+              </ButtonLink>
+              <Button
+                variant={completedReportHref ? "ghost" : "secondary"}
+                size="sm"
+                onClick={() => {
+                  unsubscribeRef.current?.();
+                  setRun(null);
+                  setFinished(null);
+                  setResults(new Map());
+                  setCells(new Map());
+                  setPlanDone(null);
+                  setPlanMeta(null);
+                  window.history.replaceState(null, "", "/runs");
+                }}
+              >
+                New run
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -759,9 +867,9 @@ export function LiveMissionControl() {
               <Legend color="var(--color-accent)" glyph="✓" label={`Pass ${stats.pass.toLocaleString()}`} />
             </span>
           </div>
-          {finished && planDone ? (
+          {completedReportHref && planDone ? (
             <Link
-              href={`/reports?plan=${planDone.planId}`}
+              href={completedReportHref}
               className="focus-ring animate-fade-in rounded-md text-accent hover:underline"
             >
               {planKindLabel(planDone.planKind)} complete — open the report →
@@ -770,12 +878,12 @@ export function LiveMissionControl() {
             <span className="animate-fade-in font-mono text-[12px] text-mut">
               step done — starting the next suite…
             </span>
-          ) : finished ? (
+          ) : completedReportHref ? (
             <Link
-              href={`/reports?run=${run.id}`}
+              href={completedReportHref}
               className="focus-ring animate-fade-in rounded-md text-accent hover:underline"
             >
-              Run {finished.status} — view the readiness report →
+              Run complete — view the readiness report →
             </Link>
           ) : null}
         </div>
@@ -790,9 +898,19 @@ export function LiveMissionControl() {
   );
 }
 
-function HeaderStat({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+function HeaderStat({
+  label,
+  value,
+  accent = false,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="text-right">
+    <div className={`${shellStyles.headerStat} ${className} text-right`}>
       <div className="eyebrow">{label}</div>
       <div className={`mt-0.5 ${accent ? "text-accent" : "text-ink"}`}>{value}</div>
     </div>

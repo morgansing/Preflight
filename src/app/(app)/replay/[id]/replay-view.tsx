@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Replay, ReplayStep, Scenario } from "@/lib/types";
 import type { LiveOutcome } from "@/lib/live-types";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
+import { useRegressionSuite } from "@/lib/regression-suite";
 import { Button, Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
 import styles from "./replay-view.module.css";
 
@@ -32,13 +34,17 @@ function matchesCriterion(list: string[] | undefined, text: string): boolean {
 export function ReplayView({
   scenario,
   replay,
+  sourceRunId,
 }: {
   scenario: Scenario;
   replay: ReplayLike;
+  sourceRunId?: string;
 }) {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [added, setAdded] = useState(false);
+  const regressionSuite = useRegressionSuite();
+  const inRegressionSuite = regressionSuite.has(scenario.id);
+  const canAddToRegression = !!getScenarioById(scenario.id);
   const total = replay.steps.length;
   const diverged =
     replay.divergenceStep !== undefined && current >= replay.divergenceStep;
@@ -128,7 +134,7 @@ export function ReplayView({
     <div className={`${styles.replay} flex min-h-screen flex-col`}>
       {/* Header */}
       <div className={`${styles.header} border-b px-8 py-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className={`${styles.headerContent} flex flex-wrap items-center justify-between gap-4`}>
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <Link
@@ -149,22 +155,22 @@ export function ReplayView({
               <SeverityLabel severity={replay.severity} />
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right font-mono text-[13px] tabular-nums text-sub">
+          <div className={styles.headerActions}>
+            <div className={`${styles.runMetrics} text-right font-mono text-[13px] tabular-nums text-sub`}>
               <span title="Run cost">${replay.costUsd.toFixed(3)}</span>
               <span className="mx-2 text-mut">·</span>
               <span title="Latency">{(replay.latencyMs / 1000).toFixed(1)}s</span>
               <span className="mx-2 text-mut">·</span>
               <span title="Tokens">{replay.tokens.toLocaleString()} tok</span>
             </div>
-            {replay.outcome === "fail" && (
+            {replay.outcome === "fail" && canAddToRegression && (
               <Button
                 size="sm"
-                onClick={() => setAdded(true)}
-                disabled={added}
-                className="disabled:opacity-100"
+                onClick={() => regressionSuite.add(scenario, sourceRunId)}
+                disabled={inRegressionSuite}
+                className={`${styles.regressionAction} disabled:opacity-100`}
               >
-                {added ? "✓ Marked in this preview" : "Preview regression action"}
+                {inRegressionSuite ? "✓ In regression suite" : "Add to regression suite"}
               </Button>
             )}
           </div>

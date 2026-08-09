@@ -97,7 +97,7 @@ export default function ConnectAgentPage() {
         className="mt-10 space-y-6"
         onSubmit={(e) => {
           e.preventDefault();
-          register({
+          const agent = register({
             name: name || (kind === "reference" ? "Reference agent" : "Unnamed agent"),
             kind,
             endpoint: kind === "reference" ? undefined : endpoint,
@@ -106,7 +106,14 @@ export default function ConnectAgentPage() {
             systemPrompt: kind === "openai" ? systemPrompt || undefined : undefined,
           });
           setMode("live");
-          router.push("/agents");
+          // MCP registrations are saved for the upcoming transport support,
+          // but the current harness cannot run them. Land on the saved-agent
+          // inventory instead of silently falling back to the reference agent.
+          if (agent.kind === "mcp") {
+            router.push("/agents?connected=mcp");
+            return;
+          }
+          router.push(`/runs?agent=${encodeURIComponent(agent.id)}`);
         }}
       >
         <div className="space-y-3">
@@ -283,10 +290,21 @@ export default function ConnectAgentPage() {
 
         <div className="flex items-center justify-between border-t border-edge pt-6">
           <p className="max-w-sm text-[12px] leading-relaxed text-mut">
-            Live runs also need Preflight&apos;s own judge/persona model (never your agent). Set{" "}
-            <code className="font-mono text-sub">PREFLIGHT_LLM_KEY</code> on the server.
+            {kind === "mcp" ? (
+              <>
+                This saves the MCP connection to your agent inventory. MCP execution is not
+                available in the current harness yet.
+              </>
+            ) : (
+              <>
+                Live runs also need Preflight&apos;s own judge/persona model (never your agent). Set{" "}
+                <code className="font-mono text-sub">PREFLIGHT_LLM_KEY</code> on the server.
+              </>
+            )}
           </p>
-          <Button type="submit">Register agent</Button>
+          <Button type="submit">
+            {kind === "mcp" ? "Save MCP registration" : "Register agent"}
+          </Button>
         </div>
       </form>
     </div>

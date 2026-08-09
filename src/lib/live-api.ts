@@ -53,6 +53,8 @@ export async function startRun(body: {
   /** OpenAI-compatible: the agent's system prompt. */
   systemPrompt?: string;
   suite: string; // tier id, e.g. smoke | standard | ... | security | custom:<v>
+  /** Explicit base scenarios for the browser-persisted regression suite. */
+  scenarioIds?: string[];
   /** Current plan — free runs are metered against the free grant. */
   plan?: string;
   /** Workspace identity for free-grant enforcement. */
