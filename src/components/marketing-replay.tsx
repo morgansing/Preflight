@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Replay, ReplayStep, Scenario } from "@/lib/types";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import styles from "./marketing-replay.module.css";
 
 const STEP_MS = 1700;
@@ -77,12 +78,20 @@ export function MarketingReplay({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { amount: 0.22 });
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
   const seenStackRef = useRef<HTMLDivElement>(null);
   const actionStackRef = useRef<HTMLDivElement>(null);
   const last = replay.steps.length - 1;
-  const [current, setCurrent] = useState(reduceMotion ? last : 0);
-  const [playing, setPlaying] = useState(!reduceMotion);
+  // Always start from the first step so SSR and the first client paint match.
+  // Reduced-motion users jump to the end after mount.
+  const [current, setCurrent] = useState(0);
+  const [playing, setPlaying] = useState(true);
+
+  useEffect(() => {
+    if (!reduceMotion) return;
+    setCurrent(last);
+    setPlaying(false);
+  }, [last, reduceMotion]);
 
   useEffect(() => {
     if (!playing || !inView || reduceMotion) return;
