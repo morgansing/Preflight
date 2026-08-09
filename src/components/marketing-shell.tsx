@@ -69,16 +69,27 @@ export function MarketingMain({
   return (
     <main id="main-content" tabIndex={-1} className={classes}>
       <div className={styles.motionField} aria-hidden="true">
-        <span className={`${styles.signalLane} ${styles.signalLaneOne}`} />
-        <span className={`${styles.signalLane} ${styles.signalLaneTwo}`} />
-        <span className={`${styles.signalLane} ${styles.signalLaneThree}`} />
-        <span className={`${styles.signalLane} ${styles.signalLaneFour}`} />
-        <span className={`${styles.fieldNode} ${styles.fieldNodeOne}`} />
-        <span className={`${styles.fieldNode} ${styles.fieldNodeTwo}`} />
-        <span className={`${styles.fieldNode} ${styles.fieldNodeThree}`} />
-        <span className={`${styles.fieldNode} ${styles.fieldNodeFour}`} />
-        <span className={`${styles.fieldFlare} ${styles.fieldFlareOne}`} />
-        <span className={`${styles.fieldFlare} ${styles.fieldFlareTwo}`} />
+        <div className={`${styles.evidenceRail} ${styles.evidenceRailOne}`}>
+          <span className={styles.railGrid} />
+          <span className={styles.railPasses} />
+          <span className={styles.railAnomaly} />
+          <span className={styles.railReview} />
+          <span className={styles.railScan} />
+        </div>
+        <div className={`${styles.evidenceRail} ${styles.evidenceRailTwo}`}>
+          <span className={styles.railGrid} />
+          <span className={styles.railPasses} />
+          <span className={styles.railAnomaly} />
+          <span className={styles.railReview} />
+          <span className={styles.railScan} />
+        </div>
+        <div className={`${styles.evidenceRail} ${styles.evidenceRailThree}`}>
+          <span className={styles.railGrid} />
+          <span className={styles.railPasses} />
+          <span className={styles.railAnomaly} />
+          <span className={styles.railReview} />
+          <span className={styles.railScan} />
+        </div>
       </div>
       {children}
     </main>
