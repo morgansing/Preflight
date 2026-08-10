@@ -5,9 +5,7 @@
   isolation: isolate;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 76% 4%, rgba(61, 220, 132, 0.055), transparent 26rem),
-    linear-gradient(180deg, #0b0c0e 0%, #0d0f12 48%, #0b0c0e 100%);
+  background: linear-gradient(180deg, #0b0c0e 0%, #0d0f12 48%, #0b0c0e 100%);
   color: var(--color-ink);
 }
 

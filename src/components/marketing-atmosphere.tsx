@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 
 import styles from "./marketing-shell.module.css";
 
@@ -42,50 +48,58 @@ function cellStyle(index: number): CSSProperties {
   };
 }
 
+function subscribeMotionMode(onStoreChange: () => void) {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const compact = window.matchMedia("(max-width: 420px)");
+  const mobile = window.matchMedia("(max-width: 780px)");
+
+  reduced.addEventListener("change", onStoreChange);
+  compact.addEventListener("change", onStoreChange);
+  mobile.addEventListener("change", onStoreChange);
+
+  return () => {
+    reduced.removeEventListener("change", onStoreChange);
+    compact.removeEventListener("change", onStoreChange);
+    mobile.removeEventListener("change", onStoreChange);
+  };
+}
+
+function readMotionMode(): MotionMode {
+  if (
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    window.matchMedia("(max-width: 420px)").matches
+  ) {
+    return "static";
+  }
+  if (window.matchMedia("(max-width: 780px)").matches) {
+    return "mobile";
+  }
+  return "desktop";
+}
+
+function useMotionMode(): MotionMode {
+  // SSR + hydration always see "static" so markup stays identical. After
+  // hydrate, useSyncExternalStore upgrades to the real client mode.
+  return useSyncExternalStore(subscribeMotionMode, readMotionMode, () => "static");
+}
+
 export function MarketingAtmosphere() {
   const hostRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
-  const [phase, setPhase] = useState(0);
-  const [heroActive, setHeroActive] = useState(true);
-  // Keep SSR and first client paint identical; resolve real mode after mount.
-  const [motionMode, setMotionMode] = useState<MotionMode>("desktop");
-  const [motionReady, setMotionReady] = useState(false);
+  const motionMode = useMotionMode();
+  const [scrollPhase, setScrollPhase] = useState(0);
+  const [scrollHeroActive, setScrollHeroActive] = useState(true);
+
+  const phase =
+    motionMode === "static"
+      ? PHASE_COUNT - 1
+      : motionMode === "mobile"
+        ? 0
+        : scrollPhase;
+  const heroActive = motionMode === "desktop" && scrollHeroActive;
 
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const compact = window.matchMedia("(max-width: 420px)");
-    const mobile = window.matchMedia("(max-width: 780px)");
-
-    const updateMode = () => {
-      if (reduced.matches || compact.matches) {
-        setMotionMode("static");
-        setPhase(PHASE_COUNT - 1);
-        setHeroActive(false);
-      } else if (mobile.matches) {
-        setMotionMode("mobile");
-        setPhase(0);
-        setHeroActive(false);
-      } else {
-        setMotionMode("desktop");
-        setHeroActive(true);
-      }
-      setMotionReady(true);
-    };
-
-    updateMode();
-    reduced.addEventListener("change", updateMode);
-    compact.addEventListener("change", updateMode);
-    mobile.addEventListener("change", updateMode);
-
-    return () => {
-      reduced.removeEventListener("change", updateMode);
-      compact.removeEventListener("change", updateMode);
-      mobile.removeEventListener("change", updateMode);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!motionReady || motionMode !== "desktop") return;
+    if (motionMode !== "desktop") return;
 
     const main = hostRef.current?.closest("main");
     if (!main) return;
@@ -121,15 +135,15 @@ export function MarketingAtmosphere() {
           Math.floor((sectionIndex * PHASE_COUNT) / sections.length),
         );
 
-        setPhase((current) => (current === nextPhase ? current : nextPhase));
-        setHeroActive(sectionIndex === 0);
+        setScrollPhase((current) => (current === nextPhase ? current : nextPhase));
+        setScrollHeroActive(sectionIndex === 0);
       },
       { rootMargin: "-18% 0px -64% 0px", threshold: 0 },
     );
 
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
-  }, [motionMode, motionReady]);
+  }, [motionMode]);
 
   useEffect(() => {
     const cursor = cursorRef.current;
@@ -187,7 +201,6 @@ export function MarketingAtmosphere() {
     <div
       ref={hostRef}
       className={styles.marketingAtmosphere}
-      data-motion-mode={motionMode}
       aria-hidden="true"
     >
       <div className={styles.atmosphereConstellation}>
