@@ -313,7 +313,6 @@
     var(--color-surface);
   box-shadow:
     0 34px 90px rgba(0, 0, 0, 0.42),
-    0 0 80px rgba(61, 220, 132, 0.065),
     inset 0 1px rgba(255, 255, 255, 0.025);
   animation: none;
 }

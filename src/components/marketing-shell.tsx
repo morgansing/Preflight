@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { MarketingAtmosphere } from "./marketing-atmosphere";
 import styles from "./marketing-shell.module.css";
 
 export type MarketingPage =
@@ -69,7 +68,6 @@ export function MarketingMain({
 
   return (
     <main id="main-content" tabIndex={-1} className={classes}>
-      <MarketingAtmosphere />
       {children}
     </main>
   );

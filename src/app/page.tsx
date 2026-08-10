@@ -154,7 +154,6 @@ export default function Landing() {
           </div>
 
           <div className={styles.heroVisual}>
-            <div className={styles.heroGrid} aria-hidden />
             <div className={styles.liveShell} aria-labelledby="live-run-title">
               <div className={styles.liveHeader}>
                 <div>
@@ -182,7 +181,6 @@ export default function Landing() {
                 </span>
               </div>
               <div className={styles.wallFrame}>
-                <div className={styles.scanLine} aria-hidden />
                 <WallLoop />
               </div>
               <div className={styles.liveFooter}>
