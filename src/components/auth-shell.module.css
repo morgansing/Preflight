@@ -1,0 +1,1175 @@
+.page {
+  --auth-line: rgba(84, 92, 104, 0.28);
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 42%, rgba(61, 220, 132, 0.075), transparent 31rem),
+    radial-gradient(circle at 86% 12%, rgba(61, 220, 132, 0.04), transparent 26rem),
+    linear-gradient(135deg, #0b0c0e 0%, #0d0f12 48%, #090a0c 100%);
+  color: var(--color-ink);
+}
+
+.ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.grid {
+  position: absolute;
+  inset: -7rem;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 58px 58px;
+  mask-image: radial-gradient(ellipse at 36% 45%, #000 12%, transparent 70%);
+}
+
+.glow {
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(61, 220, 132, 0.11), transparent 68%);
+}
+
+.signalLine {
+  position: absolute;
+  top: 16%;
+  left: -35%;
+  width: 70%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.08), rgba(61, 220, 132, 0.62), transparent);
+  box-shadow: 0 0 28px rgba(61, 220, 132, 0.12);
+  transform: rotate(-10deg);
+  animation: signalDrift 12s ease-in-out infinite;
+}
+
+.skipLink {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 20;
+  border: 1px solid rgba(61, 220, 132, 0.5);
+  border-radius: 0.5rem;
+  background: #111419;
+  padding: 0.65rem 0.85rem;
+  color: var(--color-ink);
+  font-size: 0.75rem;
+  transform: translateY(calc(-100% - 1rem));
+  transition: transform 160ms ease;
+}
+
+.skipLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  transform: translateY(0);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(34rem, 1.15fr) minmax(29rem, 0.85fr);
+  min-height: 100svh;
+}
+
+.story {
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid var(--auth-line);
+  background:
+    linear-gradient(90deg, rgba(61, 220, 132, 0.025), transparent 42%),
+    rgba(10, 12, 14, 0.42);
+}
+
+.story::after {
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: 22%;
+  content: "";
+  background: linear-gradient(transparent, rgba(61, 220, 132, 0.75), transparent);
+}
+
+.storyInner {
+  display: flex;
+  width: min(100% - 5rem, 49rem);
+  min-height: 100svh;
+  margin-inline: auto;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-block: 2.2rem 1.8rem;
+}
+
+.brand {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 0.25rem;
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+.brandSignal {
+  position: relative;
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 18px rgba(61, 220, 132, 0.72);
+}
+
+.brandSignal::after {
+  position: absolute;
+  inset: -0.3rem;
+  border: 1px solid rgba(61, 220, 132, 0.35);
+  border-radius: inherit;
+  content: "";
+  animation: signalPulse 2.4s ease-out infinite;
+}
+
+.storyCopy {
+  width: min(100%, 42rem);
+  padding-block: 3.5rem;
+  animation: riseIn 650ms 80ms var(--ease-out-quad) both;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.eyebrow > span {
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.55);
+}
+
+.storyCopy h2 {
+  max-width: 38rem;
+  margin-top: 1.2rem;
+  font-family: var(--font-display);
+  font-size: clamp(3.35rem, 5.3vw, 5.25rem);
+  font-weight: 420;
+  letter-spacing: -0.052em;
+  line-height: 0.94;
+}
+
+.storyCopy h2 em {
+  display: block;
+  color: var(--color-accent);
+  font-style: italic;
+  font-weight: 350;
+}
+
+.storyLead {
+  max-width: 35rem;
+  margin-top: 1.45rem;
+  color: var(--color-sub);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.flightDeck {
+  position: relative;
+  height: 18.6rem;
+  overflow: hidden;
+  contain: layout paint;
+  margin-top: 2.2rem;
+  border: 1px solid rgba(84, 92, 104, 0.46);
+  border-radius: 0.88rem;
+  background: #090b0d;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.42),
+    0 0 70px rgba(61, 220, 132, 0.04),
+    inset 0 1px rgba(255, 255, 255, 0.025);
+  animation: deckRise 680ms 180ms var(--ease-out-quad) both;
+}
+
+.flightDeck::before {
+  position: absolute;
+  z-index: 2;
+  top: -3rem;
+  right: 15%;
+  width: 13rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.055);
+  filter: blur(38px);
+  content: "";
+  pointer-events: none;
+}
+
+.flightDeckInner {
+  display: grid;
+  height: 100%;
+  grid-template-rows: 2.7rem minmax(0, 1fr) 2.55rem;
+}
+
+.flightHeader,
+.flightFooter,
+.panelHeading,
+.evidenceHeader,
+.wallMetrics,
+.traceRow span,
+.traceRow b {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.flightHeader {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-edge);
+  background: rgba(24, 27, 32, 0.92);
+  padding-inline: 0.9rem;
+  color: var(--color-mut);
+  font-size: 0.46rem;
+  letter-spacing: 0.1em;
+}
+
+.flightIdentity {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.flightIdentity i {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 11px rgba(61, 220, 132, 0.6);
+}
+
+.flightHeader strong {
+  border: 1px solid rgba(61, 220, 132, 0.28);
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.06);
+  padding: 0.28rem 0.45rem;
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.flightBody {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.15fr) minmax(12.8rem, 0.85fr);
+  gap: 1px;
+  background: var(--color-edge);
+}
+
+.wallPanel,
+.evidencePanel {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(61, 220, 132, 0.035), transparent 44%),
+    #090b0d;
+  padding: 0.8rem;
+}
+
+.panelHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.panelHeading > div {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.panelHeading span,
+.wallTelemetry {
+  color: var(--color-mut);
+  font-size: 0.45rem;
+  letter-spacing: 0.11em;
+}
+
+.panelHeading strong {
+  color: var(--color-sub);
+  font-size: 0.56rem;
+  font-weight: 520;
+  letter-spacing: 0.02em;
+}
+
+.wallTelemetry {
+  flex: none;
+  color: var(--color-accent) !important;
+}
+
+.coverageTrack {
+  position: relative;
+  height: 0.25rem;
+  overflow: hidden;
+  margin-top: 0.62rem;
+  border-radius: 999px;
+  background: rgba(84, 92, 104, 0.2);
+}
+
+.coverageFill,
+.coverageBlock,
+.coverageReview {
+  position: absolute;
+  inset-block: 0;
+}
+
+.coverageFill {
+  right: 3%;
+  left: 0;
+  border-radius: inherit;
+  background: var(--color-accent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.2);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: coverageResolve 1.45s 520ms var(--ease-out-quad) both;
+}
+
+.coverageBlock {
+  right: 1%;
+  width: 1.5%;
+  background: var(--color-fail);
+}
+
+.coverageReview {
+  right: 0;
+  width: 0.7%;
+  background: var(--color-warn);
+}
+
+.wallGrid {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 0.2rem;
+  margin-top: 0.7rem;
+}
+
+.wallCell {
+  --cell-color: rgba(61, 220, 132, 0.68);
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.015);
+  border-radius: 0.13rem;
+  background: rgba(84, 92, 104, 0.16);
+  opacity: 0.22;
+  transform: scale(0.72);
+  animation: wallResolve 520ms var(--ease-out-quad) both;
+  animation-delay: calc(460ms + var(--cell-order) * 11ms);
+}
+
+.failCell {
+  --cell-color: rgba(240, 84, 79, 0.86);
+}
+
+.reviewCell {
+  --cell-color: rgba(224, 163, 64, 0.82);
+}
+
+.selectedCell {
+  z-index: 2;
+  outline: 1px solid rgba(240, 84, 79, 0.75);
+  outline-offset: 1px;
+  animation:
+    wallResolve 520ms var(--ease-out-quad) both,
+    selectedSignal 4.8s 2s ease-in-out infinite;
+  animation-delay:
+    calc(460ms + var(--cell-order) * 11ms),
+    2s;
+}
+
+.wallScan {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: -0.6rem;
+  width: 1px;
+  background: linear-gradient(transparent, rgba(61, 220, 132, 0.75), transparent);
+  box-shadow: 0 0 12px rgba(61, 220, 132, 0.24);
+  animation: wallScan 6.8s 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+}
+
+.wallMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 0.72rem;
+  border-top: 1px solid var(--color-edge);
+  padding-top: 0.58rem;
+  color: var(--color-mut);
+  font-size: 0.43rem;
+  letter-spacing: 0.02em;
+}
+
+.wallMetrics span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.wallMetrics strong {
+  color: var(--color-sub);
+  font-size: 0.53rem;
+  font-weight: 570;
+}
+
+.wallMetrics i {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+}
+
+.passSignal {
+  background: var(--color-accent);
+}
+
+.failSignal {
+  background: var(--color-fail);
+}
+
+.reviewSignal {
+  background: var(--color-warn);
+}
+
+.evidencePanel {
+  background:
+    radial-gradient(circle at 60% 25%, rgba(240, 84, 79, 0.04), transparent 44%),
+    #0a0c0e;
+}
+
+.evidencePanel::after {
+  position: absolute;
+  right: 0;
+  bottom: -45%;
+  left: 0;
+  height: 42%;
+  background: linear-gradient(transparent, rgba(240, 84, 79, 0.022), transparent);
+  content: "";
+  animation: evidenceScan 7.4s 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.evidenceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  border-bottom: 1px solid var(--color-edge);
+  padding-bottom: 0.58rem;
+  color: var(--color-mut);
+  font-size: 0.45rem;
+  letter-spacing: 0.1em;
+}
+
+.evidenceHeader strong {
+  color: var(--color-fail);
+  font-weight: 520;
+}
+
+.trace {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.62rem;
+  padding-left: 0.72rem;
+}
+
+.traceLine {
+  position: absolute;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  left: 0.19rem;
+  width: 1px;
+  background: linear-gradient(var(--color-accent), var(--color-fail));
+  opacity: 0.55;
+  transform: scaleY(0);
+  transform-origin: top;
+  animation: traceDraw 1.15s 1.45s var(--ease-out-quad) both;
+}
+
+.traceRow {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 2.45rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(84, 92, 104, 0.32);
+  border-radius: 0.48rem;
+  background: rgba(19, 21, 25, 0.76);
+  padding: 0.42rem 0.48rem;
+  opacity: 0;
+  transform: translate3d(0, 7px, 0);
+  animation: traceReveal 560ms var(--ease-out-quad) both;
+  animation-delay: calc(1.25s + var(--row-order) * 340ms);
+}
+
+.traceRow > i {
+  position: absolute;
+  left: -0.9rem;
+  width: 0.36rem;
+  height: 0.36rem;
+  border: 1px solid rgba(61, 220, 132, 0.6);
+  border-radius: 999px;
+  background: #090b0d;
+  box-shadow: 0 0 8px rgba(61, 220, 132, 0.2);
+}
+
+.traceRow > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.traceRow span {
+  display: block;
+  color: var(--color-mut);
+  font-size: 0.39rem;
+  letter-spacing: 0.1em;
+}
+
+.traceRow p {
+  overflow: hidden;
+  margin-top: 0.2rem;
+  color: var(--color-sub);
+  font-size: 0.55rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.traceRow b {
+  flex: none;
+  color: var(--color-mut);
+  font-size: 0.34rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+}
+
+.actionRow {
+  border-color: rgba(240, 84, 79, 0.48);
+  background: rgba(240, 84, 79, 0.075);
+  box-shadow: 0 0 24px rgba(240, 84, 79, 0.05);
+}
+
+.actionRow > i {
+  border-color: rgba(240, 84, 79, 0.85);
+  box-shadow: 0 0 9px rgba(240, 84, 79, 0.35);
+}
+
+.actionRow span,
+.actionRow b,
+.expectedRow b {
+  color: var(--color-fail);
+}
+
+.actionRow p {
+  color: #e88d89;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+}
+
+.expectedRow {
+  border-color: rgba(61, 220, 132, 0.2);
+}
+
+.flightFooter {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.72rem;
+  border-top: 1px solid var(--color-edge);
+  background: rgba(24, 27, 32, 0.88);
+  padding-inline: 0.9rem;
+  color: var(--color-mut);
+  font-size: 0.42rem;
+  letter-spacing: 0.1em;
+}
+
+.replayTrack {
+  display: flex;
+  min-width: 0;
+  gap: 0.24rem;
+}
+
+.replayTrack i {
+  height: 0.18rem;
+  min-width: 0;
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(61, 220, 132, 0.65);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: replayResolve 480ms var(--ease-out-quad) both;
+}
+
+.replayTrack i:nth-child(1) {
+  animation-delay: 1.35s;
+}
+
+.replayTrack i:nth-child(2) {
+  animation-delay: 1.5s;
+}
+
+.replayTrack i:nth-child(3) {
+  animation-delay: 1.65s;
+}
+
+.replayTrack i:nth-child(4) {
+  animation-delay: 1.8s;
+}
+
+.replayTrack i:nth-child(5) {
+  animation-delay: 1.95s;
+}
+
+.replayTrack i:nth-child(6) {
+  animation-delay: 2.1s;
+}
+
+.replayTrack i:nth-child(7) {
+  animation-delay: 2.25s;
+}
+
+.replayTrack .replayFailure {
+  background: var(--color-fail);
+}
+
+.flightFooter strong {
+  color: var(--color-sub);
+  font-weight: 500;
+}
+
+.proofPoints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.proofPoints span {
+  border: 1px solid var(--color-edge);
+  border-radius: 999px;
+  background: rgba(19, 21, 25, 0.55);
+  padding: 0.38rem 0.62rem;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.49rem;
+  letter-spacing: 0.06em;
+}
+
+.storyFooter {
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.53rem;
+  letter-spacing: 0.14em;
+}
+
+.formRegion {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: clamp(2rem, 5vw, 5rem);
+}
+
+.mobileBrand {
+  display: none;
+}
+
+.formCard {
+  width: min(100%, 31rem);
+  overflow: hidden;
+  border: 1px solid rgba(84, 92, 104, 0.42);
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(145deg, rgba(22, 25, 30, 0.92), rgba(13, 15, 18, 0.97)),
+    var(--color-surface);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.38),
+    0 0 60px rgba(61, 220, 132, 0.035),
+    inset 0 1px rgba(255, 255, 255, 0.025);
+  animation: riseIn 620ms 140ms var(--ease-out-quad) both;
+}
+
+.formCard:focus {
+  outline: none;
+}
+
+.formCard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+.formCardTop {
+  display: flex;
+  min-height: 3.05rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-edge);
+  padding-inline: clamp(1.2rem, 4vw, 2rem);
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.49rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.formCardTop > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.formCardTop i {
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 11px rgba(61, 220, 132, 0.5);
+}
+
+.formContent {
+  padding: clamp(1.5rem, 4vw, 2.3rem);
+}
+
+.localNote {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.49rem;
+  letter-spacing: 0.06em;
+}
+
+.localNote > span {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  opacity: 0.65;
+}
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: minmax(31rem, 1fr) minmax(27rem, 0.9fr);
+  }
+
+  .storyInner {
+    width: min(100% - 3.5rem, 45rem);
+  }
+
+  .storyCopy h2 {
+    font-size: clamp(3rem, 5.4vw, 4.35rem);
+  }
+
+  .formRegion {
+    padding-inline: 2rem;
+  }
+}
+
+@media (max-width: 960px) {
+  .page {
+    overflow: auto;
+  }
+
+  .layout {
+    display: block;
+    min-height: 100svh;
+  }
+
+  .story {
+    border-right: 0;
+    border-bottom: 1px solid var(--auth-line);
+  }
+
+  .story::after {
+    top: auto;
+    right: auto;
+    bottom: -1px;
+    left: 0;
+    width: 25%;
+    height: 1px;
+  }
+
+  .storyInner {
+    display: block;
+    width: min(100% - 3rem, 44rem);
+    min-height: auto;
+    padding-block: 1.5rem 2.2rem;
+  }
+
+  .storyInner > .brand,
+  .storyFooter {
+    display: none;
+  }
+
+  .storyCopy {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(20rem, 1.2fr);
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+    padding: 0;
+  }
+
+  .storyCopy h2 {
+    margin-top: 0.85rem;
+    font-size: clamp(2.5rem, 7vw, 3.7rem);
+  }
+
+  .storyLead {
+    margin-top: 1rem;
+    font-size: 0.78rem;
+  }
+
+  .flightDeck {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    height: 17.4rem;
+    margin-top: 0;
+  }
+
+  .flightHeader {
+    grid-template-columns: 1fr auto;
+  }
+
+  .flightHeader > span:nth-child(2) {
+    display: none;
+  }
+
+  .flightBody {
+    grid-template-columns: minmax(0, 1fr) minmax(10.8rem, 0.9fr);
+  }
+
+  .wallPanel,
+  .evidencePanel {
+    padding: 0.65rem;
+  }
+
+  .wallGrid {
+    gap: 0.16rem;
+  }
+
+  .traceRow b {
+    display: none;
+  }
+
+  .proofPoints {
+    display: none;
+  }
+
+  .formRegion {
+    min-height: auto;
+    padding: 2.5rem 1.5rem 3rem;
+  }
+
+  .mobileBrand {
+    display: inline-flex;
+    width: min(100%, 31rem);
+    margin-bottom: 1.25rem;
+  }
+}
+
+@media (max-width: 660px) {
+  .storyInner {
+    width: min(100% - 2rem, 34rem);
+  }
+
+  .storyCopy {
+    display: block;
+  }
+
+  .storyCopy h2 {
+    max-width: 30rem;
+  }
+
+  .storyLead {
+    max-width: 29rem;
+  }
+
+  .flightDeck {
+    height: 18.2rem;
+    margin-top: 1.5rem;
+  }
+
+  .flightBody {
+    grid-template-columns: minmax(0, 1.08fr) minmax(11.5rem, 0.92fr);
+  }
+
+  .formRegion {
+    padding-inline: 1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .storyCopy h2 {
+    font-size: 2.55rem;
+  }
+
+  .flightIdentity,
+  .flightFooter > span:first-child,
+  .formCardTop > span:last-child {
+    display: none;
+  }
+
+  .flightDeck {
+    height: 17.2rem;
+  }
+
+  .flightHeader {
+    grid-template-columns: 1fr;
+    justify-items: end;
+  }
+
+  .flightBody {
+    grid-template-columns: minmax(0, 1fr) minmax(9.4rem, 0.94fr);
+  }
+
+  .wallTelemetry {
+    display: none;
+  }
+
+  .wallGrid {
+    gap: 0.12rem;
+  }
+
+  .wallMetrics {
+    font-size: 0.36rem;
+  }
+
+  .wallMetrics span {
+    gap: 0.15rem;
+  }
+
+  .wallMetrics i {
+    display: none;
+  }
+
+  .traceRow {
+    padding-inline: 0.4rem;
+  }
+
+  .traceRow p {
+    font-size: 0.48rem;
+  }
+
+  .formRegion {
+    padding-block: 2rem 2.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signalLine,
+  .story::after,
+  .storyCopy,
+  .brandSignal::after,
+  .flightDeck,
+  .formCard,
+  .coverageFill,
+  .wallCell,
+  .selectedCell,
+  .wallScan,
+  .evidencePanel::after,
+  .traceLine,
+  .traceRow,
+  .replayTrack i {
+    animation: none;
+  }
+
+  .coverageFill,
+  .traceLine,
+  .replayTrack i {
+    transform: none;
+  }
+
+  .wallCell {
+    background: var(--cell-color);
+    opacity: 0.74;
+    transform: none;
+  }
+
+  .selectedCell {
+    box-shadow: 0 0 9px rgba(240, 84, 79, 0.22);
+  }
+
+  .wallScan,
+  .evidencePanel::after {
+    display: none;
+  }
+
+  .traceRow {
+    opacity: 1;
+    transform: none;
+  }
+
+  .skipLink {
+    transition: none;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes signalPulse {
+  from {
+    opacity: 0.75;
+    transform: scale(0.65);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+@keyframes signalDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-10deg);
+  }
+
+  50% {
+    transform: translate3d(18vw, 6vh, 0) rotate(-10deg);
+  }
+}
+
+@keyframes deckRise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.992);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes coverageResolve {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes wallResolve {
+  to {
+    background: var(--cell-color);
+    opacity: 0.74;
+    transform: scale(1);
+  }
+}
+
+@keyframes selectedSignal {
+  0%,
+  70%,
+  100% {
+    box-shadow: 0 0 0 rgba(240, 84, 79, 0);
+  }
+
+  82% {
+    box-shadow: 0 0 12px rgba(240, 84, 79, 0.55);
+  }
+}
+
+@keyframes wallScan {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+
+  22%,
+  70% {
+    opacity: 0.82;
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate3d(32rem, 0, 0);
+  }
+}
+
+@keyframes evidenceScan {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -360%, 0);
+  }
+}
+
+@keyframes traceDraw {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes traceReveal {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes replayResolve {
+  to {
+    transform: scaleX(1);
+  }
+}

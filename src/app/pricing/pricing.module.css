@@ -4,9 +4,7 @@
   isolation: isolate;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% -15%, rgba(61, 220, 132, 0.08), transparent 38rem),
-    #0b0c0e;
+  background: #0b0c0e;
 }
 
 .ambient {
@@ -24,44 +22,6 @@
     linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: linear-gradient(to bottom, black, transparent 33%, transparent 78%, black);
-}
-
-.flareOne,
-.flareTwo {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(2px);
-  opacity: 0.55;
-  animation: drift 15s ease-in-out infinite alternate;
-}
-
-.flareOne {
-  top: 6rem;
-  left: -16rem;
-  width: 36rem;
-  height: 36rem;
-  background: radial-gradient(circle, rgba(61, 220, 132, 0.15), transparent 67%);
-}
-
-.flareTwo {
-  top: 64rem;
-  right: -19rem;
-  width: 42rem;
-  height: 42rem;
-  background: radial-gradient(circle, rgba(61, 220, 132, 0.09), transparent 68%);
-  animation-delay: -7s;
-}
-
-.scan {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  opacity: 0.35;
-  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.65), transparent);
-  box-shadow: 0 0 30px rgba(61, 220, 132, 0.18);
-  animation: scan 12s linear infinite;
 }
 
 .header {
@@ -228,6 +188,21 @@
   color: var(--color-sub);
   font-size: 0.78rem;
   line-height: 1.76;
+}
+
+.introSummaryBlock {
+  min-width: 0;
+}
+
+.introActions {
+  justify-content: flex-start;
+  margin-top: 0.95rem;
+}
+
+.introActions a {
+  min-height: 2.45rem;
+  padding-inline: 0.9rem;
+  font-size: 0.68rem;
 }
 
 .actionRow {
@@ -804,12 +779,26 @@
   text-align: center;
 }
 
+.tableStage {
+  position: relative;
+}
+
+.tableHint {
+  display: none;
+}
+
 .tableWrap {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   border: 1px solid rgba(255, 255, 255, 0.075);
   border-radius: 1.1rem;
   background: rgba(18, 20, 24, 0.78);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.tableWrap:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
 }
 
 .comparisonTable {
@@ -843,7 +832,11 @@
 }
 
 .comparisonTable thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
   width: 23%;
+  background: #1a1d23;
   color: var(--color-mut);
   font-family: var(--font-mono);
   font-size: 0.57rem;
@@ -865,6 +858,10 @@
 }
 
 .comparisonTable tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #121418;
   color: var(--color-sub);
   font-size: 0.7rem;
   font-weight: 500;
@@ -1324,24 +1321,6 @@
   outline-offset: 3px;
 }
 
-@keyframes drift {
-  from {
-    transform: translate3d(0, -2%, 0) scale(0.96);
-  }
-  to {
-    transform: translate3d(5%, 5%, 0) scale(1.04);
-  }
-}
-
-@keyframes scan {
-  from {
-    transform: translateY(-1px);
-  }
-  to {
-    transform: translateY(2400px);
-  }
-}
-
 @keyframes signal {
   0% {
     opacity: 0.8;
@@ -1465,7 +1444,35 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 850px) {
+  .tableHint {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    margin-bottom: 0.65rem;
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.08em;
+  }
+
+  .tableStage::after {
+    position: absolute;
+    z-index: 3;
+    top: 1.65rem;
+    right: 0;
+    bottom: 0;
+    width: 2rem;
+    border-radius: 0 1.1rem 1.1rem 0;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgba(11, 12, 14, 0.82));
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 780px) {
+
   .header,
   .main,
   .footer {
@@ -1489,7 +1496,6 @@
 
 @media (max-width: 620px) {
   .header,
-  .main,
   .footer {
     width: min(100% - 1.5rem, 1180px);
   }
@@ -1662,10 +1668,13 @@
   }
 }
 
+@media (max-width: 420px) {
+  .main {
+    width: min(100% - 1.5rem, 1180px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .flareOne,
-  .flareTwo,
-  .scan,
   .brandSignal::after,
   .liveState i,
   .flowRail span,

@@ -3,106 +3,119 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import formStyles from "@/components/auth-form.module.css";
 import { AuthShell } from "@/components/auth-shell";
 import { SsoButtons } from "@/components/sso-buttons";
 import { Button } from "@/components/ui";
 import { useSession } from "@/lib/auth";
-
-const inputCls =
-  "focus-ring w-full rounded-lg border border-edge bg-surface px-3.5 py-2.5 text-sm text-ink " +
-  "placeholder:text-mut transition-shadow duration-200 focus:border-accent/50 " +
-  "focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-accent)_12%,transparent)] outline-none";
+import { useMode } from "@/lib/mode";
 
 export default function SignupPage() {
   const router = useRouter();
   const { signIn } = useSession();
+  const { setMode } = useMode();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
 
   return (
     <AuthShell>
-      <h1 className="font-display text-3xl tracking-tight text-ink">Create your workspace</h1>
-      <p className="mt-2 text-sm leading-relaxed text-sub">
-        First{" "}
-        <span className="font-medium text-ink">250 simulations free</span>. No credit card
-        required.
-      </p>
+      <div className={formStyles.intro}>
+        <p className={formStyles.routeLabel}>
+          <span>01</span> New workspace
+        </p>
+        <h1>Create your workspace.</h1>
+        <p>
+          Start with <strong>250 simulations free</strong>. No credit card required.
+        </p>
+        <div className={formStyles.assurances} aria-label="Signup benefits">
+          <span>250 simulations</span>
+          <span>No credit card</span>
+        </div>
+      </div>
 
-      <div className="mt-8">
+      <div className={formStyles.ssoBlock}>
         <SsoButtons verb="Sign up" />
       </div>
 
       <form
-        className="mt-6 space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
+        className={formStyles.form}
+        onSubmit={(event) => {
+          event.preventDefault();
+          setMode("live");
           signIn({ name, email, company: company || undefined });
           router.push("/setup");
         }}
       >
-        <label className="block space-y-1.5">
-          <span className="text-[13px] text-sub">Your name</span>
+        <div className={formStyles.field}>
+          <label htmlFor="signup-name">Your name</label>
           <input
-            className={inputCls}
+            id="signup-name"
+            className={formStyles.input}
             required
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(event) => setName(event.target.value)}
             placeholder="Ada Lovelace"
             autoComplete="name"
           />
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-[13px] text-sub">Work email</span>
+        </div>
+
+        <div className={formStyles.field}>
+          <label htmlFor="signup-email">Work email</label>
           <input
-            className={inputCls}
+            id="signup-email"
+            className={formStyles.input}
             type="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             placeholder="you@company.com"
             autoComplete="email"
           />
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-[13px] text-sub">Company · optional</span>
+        </div>
+
+        <div className={formStyles.field}>
+          <label htmlFor="signup-company">
+            Company <span>· optional</span>
+          </label>
           <input
-            className={inputCls}
+            id="signup-company"
+            className={formStyles.input}
             value={company}
-            onChange={(e) => setCompany(e.target.value)}
+            onChange={(event) => setCompany(event.target.value)}
             placeholder="Acme Ltd"
             autoComplete="organization"
           />
-        </label>
-        {/* Design-complete; V0 never stores or transmits this value. */}
-        <label className="block space-y-1.5">
-          <span className="text-[13px] text-sub">Password — 8+ characters</span>
+        </div>
+
+        <div className={formStyles.field}>
+          <label htmlFor="signup-password">
+            Password <span>· 8+ characters</span>
+          </label>
           <input
-            className={inputCls}
+            id="signup-password"
+            className={formStyles.input}
             type="password"
             required
             minLength={8}
             placeholder="••••••••"
             autoComplete="new-password"
           />
-        </label>
-        <Button type="submit" className="w-full">
-          Start simulating — free
+        </div>
+
+        <Button type="submit" className={formStyles.submit}>
+          <span>Start simulating for free</span>
+          <span aria-hidden>→</span>
         </Button>
       </form>
 
-      <p className="mt-4 text-[12px] leading-relaxed text-mut">
-        By signing up you agree to the terms of service. The 250 free simulations are granted once
-        per person — alias emails and repeat sign-ups share the same allowance.
-        <br />
-        V0 preview: your session lives in this browser; no password is stored.
+      <p className={formStyles.legal}>
+        By signing up you agree to the terms of service. The 250 free simulations are enforced per
+        email and device; repeat sign-ups do not reset the allowance.
       </p>
 
-      <p className="mt-8 border-t border-edge pt-5 text-[13px] text-sub">
-        Already have a workspace?{" "}
-        <Link href="/login" className="focus-ring rounded font-medium text-accent hover:underline">
-          Sign in
-        </Link>
+      <p className={formStyles.alternate}>
+        Already have a workspace? <Link href="/login">Sign in</Link>
       </p>
     </AuthShell>
   );

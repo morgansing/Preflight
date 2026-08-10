@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ButtonLink, Card, EmptyState, Eyebrow, LoadError, SeverityLabel, Skeleton } from "./ui";
+import { ButtonLink, EmptyState, Eyebrow, LoadError, SeverityLabel, Skeleton } from "./ui";
 import { MockBadge } from "./live-mission-control";
 import { fetchRun, fetchRuns } from "@/lib/live-api";
 import { scoreOf, type LiveRunSummary } from "@/lib/live-types";
 import { getScenarioById } from "@/lib/fixtures/scenarios";
 import type { Severity } from "@/lib/types";
+import styles from "./evidence-ledger.module.css";
 
 /** Live benchmark: diff the two most recent completed runs. */
 export function LiveBenchmark() {
@@ -39,69 +40,116 @@ export function LiveBenchmark() {
     const newlyPassing = shared.filter(
       (r) => r.outcome === "pass" && ["fail", "partial"].includes(aByScenario.get(r.scenarioId)!),
     );
-    return { a, b, newlyBroken, newlyPassing };
+    return { a, b, newlyBroken, newlyPassing, sharedCount: shared.length };
   }, [pair]);
 
   if (pair === undefined) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4 px-8 py-10">
-        <Skeleton className="h-9 w-56" />
-        <Skeleton className="h-48 w-full" />
+      <div className={styles.page} aria-label="Loading benchmark">
+        <div className={styles.loadingPanel}>
+          <Skeleton className="h-3 w-44" />
+          <Skeleton className="h-14 w-72 max-w-full" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+          <div className={styles.statePanel}>
+            <Skeleton className="h-48 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
   if (pair === "failed") {
     return (
-      <div className="mx-auto max-w-5xl px-8 py-24">
-        <LoadError what="the benchmark" onRetry={() => setAttempt((a) => a + 1)} />
+      <div className={styles.page}>
+        <div className={styles.statePanel}>
+          <LoadError what="the benchmark" onRetry={() => setAttempt((a) => a + 1)} />
+        </div>
       </div>
     );
   }
   if (!diff) {
     return (
-      <div className="mx-auto max-w-2xl px-8 py-24">
-        <EmptyState
-          icon={
-            <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-8">
-              <path d="M6 27V16M16 27V7M26 27v-8" strokeLinecap="round" />
-            </svg>
-          }
-          title="Benchmarking needs two completed runs."
-          body="Run the same suite twice — after a prompt change, a model swap, a fix — and Preflight shows exactly what improved and what broke."
-          action={<ButtonLink href="/runs">Start a run</ButtonLink>}
-        />
+      <div className={styles.page}>
+        <div className={styles.statePanel}>
+          <EmptyState
+            icon={
+              <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.25" className="size-8">
+                <path d="M6 27V16M16 27V7M26 27v-8" strokeLinecap="round" />
+              </svg>
+            }
+            title="Benchmarking needs two completed runs."
+            body="Run the same suite twice — after a prompt change, a model swap, a fix — and Preflight shows exactly what improved and what broke."
+            action={<ButtonLink href="/runs">Start a run</ButtonLink>}
+          />
+        </div>
       </div>
     );
   }
 
-  const { a, b, newlyBroken, newlyPassing } = diff;
+  const { a, b, newlyBroken, newlyPassing, sharedCount } = diff;
   const scoreA = scoreOf(a.results);
   const scoreB = scoreOf(b.results);
   const delta = scoreB - scoreA;
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
-      <div className="flex items-center gap-3">
-        <h1 className="font-display text-3xl tracking-tight text-ink">Benchmark</h1>
-        {(a.provider === "mock" || b.provider === "mock") && <MockBadge />}
-      </div>
-      <p className="mt-2 text-sm text-sub">
-        {a.agentName} ({a.id}) vs {b.agentName} ({b.id}) · two most recent completed runs
-      </p>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <div>
+          <div className="flex items-center gap-3">
+            <Eyebrow>Evidence ledger / automatic comparison</Eyebrow>
+            {(a.provider === "mock" || b.provider === "mock") && <MockBadge />}
+          </div>
+          <h1 className={styles.pageTitle}>Benchmark</h1>
+          <div className={styles.pageMeta}>
+            <span>{a.agentName} · {a.id}</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>{b.agentName} · {b.id}</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>Two most recent completed runs</span>
+          </div>
+        </div>
+        <div className={`no-print ${styles.pageActions}`}>
+          <ButtonLink href="/runs/history" variant="ghost" size="sm">
+            Run history
+          </ButtonLink>
+          <ButtonLink href="/runs" variant="secondary" size="sm">
+            New run →
+          </ButtonLink>
+        </div>
+      </header>
 
-      <Card className="mt-10 flex flex-wrap items-center justify-between gap-8 p-8">
-        <RunColumn label={`${a.agentName} · ${a.id}`} score={scoreA} date={a.startedAt} />
-        <div className="text-center">
-          <div className={`numeral text-6xl ${delta >= 0 ? "text-accent" : "text-fail"}`}>
+      <div className={styles.comparisonCard}>
+        <RunColumn
+          label="Previous completed"
+          agentName={a.agentName}
+          runId={a.id}
+          score={scoreA}
+          date={a.startedAt}
+        />
+        <div className={styles.deltaColumn}>
+          <div
+            className={styles.deltaValue}
+            data-tone={delta < 0 ? "fail" : "accent"}
+            aria-label={`Score movement ${delta >= 0 ? "plus " : "minus "}${Math.abs(delta)} points`}
+          >
             {delta >= 0 ? "+" : ""}
             {delta}
           </div>
-          <Eyebrow className="mt-2">points</Eyebrow>
+          <span className={styles.deltaRule}>points</span>
         </div>
-        <RunColumn label={`${b.agentName} · ${b.id}`} score={scoreB} date={b.startedAt} align="right" />
-      </Card>
+        <RunColumn
+          label="Latest completed"
+          agentName={b.agentName}
+          runId={b.id}
+          score={scoreB}
+          date={b.startedAt}
+          align="right"
+        />
+      </div>
+      <p className={styles.comparisonNote}>
+        {sharedCount.toLocaleString()} shared scenarios compared. Only matching scenario IDs can change state here.
+      </p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
+      <div className={styles.diffGrid}>
         <DiffList
           tone="fail"
           glyph="✗"
@@ -125,25 +173,33 @@ export function LiveBenchmark() {
 
 function RunColumn({
   label,
+  agentName,
+  runId,
   score,
   date,
   align = "left",
 }: {
   label: string;
+  agentName: string;
+  runId: string;
   score: number;
   date: string;
   align?: "left" | "right";
 }) {
   return (
-    <div className={align === "right" ? "text-right" : ""}>
+    <div className={`${styles.runColumn} ${align === "right" ? styles.runColumnRight : ""}`}>
       <Eyebrow>{label}</Eyebrow>
-      <div className="numeral mt-2 text-5xl text-ink">
+      <div className={styles.liveRunName}>{agentName}</div>
+      <div className={styles.runScore}>
         {score}
         <span className="text-2xl text-mut">%</span>
       </div>
-      <div className="mt-1 text-[12px] text-mut">
+      <div className={styles.runDate}>
         {new Date(date).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
       </div>
+      <Link href={`/runs/${runId}`} className={`focus-ring ${styles.runLink}`}>
+        Open {runId} →
+      </Link>
     </div>
   );
 }
@@ -163,53 +219,61 @@ function DiffList({
   items: Array<{ id: string; severity: Severity; name?: string; category?: string }>;
   runId: string;
 }) {
+  const preview = items.slice(0, 12);
+  const remaining = items.slice(12);
+
+  const rows = (list: typeof items) => list.map((item) => {
+    const scenario = getScenarioById(item.id);
+    const name = item.name ?? scenario?.name ?? item.id;
+    const category = item.category ?? scenario?.category ?? "";
+    return (
+      <Link
+        key={item.id}
+        href={`/replay/${item.id}?run=${runId}`}
+        className={`focus-ring ${styles.entryRow}`}
+      >
+        <div className={styles.entryMain}>
+          <div className={styles.entryTitle}>
+            <span
+              aria-hidden
+              className={styles.entryDot}
+              style={{ background: `var(--color-${tone})` }}
+            />
+            <span>{name}</span>
+          </div>
+          <div className={styles.entryMeta}>
+            {item.id} · {category}
+          </div>
+        </div>
+        <SeverityLabel severity={item.severity} />
+      </Link>
+    );
+  });
+
   return (
-    <section>
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-[15px] font-medium text-ink">
-          <span aria-hidden className={`mr-2 font-mono ${tone === "fail" ? "text-fail" : "text-accent"}`}>
+    <section className={styles.diffPanel} data-tone={tone}>
+      <div className={styles.diffHeader}>
+        <h2 className={styles.diffTitle}>
+          <span aria-hidden className={styles.diffGlyph}>
             {glyph}
           </span>
           {title}
         </h2>
-        <span className={`font-mono text-[12px] tabular-nums ${tone === "fail" ? "text-fail" : "text-accent"}`}>
+        <span className={styles.diffCount} aria-label={`${items.length} ${title.toLowerCase()} scenarios`}>
           {items.length}
         </span>
       </div>
-      <p className="mt-1.5 text-[13px] text-sub">{note}</p>
-      <div className="mt-4 space-y-2">
-        {items.length === 0 && <p className="text-[13px] text-mut">None.</p>}
-        {items.slice(0, 30).map((item) => {
-          const s = getScenarioById(item.id);
-          const name = item.name ?? s?.name ?? item.id;
-          const category = item.category ?? s?.category ?? "";
-          return (
-            <Link
-              key={item.id}
-              href={`/replay/${item.id}?run=${runId}`}
-              className="focus-ring flex items-center justify-between gap-4 rounded-lg border border-edge bg-surface px-4 py-3 transition-all duration-200 hover:-translate-y-px hover:border-mut"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2.5">
-                  <span
-                    aria-hidden
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ background: `var(--color-${tone})` }}
-                  />
-                  <span className="truncate text-[13px] text-ink">{name}</span>
-                </div>
-                <div className="mt-1 pl-4 font-mono text-[11px] text-mut">
-                  {item.id} · {category}
-                </div>
-              </div>
-              <SeverityLabel severity={item.severity} />
-            </Link>
-          );
-        })}
-        {items.length > 30 && (
-          <p className="pt-1 text-[12px] text-mut">+{items.length - 30} more</p>
-        )}
+      <p className={styles.diffNote}>{note}</p>
+      <div className={styles.entryList}>
+        {items.length === 0 && <p className={styles.diffEmpty}>None in this comparison.</p>}
+        {rows(preview)}
       </div>
+      {remaining.length > 0 && (
+        <details className={styles.moreDetails}>
+          <summary>Show {remaining.length} remaining scenarios</summary>
+          <div className={styles.entryList}>{rows(remaining)}</div>
+        </details>
+      )}
     </section>
   );
 }

@@ -18,6 +18,7 @@ import {
 } from "@/lib/demo-runs";
 import { DemoRunLauncher } from "./demo-run-launcher";
 import { Button, ButtonLink } from "./ui";
+import shellStyles from "./run-wall-shell.module.css";
 
 /**
  * Mission Control — the signature screen. A full-bleed wall of scenario
@@ -297,7 +298,7 @@ export function MissionControl() {
           200-scenario benchmark. Try launching one yourself: pick an agent and a suite,
           right here in demo mode. When you&apos;re ready to test your own agent, switch to Live.
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Button size="sm" onClick={() => setShowLauncher((v) => !v)}>
             Run a fake test
           </Button>
@@ -317,7 +318,7 @@ export function MissionControl() {
         <DemoRunLauncher onLaunch={launchFake} onClose={() => setShowLauncher(false)} />
       )}
       {/* Floating header bar — a raised surface, no glass. */}
-      <div className="sticky top-0 z-10 border-b border-edge bg-raised/95 px-8 py-4 backdrop-blur-none">
+      <div className={`${shellStyles.stickyHeader} sticky z-10 border-b border-edge bg-raised/95 px-8 py-4 backdrop-blur-none`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="eyebrow">
@@ -332,12 +333,19 @@ export function MissionControl() {
             </div>
           </div>
 
-          <div className="flex items-center gap-8 font-mono text-sm tabular-nums">
-            <Stat
-              label="Pass rate"
-              value={`${stats.passRate}%`}
-              tone={stats.resolved > 0 ? "accent" : "mut"}
-            />
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-sm tabular-nums">
+            {/* Keyed on completion so the settle animation replays once
+                the moment the wall finishes. */}
+            <span
+              key={stats.done ? "done" : "running"}
+              className={stats.done ? "inline-block [animation:settle-in_.5s_var(--ease-out-quad)_both]" : ""}
+            >
+              <Stat
+                label="Pass rate"
+                value={`${stats.passRate}%`}
+                tone={stats.resolved > 0 ? "accent" : "mut"}
+              />
+            </span>
             <Stat label="Complete" value={`${stats.resolved}/${stats.total}`} />
             <Stat
               label={stats.done ? "Elapsed" : "Elapsed · ETA"}

@@ -5,7 +5,8 @@ import type { LiveRunListItem } from "@/lib/live-types";
 import type { LiveRun } from "@prisma/client";
 
 /** How many simulations a suite will run — for credit accounting. */
-export async function plannedSimCount(suite: string): Promise<number> {
+export async function plannedSimCount(suite: string, scenarioIds?: string[]): Promise<number> {
+  if (suite === "regression") return scenarioIds?.length ?? 0;
   if (suite === "security") return SECURITY_SUITE_SIZE;
   const custom = suite.match(/^custom:(\d+)$/);
   if (custom) {

@@ -10,9 +10,10 @@ import { Button, Eyebrow } from "@/components/ui";
 import { LiveReport } from "@/components/live-report";
 import { demoReport } from "@/lib/fixtures/report";
 import { readiness, runStats } from "@/lib/fixtures/run";
-import { demoOutcomes, failingReplayId, scenarios } from "@/lib/fixtures/scenarios";
+import { demoOutcomes, failingReplayId, scenarioById, scenarios } from "@/lib/fixtures/scenarios";
 import { generateReportPdf } from "@/lib/report-pdf";
 import { useMode } from "@/lib/mode";
+import styles from "@/components/report-surface.module.css";
 
 function downloadDemoReportPdf() {
   const r = demoReport;
@@ -47,19 +48,21 @@ export default function ReportsPage() {
   const r = demoReport;
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-16">
+    <div className={styles.reportPage}>
       {/* Document head */}
-      <div className="flex items-start justify-between">
+      <header className={styles.reportHeader}>
         <div>
           <Eyebrow>Readiness report · {r.runId}</Eyebrow>
-          <h1 className="font-display mt-3 text-4xl tracking-tight text-ink">
+          <h1 className={styles.reportTitle}>
             {r.agent} {r.agentVersion}
           </h1>
-          <p className="mt-2 text-sm text-sub">
-            {r.suite} · {r.date}
-          </p>
+          <div className={styles.reportMeta}>
+            <span>{r.suite}</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>{r.date}</span>
+          </div>
         </div>
-        <div className="no-print flex shrink-0 items-center gap-2">
+        <div className={`no-print ${styles.reportActions}`}>
           <Button variant="secondary" size="sm" onClick={() => downloadDemoReportPdf()}>
             Download PDF
           </Button>
@@ -67,9 +70,9 @@ export default function ReportsPage() {
             Print / share
           </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="mt-10">
+      <div className={styles.readinessFrame}>
         <ReadinessCard
           score={readiness.score}
           strengths={readiness.strengths}
@@ -80,60 +83,81 @@ export default function ReportsPage() {
         />
       </div>
 
-      <DemoCoveragePanel />
-
-      <DemoSharePanel />
+      <div className={styles.supportGrid}>
+        <DemoCoveragePanel />
+        <DemoSharePanel />
+      </div>
 
       {/* Failure taxonomy */}
-      <section className="mt-16">
-        <h2 className="font-display text-2xl tracking-tight text-ink">
-          Where it breaks
-        </h2>
-        <div className="mt-6 space-y-8">
+      <section className={styles.reportSection} aria-labelledby="failure-patterns-heading">
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionTitleGroup}>
+            <span className={styles.sectionIndex}>EVIDENCE / PATTERNS</span>
+            <h2 id="failure-patterns-heading" className={styles.sectionTitle}>Where it breaks</h2>
+          </div>
+          <p className={styles.sectionNote}>
+            Repeated misses grouped by the behavior that caused them, not just the final reply.
+          </p>
+        </div>
+        <div className={styles.taxonomyGrid}>
           {r.taxonomy.map((t) => (
-            <div key={t.finding} className="border-l-2 border-edge pl-6">
+            <article key={t.finding} className={styles.taxonomyCard}>
               <div className="flex items-baseline justify-between gap-4">
                 <h3 className="text-[15px] font-medium text-ink">{t.finding}</h3>
-                <span className="shrink-0 font-mono text-[12px] tabular-nums text-mut">
+                <span className={styles.taxonomyCount}>
                   {t.failed} / {t.total}
                 </span>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-sub">{t.detail}</p>
-            </div>
+            </article>
           ))}
         </div>
       </section>
 
       {/* Top risks */}
-      <section className="mt-16">
-        <h2 className="font-display text-2xl tracking-tight text-ink">
-          The five risks that matter
-        </h2>
-        <ol className="mt-6 space-y-6">
-          {r.risks.map((risk, i) => (
-            <li key={risk.title} className="flex gap-5">
-              <span className="numeral mt-0.5 text-2xl text-mut">{i + 1}</span>
-              <div>
-                <h3 className="text-[15px] font-medium text-ink">{risk.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-sub">
-                  {risk.body}
-                </p>
-                <Link
-                  href={`/replay/${risk.replayId}`}
-                  className="focus-ring no-print mt-2 inline-block rounded text-[13px] text-accent hover:underline"
-                >
-                  Watch the replay →
-                </Link>
-              </div>
-            </li>
-          ))}
+      <section className={styles.reportSection} aria-labelledby="demo-risks-heading">
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionTitleGroup}>
+            <span className={styles.sectionIndex}>EVIDENCE / DECISION BLOCKERS</span>
+            <h2 id="demo-risks-heading" className={styles.sectionTitle}>The five risks that matter</h2>
+          </div>
+          <p className={styles.sectionNote}>
+            The highest-impact decisions to repair before this agent reaches customers.
+          </p>
+        </div>
+        <ol className={styles.riskGrid}>
+          {r.risks.map((risk, i) => {
+            const severity = scenarioById.get(risk.replayId)?.severity ?? "high";
+            return (
+              <li key={risk.title} className={styles.riskCard}>
+                <span className={styles.riskNumber}>{String(i + 1).padStart(2, "0")}</span>
+                <div className={styles.riskBody}>
+                  <div className={styles.riskHeading}>
+                    <h3>{risk.title}</h3>
+                    <span className={styles.severity} data-severity={severity}>
+                      {severity}
+                    </span>
+                  </div>
+                  <p className={styles.riskReason}>
+                    {risk.body}
+                  </p>
+                  <Link
+                    href={`/replay/${risk.replayId}`}
+                    className={`focus-ring no-print ${styles.riskLink}`}
+                  >
+                    Open replay evidence →
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
         </ol>
       </section>
 
       <DemoRedteamPreview patternCount={r.taxonomy.length} />
 
       {/* Sign-off */}
-      <section className="mt-20 border-t border-edge pt-6">
+      <section className={styles.signoff}>
         <div className="flex flex-wrap items-baseline justify-between gap-4 font-mono text-[12px] text-mut">
           <span>
             {r.agent} {r.agentVersion} · suite {r.suiteVersion}
@@ -245,7 +269,7 @@ function DemoSharePanel() {
       <div className="mt-4 space-y-3">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={badgeUrl} alt="Preflight score badge: 97" className="h-5" />
+          <img src={badgeUrl} alt="Preflight score badge: 97" className="h-6" />
           <Link
             href="/share/demo"
             className="focus-ring rounded font-mono text-[11px] text-accent hover:underline"
@@ -253,14 +277,14 @@ function DemoSharePanel() {
             open the public page →
           </Link>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="w-32 shrink-0 font-mono text-[10px] uppercase tracking-wider text-mut">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-mut sm:w-32">
             README markdown
           </span>
           <code className="min-w-0 flex-1 truncate rounded-md border border-edge bg-raised px-2.5 py-1.5 font-mono text-[11px] text-sub">
             {markdown}
           </code>
-          <Button variant="ghost" size="sm" onClick={() => copy("md", markdown)}>
+          <Button className="self-end sm:self-auto" variant="ghost" size="sm" onClick={() => copy("md", markdown)}>
             {copied === "md" ? "Copied ✓" : "Copy"}
           </Button>
         </div>

@@ -1,0 +1,270 @@
+.checklist {
+  border: 1px solid color-mix(in srgb, var(--color-edge) 86%, var(--color-accent));
+  border-radius: 0.875rem;
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--color-accent) 4%, transparent), transparent 44%),
+    color-mix(in srgb, var(--color-surface) 92%, transparent);
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.heading {
+  min-width: 0;
+}
+
+.heading p {
+  max-width: 39rem;
+  margin: 0.5rem 0 0;
+  color: var(--color-sub);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.progress {
+  display: flex;
+  min-width: 4.25rem;
+  align-items: baseline;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--color-edge) 82%, var(--color-accent));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-raised) 72%, transparent);
+  padding: 0.35rem 0.7rem;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.progress strong {
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  min-width: 0;
+}
+
+.stepNext {
+  grid-column: span 2;
+}
+
+.stepLink {
+  display: block;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--color-edge) 82%, transparent);
+  border-radius: 0.625rem;
+  padding: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.stepTop {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.marker {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-edge);
+  border-radius: 999px;
+  color: var(--color-mut);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.marker svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.label {
+  min-width: 0;
+  color: var(--color-sub);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.detail {
+  display: block;
+  margin-top: 0.38rem;
+  padding-left: 1.625rem;
+  color: var(--color-mut);
+  font-size: 0.625rem;
+  line-height: 1.45;
+}
+
+.nextBadge,
+.checkBadge {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stepNext .stepLink {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-edge));
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-raised));
+  box-shadow: inset 2px 0 var(--color-accent);
+  padding: 0.875rem;
+}
+
+.stepNext .marker {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.stepNext .label {
+  color: var(--color-ink);
+}
+
+.nextBadge {
+  margin-left: auto;
+  color: var(--color-accent);
+}
+
+.primaryAction {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0 1.625rem;
+  border-radius: 0.375rem;
+  background: var(--color-accent);
+  padding: 0.4rem 0.65rem;
+  color: var(--color-on-accent);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.primaryAction svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.stepComplete .stepLink {
+  border-color: color-mix(in srgb, var(--color-edge) 58%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 2.5%, transparent);
+  padding: 0.625rem 0.7rem;
+}
+
+.stepComplete .marker {
+  border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-edge));
+  color: var(--color-accent);
+}
+
+.stepComplete .label {
+  color: var(--color-sub);
+  font-size: 0.6875rem;
+}
+
+.stepComplete .detail {
+  display: none;
+}
+
+.stepQuiet .stepLink,
+.stepUnknown .stepLink {
+  background: transparent;
+}
+
+.stepQuiet .label,
+.stepUnknown .label {
+  color: color-mix(in srgb, var(--color-sub) 72%, var(--color-mut));
+}
+
+.stepUnknown .stepLink {
+  border-style: dashed;
+}
+
+.checkBadge {
+  display: block;
+  width: fit-content;
+  margin: 0.45rem 0 0 1.625rem;
+  color: var(--color-mut);
+}
+
+.stepLink:hover {
+  border-color: color-mix(in srgb, var(--color-edge) 58%, var(--color-accent));
+}
+
+.stepNext .stepLink:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 68%, var(--color-edge));
+}
+
+@media (max-width: 900px) {
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stepNext {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 560px) {
+  .checklist {
+    padding: 0.875rem;
+  }
+
+  .header {
+    gap: 0.75rem;
+  }
+
+  .heading p {
+    font-size: 0.6875rem;
+  }
+
+  .progress {
+    min-width: 3.75rem;
+    padding-inline: 0.55rem;
+  }
+
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stepNext {
+    grid-column: auto;
+  }
+}

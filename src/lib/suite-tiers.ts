@@ -80,6 +80,9 @@ export const GAUNTLET_SUITE_SIZE = gauntletScenarioIds.length;
 export function suiteLabel(suiteId: string, scenarioCount: number): string {
   const custom = suiteId.match(/^custom:(\d+)$/);
   if (custom) return `Rulebook suite v${custom[1]} · ${scenarioCount.toLocaleString()} scenarios`;
+  if (suiteId === "regression") {
+    return `Regression suite · ${scenarioCount.toLocaleString()} saved scenario${scenarioCount === 1 ? "" : "s"}`;
+  }
   if (suiteId === "security") return `Security suite · ${scenarioCount.toLocaleString()} scenarios`;
   if (suiteId === "gauntlet") return `Gauntlet · ${scenarioCount.toLocaleString()} hard scenarios`;
   const tier = tierById(suiteId);

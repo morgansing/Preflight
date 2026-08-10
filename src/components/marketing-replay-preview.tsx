@@ -1,31 +1,6 @@
 import type { CSSProperties } from "react";
+import { paymentRetryDemo } from "@/lib/marketing-demo";
 import styles from "./marketing-replay-preview.module.css";
-
-const agentEvents = [
-  {
-    label: "AGENT · CALL",
-    body: 'search_orders({ "customer_id": "cus_44120" })',
-  },
-  {
-    label: "STORE · RESULT",
-    body: "Two matching orders: one shipped, one processing.",
-  },
-  {
-    label: "AGENT · REASONING",
-    body: "A39519 was first, so it is probably the original. I will refund the first one.",
-    failed: true,
-  },
-  {
-    label: "AGENT · CALL ISSUE_REFUND",
-    body: 'issue_refund({ "order_id": "A39519", "amount": 187.5 })',
-  },
-] as const;
-
-const pathChecks = [
-  ["PASS", "Fetches and compares both orders"],
-  ["MISSED", "Confirms which order to keep"],
-  ["PASS", "Acts on exactly one order"],
-] as const;
 
 export function MarketingReplayPreview() {
   return (
@@ -34,26 +9,31 @@ export function MarketingReplayPreview() {
       aria-label="Preflight replay preview for failed payment retry scenario SCN-0187"
     >
       <header className={styles.topbar}>
-        <span>SCN-0187 · PAYMENT RETRY</span>
-        <span className={styles.fail}>FAIL · STEP 04</span>
+        <span>{paymentRetryDemo.scenarioId} · {paymentRetryDemo.title}</span>
+        <span className={styles.fail}>
+          FAIL · STEP {String(paymentRetryDemo.failureStep).padStart(2, "0")}
+        </span>
       </header>
 
       <div
         className={styles.viewport}
+        role="region"
+        aria-label="Scrollable three-column replay comparison"
+        tabIndex={0}
       >
         <div className={styles.columns}>
           <div className={styles.column}>
             <span className={styles.columnLabel}>WHAT THE AGENT SAW</span>
             <div className={styles.card}>
               <small>CUSTOMER</small>
-              <p>My bank shows two charges. Please fix the extra one.</p>
+              <p>{paymentRetryDemo.customer}</p>
             </div>
             <div className={styles.card}>
               <small>SEARCH_ORDERS · RESULT</small>
               <code>
-                A39519 · shipped
+                {paymentRetryDemo.orderResult[0]}
                 <br />
-                A39520 · processing
+                {paymentRetryDemo.orderResult[1]}
               </code>
             </div>
           </div>
@@ -61,7 +41,7 @@ export function MarketingReplayPreview() {
           <div className={styles.column}>
             <span className={styles.columnLabel}>WHAT THE AGENT DID</span>
             <div className={styles.eventRail}>
-              {agentEvents.map((event, index) => (
+              {paymentRetryDemo.events.map((event, index) => (
                 <div
                   className={`${styles.event} ${
                     "failed" in event && event.failed ? styles.badEvent : ""
@@ -79,10 +59,9 @@ export function MarketingReplayPreview() {
           <div className={styles.column}>
             <span className={styles.columnLabel}>EXPECTED PATH</span>
             <p className={styles.expected}>
-              Identify which order is which before acting; cancel or refund
-              exactly one, and the correct one.
+              {paymentRetryDemo.expected}
             </p>
-            {pathChecks.map(([status, text]) => (
+            {paymentRetryDemo.checks.map(([status, text]) => (
               <div
                 className={status === "MISSED" ? styles.missed : styles.pathCard}
                 key={text}

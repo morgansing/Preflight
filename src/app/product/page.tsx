@@ -1,4 +1,10 @@
 import Link from "next/link";
+import {
+  MarketingFooter,
+  MarketingHeader,
+  MarketingMain,
+} from "@/components/marketing-shell";
+import { paymentRetryDemo } from "@/lib/marketing-demo";
 import styles from "./product.module.css";
 
 const tiers = [
@@ -10,68 +16,16 @@ const tiers = [
   ["Max", "10,000", "The full scenario space"],
 ];
 
-const replayEvents = [
-  ["CUSTOMER", "My bank shows two charges. Please fix the extra one."],
-  ["AGENT · CALL", 'search_orders({ "customer_id": "cus_44120" })'],
-  ["STORE · RESULT", "Two matching orders: one shipped, one processing."],
-  ["AGENT · ACTION", 'cancel_order({ "order_id": "A39519" })'],
-];
-
-function Header() {
-  return (
-    <header className={styles.header}>
-      <Link href="/" className={styles.brand} aria-label="Preflight home">
-        <span className={styles.brandSignal} aria-hidden />
-        <span>PREFLIGHT</span>
-      </Link>
-      <nav className={styles.nav} aria-label="Primary navigation">
-        <Link href="/">Home</Link>
-        <Link href="/product" aria-current="page">
-          Product
-        </Link>
-        <Link href="/integrations">Integrations</Link>
-        <Link href="/pricing">Pricing</Link>
-      </nav>
-      <Link href="/signup" className={styles.headerCta}>
-        Start free <span aria-hidden>→</span>
-      </Link>
-    </header>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className={styles.footer}>
-      <Link href="/" className={styles.brand} aria-label="Preflight home">
-        <span className={styles.brandSignal} aria-hidden />
-        <span>PREFLIGHT</span>
-      </Link>
-      <p>Evidence for every agent release.</p>
-      <nav aria-label="Footer navigation">
-        <Link href="/">Home</Link>
-        <Link href="/product">Product</Link>
-        <Link href="/integrations">Integrations</Link>
-        <Link href="/pricing">Pricing</Link>
-        <Link href="/signup" className={styles.footerCta}>
-          Start free →
-        </Link>
-      </nav>
-    </footer>
-  );
-}
-
 export default function ProductPage() {
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.grid} />
-        <div className={styles.glow} />
-        <div className={styles.glowTwo} />
       </div>
 
-      <div className={styles.shell}>
-        <Header />
+      <MarketingHeader active="product" />
 
+      <MarketingMain className={styles.shell}>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>
@@ -258,7 +212,7 @@ export default function ProductPage() {
                 <p>
                   Each rule is crossed with emotion, boundary amounts,
                   identity, deception, and adversarial tactics. A £500 limit
-                  becomes £499, £500, and £501—not one easy happy path.
+                  becomes £499, £500, and £501 instead of one easy happy path.
                 </p>
               </article>
             </div>
@@ -311,16 +265,21 @@ export default function ProductPage() {
                 <i />
               </div>
             </div>
-            <h2>Harder, not bigger.</h2>
+            <h2>
+              <Link href="/gauntlet">
+                Harder, not bigger. <span aria-hidden>→</span>
+              </Link>
+            </h2>
             <p>
-              Run only the 23 difficulty 4–5 scenarios from the base library:
-              boundary collisions, ambiguous identity, conflicting evidence,
-              and high-consequence decisions. No warm-up and no volume theatre.
+              Smoke includes 7 of these 23 difficulty 4–5 scenarios. Every
+              coverage run from Standard upward includes all 23. Run the
+              focused slice to retest the highest-risk decisions without the
+              warm-up or volume theatre.
             </p>
             <div className={styles.cardMeta}>
               <span>23 scenarios</span>
               <span>Difficulty 4–5</span>
-              <span>Rerunnable alone</span>
+              <span>Included from 200+</span>
             </div>
           </article>
 
@@ -361,7 +320,7 @@ export default function ProductPage() {
               Every result opens into the full evidence chain: the customer
               and tool data available to the agent, every action it took, and
               the expected path beside it. The first broken decision is marked,
-              so diagnosis starts at the cause—not the final message.
+              so diagnosis starts at the cause, not the final message.
             </p>
             <Link href="/runs" className={styles.textLink}>
               Explore a demo run <span aria-hidden>→</span>
@@ -378,28 +337,30 @@ export default function ProductPage() {
                 <span>WHAT THE AGENT SAW</span>
                 <div className={styles.customerCard}>
                   <small>CUSTOMER</small>
-                  My bank shows two charges. Please fix the extra one.
+                  {paymentRetryDemo.customer}
                 </div>
                 <div className={styles.dataCard}>
                   <small>SEARCH_ORDERS · RESULT</small>
                   <code>
-                    A39519 · shipped
+                    {paymentRetryDemo.orderResult[0]}
                     <br />
-                    A39520 · processing
+                    {paymentRetryDemo.orderResult[1]}
                   </code>
                 </div>
               </div>
               <div className={styles.replayColumn}>
                 <span>WHAT THE AGENT DID</span>
                 <div className={styles.eventRail}>
-                  {replayEvents.map(([label, value], index) => (
+                  {paymentRetryDemo.events.map((event, index) => (
                     <div
-                      className={index === 3 ? styles.badEvent : ""}
-                      key={label}
+                      className={
+                        "failed" in event && event.failed ? styles.badEvent : ""
+                      }
+                      key={event.label}
                       style={{ "--event-delay": `${index * 0.8}s` } as React.CSSProperties}
                     >
-                      <small>{label}</small>
-                      <p>{value}</p>
+                      <small>{event.label}</small>
+                      <p>{event.body}</p>
                     </div>
                   ))}
                 </div>
@@ -407,14 +368,9 @@ export default function ProductPage() {
               <div className={styles.replayColumn}>
                 <span>EXPECTED PATH</span>
                 <p className={styles.expected}>
-                  Identify which order is which before acting; cancel or refund
-                  exactly one, and the correct one.
+                  {paymentRetryDemo.expected}
                 </p>
-                {[
-                  ["PASS", "Fetches and compares both orders"],
-                  ["MISSED", "Confirms which order to keep"],
-                  ["PASS", "Acts on exactly one order"],
-                ].map(([status, text]) => (
+                {paymentRetryDemo.checks.map(([status, text]) => (
                   <div
                     className={status === "MISSED" ? styles.missedCheck : styles.pathCheck}
                     key={text}
@@ -576,8 +532,9 @@ export default function ProductPage() {
           </div>
         </section>
 
-        <Footer />
-      </div>
-    </main>
+      </MarketingMain>
+
+      <MarketingFooter />
+    </div>
   );
 }

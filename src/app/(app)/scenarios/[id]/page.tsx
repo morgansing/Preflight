@@ -8,6 +8,7 @@ import { ScenarioDetail } from "@/components/scenario-detail";
 import { demoOutcomes, getScenarioById, BASE_SUITE_SIZE } from "@/lib/fixtures/scenarios";
 import { LIBRARY_SIZES } from "@/lib/suite-tiers";
 import { useMode } from "@/lib/mode";
+import styles from "@/components/evidence-browser.module.css";
 
 /**
  * A scenario's own page — the drawer content at a shareable URL, so a
@@ -24,19 +25,19 @@ export default function ScenarioPage({ params }: { params: Promise<{ id: string 
 
   if (!scenario) {
     return (
-      <div className="mx-auto max-w-2xl px-8 py-24 text-center">
-        <Eyebrow>Scenario</Eyebrow>
-        <h1 className="font-display mt-3 text-3xl tracking-tight text-ink">
-          Scenario not found
-        </h1>
-        <p className="mt-3 text-sm text-sub">
-          Nothing with that id in the 10,000-scenario library.
-        </p>
-        <div className="mt-8">
-          <ButtonLink href="/scenarios" variant="secondary">
-            ← Back to the library
-          </ButtonLink>
-        </div>
+      <div className={`${styles.page} ${styles.detailPage} ${styles.notFound}`}>
+        <section className={styles.notFoundPanel}>
+          <Eyebrow>Scenario</Eyebrow>
+          <h1 className={styles.notFoundTitle}>Scenario not found</h1>
+          <p className={styles.notFoundBody}>
+            Nothing with that id in the 10,000-scenario library.
+          </p>
+          <div className={styles.notFoundAction}>
+            <ButtonLink href="/scenarios" variant="secondary">
+              ← Back to the library
+            </ButtonLink>
+          </div>
+        </section>
       </div>
     );
   }
@@ -44,27 +45,28 @@ export default function ScenarioPage({ params }: { params: Promise<{ id: string 
   const n = parseInt(scenario.id.slice(4), 10);
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-10">
-      <Link
-        href="/scenarios"
-        className="focus-ring rounded font-mono text-[11px] tracking-wider text-mut hover:text-sub"
-      >
-        ← SCENARIOS
-      </Link>
-
-      <h1 className="font-display mt-4 text-3xl tracking-tight text-ink">
-        {scenario.name}
-      </h1>
-      {n > BASE_SUITE_SIZE && (
-        <p className="mt-2 text-[13px] text-sub">
-          Extension scenario — generated deterministically past the base suite; it runs
-          at library sizes of {LIBRARY_SIZES.find((s) => s >= n)?.toLocaleString()} and up.
+    <div className={`${styles.page} ${styles.detailPage}`}>
+      <header className={styles.detailHeader}>
+        <Link href="/scenarios" className={styles.backLink}>
+          ← Scenario library
+        </Link>
+        <h1 className={styles.detailTitle}>{scenario.name}</h1>
+        <p className={styles.pageSubtitle}>
+          The exact customer context, hidden facts, expected path, and latest-run
+          evidence for this test.
         </p>
-      )}
+        {n > BASE_SUITE_SIZE && (
+          <p className={styles.extensionNote}>
+            Extension scenario. It is generated deterministically past the base
+            suite and runs at library sizes of{" "}
+            {LIBRARY_SIZES.find((size) => size >= n)?.toLocaleString()} and up.
+          </p>
+        )}
+      </header>
 
-      <div className="mt-8">
+      <section className={styles.detailSurface} aria-label="Scenario evidence definition">
         <ScenarioDetail scenario={scenario} outcome={demoOutcomes.get(scenario.id)} />
-      </div>
+      </section>
     </div>
   );
 }

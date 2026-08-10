@@ -46,6 +46,8 @@ export interface LaunchOptions {
   systemPrompt?: string;
   /** Suite tier id, or "custom:<version>" for a generated suite. */
   suite: string;
+  /** Explicit base scenarios for a saved regression suite. */
+  scenarioIds?: string[];
   /** Sandbox run: use the deterministic mock provider regardless of any
    * configured key — offline, no cost, not a real evaluation. Lets a
    * first-time visitor watch a real run without any setup. */
@@ -101,8 +103,31 @@ interface ResolvedSuite {
  * custom scenarios carry the same Scenario shape and store fixtures. */
 async function resolveSuite(
   suite: string,
+  explicitScenarioIds?: string[],
 ): Promise<ResolvedSuite | { error: string; status: number }> {
   const customMatch = suite.match(/^custom:(\d+)$/);
+  if (suite === "regression") {
+    const requested = [...new Set(explicitScenarioIds ?? [])];
+    const scenarios = requested
+      .map((id) => getScenarioById(id))
+      .filter((scenario): scenario is Scenario => !!scenario);
+    if (requested.length === 0) {
+      return { error: "The regression suite is empty.", status: 400 };
+    }
+    if (scenarios.length !== requested.length) {
+      return { error: "The regression suite contains an unknown scenario.", status: 400 };
+    }
+    return {
+      scenarioIds: scenarios.map((scenario) => scenario.id),
+      scenarioMap: new Map(scenarios.map((scenario) => [scenario.id, scenario])),
+      seed: (runId: string) =>
+        resetAndSeed(
+          prisma,
+          runId,
+          scenarios.map((scenario) => scenario.id),
+        ),
+    };
+  }
   if (suite === "security") {
     // The Security suite: fixed poisoned fixtures. Scenarios live in the
     // fixtures module (not the DB), grounded by resetAndSeedSecurity.
@@ -153,6 +178,10 @@ function optsFromRow(row: RunRow): LaunchOptions | null {
     model: row.model ?? undefined,
     systemPrompt: row.systemPrompt ?? undefined,
     suite: row.suite,
+    scenarioIds:
+      row.suite === "regression"
+        ? (JSON.parse(row.scenariosJson) as string[])
+        : undefined,
     sandbox: row.sandbox,
   };
 }
@@ -167,7 +196,7 @@ async function resumeRun(row: RunRow): Promise<boolean> {
   const opts = optsFromRow(row);
   if (!opts) return false;
   const validated = await validateLaunch(opts);
-  const resolved = await resolveSuite(row.suite);
+  const resolved = await resolveSuite(row.suite, opts.scenarioIds);
   if ("error" in validated || "error" in resolved) return false;
 
   const done = await prisma.liveResult.findMany({
@@ -292,7 +321,7 @@ export async function launchRun(
   const guard = await guardSharedStore();
   if (guard) return guard;
 
-  const resolved = await resolveSuite(opts.suite);
+  const resolved = await resolveSuite(opts.suite, opts.scenarioIds);
   if ("error" in resolved) return resolved;
   const { scenarioIds, scenarioMap } = resolved;
 

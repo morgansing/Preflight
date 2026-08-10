@@ -4,8 +4,14 @@ import { LandingReveal } from "@/components/landing-reveal";
 import { MarketingMetrics } from "@/components/marketing-metrics";
 import { MarketingReadiness } from "@/components/marketing-readiness";
 import { MarketingReplayPreview } from "@/components/marketing-replay-preview";
+import {
+  MarketingFooter,
+  MarketingHeader,
+  MarketingMain,
+} from "@/components/marketing-shell";
 import { WallLoop } from "@/components/mission-control";
 import { ButtonLink } from "@/components/ui";
+import { demoRun, runStats } from "@/lib/fixtures/run";
 import styles from "./landing.module.css";
 
 const coverageStops = [
@@ -76,28 +82,6 @@ const integrations = [
   ["HTTP", "Custom endpoint"],
 ];
 
-function Header() {
-  return (
-    <header className={styles.header}>
-      <Link href="/" className={styles.brand} aria-label="Preflight home">
-        <span className={styles.brandSignal} aria-hidden />
-        <span>PREFLIGHT</span>
-      </Link>
-      <nav className={styles.nav} aria-label="Primary navigation">
-        <Link href="/" aria-current="page">
-          Home
-        </Link>
-        <Link href="/product">Product</Link>
-        <Link href="/integrations">Integrations</Link>
-        <Link href="/pricing">Pricing</Link>
-      </nav>
-      <Link href="/signup" className={styles.headerCta}>
-        Start free <span aria-hidden>→</span>
-      </Link>
-    </header>
-  );
-}
-
 function SectionLabel({
   number,
   children,
@@ -115,19 +99,15 @@ function SectionLabel({
 
 export default function Landing() {
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <div aria-hidden className={styles.ambient}>
         <div className={styles.grid} />
-        <div className={styles.signalField} />
-        <div className={styles.orbOne} />
-        <div className={styles.orbTwo} />
-        <div className={styles.orbThree} />
         <div className={styles.noise} />
       </div>
 
-      <div className={styles.shell}>
-        <Header />
+      <MarketingHeader active="home" />
 
+      <MarketingMain className={styles.shell}>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>
@@ -141,7 +121,7 @@ export default function Landing() {
             </h1>
             <p>
               Preflight puts AI agents through realistic conversations,
-              adversarial edge cases, and your own operating policies—then
+              adversarial edge cases, and your own operating policies. Then it
               shows you the exact decision that broke.
             </p>
 
@@ -174,35 +154,33 @@ export default function Landing() {
           </div>
 
           <div className={styles.heroVisual}>
-            <div className={styles.heroGrid} aria-hidden />
             <div className={styles.liveShell} aria-labelledby="live-run-title">
               <div className={styles.liveHeader}>
                 <div>
                   <span className={styles.livePulse} aria-hidden />
                   <p id="live-run-title">LIVE EVALUATION</p>
                 </div>
-                <span>RUN 0472 · STANDARD</span>
+                <span>{demoRun.id.toUpperCase()} · STANDARD</span>
               </div>
               <div className={styles.liveStats}>
                 <span>
-                  <strong>194</strong>
+                  <strong>{runStats.pass}</strong>
                   PASS
                 </span>
                 <span>
-                  <strong>4</strong>
+                  <strong>{runStats.fail}</strong>
                   FAIL
                 </span>
                 <span>
-                  <strong>2</strong>
+                  <strong>{runStats.partial}</strong>
                   REVIEW
                 </span>
                 <span>
-                  <strong>200</strong>
+                  <strong>{runStats.total}</strong>
                   TOTAL
                 </span>
               </div>
               <div className={styles.wallFrame}>
-                <div className={styles.scanLine} aria-hidden />
                 <WallLoop />
               </div>
               <div className={styles.liveFooter}>
@@ -274,8 +252,8 @@ export default function Landing() {
                 <em>for judgement.</em>
               </h2>
               <p>
-                Teams put agents into real jobs—refunds, orders,
-                escalations—and discover how they handle fraud by watching
+                Teams put agents into real jobs such as refunds, orders, and
+                escalations, then discover how they handle fraud by watching
                 them fail on real customers. Preflight is where those decisions
                 fail safely first.
               </p>
@@ -443,18 +421,18 @@ export default function Landing() {
                 <em>Run the hard decisions.</em>
               </h2>
               <p>
-                The Gauntlet isolates the 23 difficulty 4–5 scenarios already
-                included in Standard and larger runs: boundary collisions,
-                conflicting evidence, fraud, legal threats, and decisions that
-                should demand a human.
+                The Gauntlet isolates the difficulty 4–5 scenarios already
+                threaded through coverage. Smoke includes 7 of 23; Standard
+                and every larger run include all 23.
               </p>
               <p>
-                Rerun that hard slice alone after a fix. Then send 16
-                prompt-injection attacks through the store data your agent
-                reads, while the visible customer request stays ordinary.
+                Run the focused slice after a fix to put the hardest decisions
+                under the microscope. Then send 16 prompt-injection attacks
+                through the store data your agent reads while the visible
+                customer request stays ordinary.
               </p>
-              <Link href="/product" className={styles.textLink}>
-                Explore every evaluation layer <span aria-hidden>→</span>
+              <Link href="/gauntlet" className={styles.textLink}>
+                Enter The Gauntlet <span aria-hidden>→</span>
               </Link>
             </div>
           </section>
@@ -586,23 +564,9 @@ export default function Landing() {
           </section>
         </LandingReveal>
 
-        <footer className={styles.footer}>
-          <Link href="/" className={styles.brand} aria-label="Preflight home">
-            <span className={styles.brandSignal} aria-hidden />
-            <span>PREFLIGHT</span>
-          </Link>
-          <p>TEST BEFORE TRUST · © 2026</p>
-          <nav aria-label="Footer navigation">
-            <Link href="/product">Product</Link>
-            <Link href="/integrations">Integrations</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/login">Sign in</Link>
-            <Link href="/signup" className={styles.footerCta}>
-              Start free →
-            </Link>
-          </nav>
-        </footer>
-      </div>
-    </main>
+      </MarketingMain>
+
+      <MarketingFooter />
+    </div>
   );
 }

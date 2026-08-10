@@ -1,0 +1,66 @@
+.stickyHeader {
+  top: 0;
+}
+
+.headerIdentity,
+.headerControls,
+.headerActions {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .stickyHeader {
+    top: 3.5rem;
+    padding: 0.65rem 0.75rem !important;
+  }
+
+  .headerInner {
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .headerIdentity {
+    width: 100%;
+  }
+
+  .headerRunName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .headerControls {
+    display: grid;
+    width: 100%;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .headerStats {
+    gap: 0.75rem;
+  }
+
+  .headerStat {
+    text-align: left;
+  }
+
+  .secondaryStat {
+    display: none;
+  }
+
+  .headerActions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .headerActions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .headerActions > * {
+    flex: 0 0 auto;
+  }
+}

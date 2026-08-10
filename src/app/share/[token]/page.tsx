@@ -140,8 +140,8 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
         This agent was evaluated by{" "}
         <Link href="/" className="focus-ring rounded font-medium text-accent hover:underline">
           Preflight
-        </Link>{" "}
-        — a flight simulator for AI agents. Transcripts stay private to the workspace.
+        </Link>
+        {", a flight simulator for AI agents. Transcripts stay private to the workspace."}
       </p>
     </div>
   );

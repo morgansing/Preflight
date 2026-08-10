@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-/**
- * Google / GitHub SSO buttons — Preflight-dark, shared by sign-in and
- * sign-up. Design-complete: in V0 they explain that SSO arrives with
- * the hosted beta (Supabase Auth makes them real, no redesign needed).
- */
+import styles from "./sso-buttons.module.css";
 
 function SsoButton({
   label,
@@ -18,13 +13,9 @@ function SsoButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="focus-ring flex h-10 flex-1 cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-edge text-[13px] font-medium text-ink transition-colors hover:border-mut hover:bg-raised"
-    >
-      {icon}
-      {label}
+    <button type="button" onClick={onClick} className={styles.button}>
+      <span className={styles.icon}>{icon}</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -60,24 +51,25 @@ const githubIcon = (
   </svg>
 );
 
-/** The button row + divider. `verb` reads "Sign in" or "Sign up". */
+/** The button row and divider. `verb` reads "Sign in" or "Sign up". */
 export function SsoButtons({ verb = "Continue" }: { verb?: string }) {
   const [note, setNote] = useState(false);
+
   return (
-    <div>
-      <div className="flex gap-3">
+    <div className={styles.sso}>
+      <div className={styles.buttonRow}>
         <SsoButton label={`${verb} with Google`} icon={googleIcon} onClick={() => setNote(true)} />
         <SsoButton label={`${verb} with GitHub`} icon={githubIcon} onClick={() => setNote(true)} />
       </div>
       {note && (
-        <p className="mt-2 text-[12px] text-warn">
-          SSO lands with the hosted beta — use email below for now.
+        <p className={styles.note} role="status" aria-live="polite">
+          SSO arrives with the hosted beta. Use email below for now.
         </p>
       )}
-      <div className="mt-6 flex items-center gap-3">
-        <span className="h-px flex-1 bg-edge" />
-        <span className="font-mono text-[10px] tracking-[0.14em] text-mut">OR</span>
-        <span className="h-px flex-1 bg-edge" />
+      <div className={styles.divider} aria-hidden>
+        <span />
+        <small>or continue with email</small>
+        <span />
       </div>
     </div>
   );

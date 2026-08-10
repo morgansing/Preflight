@@ -4,9 +4,7 @@
   isolation: isolate;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 78% 4%, rgba(61, 220, 132, 0.06), transparent 30rem),
-    linear-gradient(180deg, #0b0c0e 0%, #0d0f12 48%, #0b0c0e 100%);
+  background: linear-gradient(180deg, #0b0c0e 0%, #0d0f12 48%, #0b0c0e 100%);
   color: var(--color-ink);
 }
 
@@ -30,81 +28,11 @@
   animation: none;
 }
 
-.signalField {
-  position: absolute;
-  inset: 0;
-  opacity: 0.32;
-  background-image: radial-gradient(circle, rgba(61, 220, 132, 0.42) 0 1px, transparent 1.5px);
-  background-size: 184px 184px;
-  mask-image: linear-gradient(to bottom, #000 2%, transparent 36%, transparent 68%, #000);
-  animation: none;
-}
-
-.signalField::before,
-.signalField::after {
-  position: absolute;
-  left: -18%;
-  width: 76%;
-  height: 1px;
-  content: "";
-  background: linear-gradient(90deg, transparent, rgba(61, 220, 132, 0.1), rgba(61, 220, 132, 0.6), transparent);
-  box-shadow: 30vw 0 28px rgba(61, 220, 132, 0.1);
-  transform: rotate(-9deg);
-  animation: none;
-}
-
-.signalField::before {
-  top: 8%;
-}
-
-.signalField::after {
-  top: 64%;
-  left: 42%;
-  width: 66%;
-  transform: rotate(11deg);
-  animation-delay: -6s;
-}
-
 .noise {
   position: absolute;
   inset: 0;
   opacity: 0.022;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
-}
-
-.orbOne,
-.orbTwo,
-.orbThree {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(96px);
-}
-
-.orbOne {
-  top: 3rem;
-  right: -8rem;
-  width: 31rem;
-  height: 31rem;
-  background: rgba(61, 220, 132, 0.085);
-  animation: none;
-}
-
-.orbTwo {
-  top: 105rem;
-  left: -14rem;
-  width: 36rem;
-  height: 36rem;
-  background: rgba(61, 220, 132, 0.052);
-  animation: none;
-}
-
-.orbThree {
-  top: 270rem;
-  right: -16rem;
-  width: 38rem;
-  height: 38rem;
-  background: rgba(232, 234, 237, 0.035);
-  animation: none;
 }
 
 .shell {
@@ -247,6 +175,7 @@
 
 .hero h1,
 .sectionCopy h2,
+.coverageCopy h2,
 .evidenceHeading h2,
 .closingCta h2 {
   font-family: var(--font-display);
@@ -263,6 +192,7 @@
 
 .hero h1 em,
 .sectionCopy h2 em,
+.coverageCopy h2 em,
 .evidenceHeading h2 em,
 .closingCta h2 em {
   font-style: italic;
@@ -383,7 +313,6 @@
     var(--color-surface);
   box-shadow:
     0 34px 90px rgba(0, 0, 0, 0.42),
-    0 0 80px rgba(61, 220, 132, 0.065),
     inset 0 1px rgba(255, 255, 255, 0.025);
   animation: none;
 }
@@ -699,12 +628,29 @@
 }
 
 .splitSection {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
   gap: clamp(3rem, 8vw, 7rem);
   align-items: center;
   border-bottom: 1px solid var(--page-line);
   padding: clamp(7rem, 12vw, 10rem) 0;
+}
+
+.splitSection::before,
+.coverageSection::before,
+.workflowSection::before,
+.evidenceSection::before {
+  position: absolute;
+  inset: 1.5rem calc(50% - 50vw);
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+}
+
+.splitSection::before {
+  background: radial-gradient(circle at 88% 50%, rgba(61, 220, 132, 0.035), transparent 27rem);
 }
 
 .sectionCopy {
@@ -761,6 +707,12 @@
   gap: clamp(3rem, 7vw, 6rem);
 }
 
+.replaySection::before {
+  background:
+    linear-gradient(90deg, transparent 28%, rgba(61, 220, 132, 0.018), transparent 82%),
+    radial-gradient(circle at 84% 48%, rgba(61, 220, 132, 0.065), transparent 30rem);
+}
+
 .replaySection .sectionCopy h2 {
   font-size: clamp(2.75rem, 3.8vw, 4.15rem);
 }
@@ -789,17 +741,29 @@
 
 .workflowSection,
 .evidenceSection {
+  position: relative;
+  isolation: isolate;
   border-bottom: 1px solid var(--page-line);
   padding: clamp(7rem, 12vw, 10rem) 0;
 }
 
 .coverageSection {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(17rem, 0.68fr) minmax(0, 1.32fr);
   gap: clamp(3rem, 7vw, 6.5rem);
   align-items: center;
   border-bottom: 1px solid var(--page-line);
   padding: clamp(4.75rem, 7vw, 6.25rem) 0;
+}
+
+.coverageSection::before {
+  opacity: 0.7;
+  background:
+    linear-gradient(90deg, rgba(61, 220, 132, 0.025), transparent 38%, rgba(151, 164, 181, 0.018)),
+    repeating-linear-gradient(90deg, transparent 0 63px, rgba(255, 255, 255, 0.025) 63px 64px);
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
 }
 
 .coverageCopy h2 {
@@ -1001,6 +965,12 @@
 
 .gauntletSection {
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+
+.gauntletSection::before {
+  background:
+    radial-gradient(circle at 14% 48%, rgba(224, 163, 64, 0.052), transparent 26rem),
+    radial-gradient(circle at 82% 56%, rgba(240, 84, 79, 0.026), transparent 22rem);
 }
 
 .gauntletCard {
@@ -1236,6 +1206,12 @@
   margin-bottom: 4rem;
 }
 
+.workflowSection::before {
+  background:
+    linear-gradient(180deg, transparent, rgba(18, 23, 22, 0.34) 22%, rgba(13, 16, 17, 0.46) 74%, transparent),
+    radial-gradient(circle at 12% 55%, rgba(61, 220, 132, 0.04), transparent 24rem);
+}
+
 .workflowGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1330,6 +1306,12 @@
 
 .evidenceHeading {
   max-width: 52rem;
+}
+
+.evidenceSection::before {
+  background:
+    radial-gradient(circle at 88% 36%, rgba(61, 220, 132, 0.055), transparent 25rem),
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.014), transparent);
 }
 
 .evidenceGrid {
@@ -1516,48 +1498,6 @@
   to {
     opacity: 0;
     transform: scale(1.35);
-  }
-}
-
-@keyframes gridDrift {
-  to {
-    transform: translate3d(62px, 62px, 0);
-  }
-}
-
-@keyframes signalDrift {
-  to {
-    background-position: 184px 368px;
-  }
-}
-
-@keyframes signalSweep {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: translateX(-12%) rotate(-9deg);
-  }
-  50% {
-    opacity: 0.86;
-    transform: translateX(62%) rotate(-9deg);
-  }
-}
-
-@keyframes orbOne {
-  to {
-    transform: translate(-17vw, 9rem) scale(1.12);
-  }
-}
-
-@keyframes orbTwo {
-  to {
-    transform: translate(22vw, 8rem) scale(0.9);
-  }
-}
-
-@keyframes orbThree {
-  to {
-    transform: translate(-18vw, -7rem) scale(1.08);
   }
 }
 
@@ -1932,12 +1872,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .grid,
-  .signalField,
-  .signalField::before,
-  .signalField::after,
-  .orbOne,
-  .orbTwo,
-  .orbThree,
   .brandSignal::after,
   .heroCopy,
   .heroVisual,

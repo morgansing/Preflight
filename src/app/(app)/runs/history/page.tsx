@@ -8,6 +8,7 @@ import { demoAgents } from "@/lib/fixtures/agents";
 import { pastRuns } from "@/lib/fixtures/runs";
 import { toPastRun, useSessionRuns } from "@/lib/demo-runs";
 import { useMode } from "@/lib/mode";
+import styles from "@/components/evidence-ledger.module.css";
 
 /**
  * Run history — every run in the workspace, newest first, each one
@@ -27,74 +28,106 @@ export default function RunHistoryPage() {
     ...pastRuns,
   ].sort((a, b) => parseInt(b.id.slice(4), 10) - parseInt(a.id.slice(4), 10));
   const rows = agentFilter ? merged.filter((r) => r.agentId === agentFilter) : merged;
+  const runsWithMisses = merged.filter((r) => r.failed + r.partial > 0).length;
+  const activeAgent = agentFilter
+    ? demoAgents.find((agent) => agent.id === agentFilter)
+    : null;
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
-      <div className="flex items-start justify-between">
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
         <div>
-          <h1 className="font-display text-3xl tracking-tight text-ink">Run history</h1>
-          <p className="mt-2 text-sm text-sub">
-            {merged.length} runs across {demoAgents.length} agents · Ecommerce Support Suite v2
-          </p>
+          <Eyebrow>Evidence ledger / runs</Eyebrow>
+          <h1 className={styles.pageTitle}>Run history</h1>
+          <div className={styles.pageMeta}>
+            <span>Newest evidence first</span>
+            <span className={styles.metaDivider} aria-hidden />
+            <span>Ecommerce Support Suite v2</span>
+            {activeAgent && (
+              <>
+                <span className={styles.metaDivider} aria-hidden />
+                <span>Filtered to {activeAgent.name} {activeAgent.version}</span>
+              </>
+            )}
+          </div>
         </div>
-        <ButtonLink href="/runs" variant="secondary">
-          Watch the latest run →
-        </ButtonLink>
+        <div className={`no-print ${styles.pageActions}`}>
+          <ButtonLink href="/runs" variant="secondary">
+            Watch the latest run →
+          </ButtonLink>
+        </div>
+      </header>
+
+      <div className={styles.summaryGrid} aria-label="Run history summary">
+        <SummaryMetric label="Recorded runs" value={merged.length} hint="workspace ledger" />
+        <SummaryMetric label="Agents" value={demoAgents.length} hint="represented here" />
+        <SummaryMetric
+          label="Runs with misses"
+          value={runsWithMisses}
+          hint={`${merged.length - runsWithMisses} fully clear`}
+          tone={runsWithMisses > 0 ? "fail" : "accent"}
+        />
       </div>
 
       {/* Agent filter */}
-      <div className="mt-8 flex flex-wrap items-center gap-2">
-        <Eyebrow className="mr-2">Agent</Eyebrow>
-        <AgentChip label="All" active={agentFilter === null} onClick={() => setAgentFilter(null)} />
-        {demoAgents.map((a) => (
-          <AgentChip
-            key={a.id}
-            label={`${a.name} ${a.version}`}
-            active={agentFilter === a.id}
-            onClick={() => setAgentFilter(agentFilter === a.id ? null : a.id)}
-          />
-        ))}
+      <div className={`no-print ${styles.filterBar}`}>
+        <div className={styles.filterControls}>
+          <Eyebrow className="mr-1">Agent</Eyebrow>
+          <AgentChip label="All" active={agentFilter === null} onClick={() => setAgentFilter(null)} />
+          {demoAgents.map((a) => (
+            <AgentChip
+              key={a.id}
+              label={`${a.name} ${a.version}`}
+              active={agentFilter === a.id}
+              onClick={() => setAgentFilter(agentFilter === a.id ? null : a.id)}
+            />
+          ))}
+        </div>
+        <span className={styles.filterCount}>{rows.length} shown</span>
       </div>
 
       {/* Ledger */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-edge">
-        <div className="hidden border-b border-edge bg-surface px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-mut md:grid md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_3.5rem_5.5rem_5rem_4.5rem_5rem]">
-          <span>Run</span>
-          <span>Agent</span>
-          <span className="text-right">Score</span>
-          <span className="text-right">Δ</span>
-          <span className="text-right">Passed</span>
-          <span className="text-right">Fails</span>
-          <span className="text-right">Cost</span>
-          <span className="text-right">When</span>
+      <div className={styles.ledger}>
+        <div className={`${styles.ledgerHeader} ${styles.demoGrid}`}>
+          <span>Agent · run</span>
+          <span className={styles.ledgerMetric}>Score</span>
+          <span className={styles.ledgerMetric}>Δ</span>
+          <span className={styles.ledgerMetric}>Passed</span>
+          <span className={styles.ledgerMetric}>Fails</span>
+          <span className={styles.ledgerMetric}>Cost</span>
+          <span className={styles.ledgerMetric}>When</span>
         </div>
-        <div className="divide-y divide-edge/60">
-          {rows.map((r) => {
+        <div className={styles.ledgerRows}>
+          {rows.map((r, i) => {
             const agent = demoAgents.find((a) => a.id === r.agentId);
             const above = agent ? r.score >= agent.threshold : false;
             return (
               <Link
                 key={r.id}
                 href={`/runs/${r.id}`}
-                className="focus-ring grid grid-cols-2 items-center gap-y-1 px-5 py-3 text-[13px] transition-colors hover:bg-surface md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_3.5rem_5.5rem_5rem_4.5rem_5rem]"
+                style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
+                className={`animate-fade-up focus-ring ${styles.ledgerRow} ${styles.demoGrid}`}
               >
-                <span className="font-mono text-[12px] text-mut">{r.id}</span>
-                <span className="min-w-0 truncate text-ink">
-                  {r.agentName} <span className="text-sub">{r.agentVersion}</span>
+                <span className={styles.ledgerPrimary}>
+                  <span className={styles.ledgerAgent}>
+                    {r.agentName} <span className="text-sub">{r.agentVersion}</span>
+                  </span>
+                  <span className={styles.ledgerRef}>{r.id}</span>
                 </span>
-                <span className="text-right">
+                <span className={styles.ledgerMetric} data-label="Score">
                   <span
                     aria-hidden
-                    className="mr-2 inline-block size-1.5 rounded-full align-middle"
+                    className={styles.scoreSignal}
                     style={{
                       background: above ? "var(--color-accent)" : "var(--color-fail)",
                     }}
                   />
-                  <span className="numeral text-lg text-ink">{r.score}</span>
+                  <span className={styles.ledgerScore}>{r.score}</span>
                   <span className="text-[12px] text-mut">%</span>
                 </span>
                 <span
-                  className={`text-right font-mono text-[11px] tabular-nums ${
+                  data-label="Change"
+                  className={`${styles.ledgerMetric} ${
                     r.delta !== undefined && r.delta > 0
                       ? "text-accent"
                       : r.delta !== undefined && r.delta < 0
@@ -108,24 +141,27 @@ export default function RunHistoryPage() {
                       ? `+${r.delta}`
                       : r.delta}
                 </span>
-                <span className="text-right font-mono text-[12px] tabular-nums text-sub">
+                <span className={styles.ledgerMetric} data-label="Passed">
                   {r.passed}/{r.total}
                 </span>
-                <span className="text-right font-mono text-[12px] tabular-nums">
+                <span className={styles.ledgerMetric} data-label="Misses">
                   <span className={r.failed > 0 ? "text-fail" : "text-mut"}>✗ {r.failed}</span>
                   {r.partial > 0 && <span className="text-warn"> ◐ {r.partial}</span>}
                 </span>
-                <span className="text-right font-mono text-[12px] tabular-nums text-sub">
+                <span className={styles.ledgerMetric} data-label="Cost">
                   ${r.costUsd.toFixed(2)}
                 </span>
-                <span className="text-right font-mono text-[12px] text-mut">{r.label}</span>
+                <span className={`${styles.ledgerMetric} text-mut`} data-label="When">{r.label}</span>
               </Link>
             );
           })}
+          {rows.length === 0 && (
+            <div className={styles.emptyRows}>No runs match this agent filter.</div>
+          )}
         </div>
       </div>
 
-      <p className="mt-4 text-[12px] text-mut">
+      <p className={styles.ledgerFootnote}>
         Scenario-level replays are retained for the workspace&apos;s most recent run — older
         runs keep their per-scenario outcomes and category results.
       </p>
@@ -146,13 +182,29 @@ function AgentChip({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`focus-ring h-8 cursor-pointer rounded-full border px-3.5 text-[12px] transition-colors duration-150 ${
-        active
-          ? "border-accent/50 bg-accent/10 text-accent"
-          : "border-edge text-sub hover:border-mut hover:text-ink"
-      }`}
+      className={`focus-ring ${styles.chip} ${active ? styles.chipActive : ""}`}
     >
       {label}
     </button>
+  );
+}
+
+function SummaryMetric({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  tone?: "accent" | "fail";
+}) {
+  return (
+    <div className={styles.summaryCard}>
+      <span className={styles.summaryLabel}>{label}</span>
+      <strong className={styles.summaryValue} data-tone={tone}>{value.toLocaleString()}</strong>
+      <span className={styles.summaryHint}>{hint}</span>
+    </div>
   );
 }

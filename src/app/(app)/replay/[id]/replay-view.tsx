@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Replay, ReplayStep, Scenario } from "@/lib/types";
 import type { LiveOutcome } from "@/lib/live-types";
+import { getScenarioById } from "@/lib/fixtures/scenarios";
+import { useRegressionSuite } from "@/lib/regression-suite";
 import { Button, Eyebrow, OutcomeChip, SeverityLabel } from "@/components/ui";
+import styles from "./replay-view.module.css";
 
 /** Replay shape shared by both modes — live adds the "error" outcome. */
 export type ReplayLike = Omit<Replay, "outcome"> & { outcome: LiveOutcome };
@@ -31,13 +34,17 @@ function matchesCriterion(list: string[] | undefined, text: string): boolean {
 export function ReplayView({
   scenario,
   replay,
+  sourceRunId,
 }: {
   scenario: Scenario;
   replay: ReplayLike;
+  sourceRunId?: string;
 }) {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [added, setAdded] = useState(false);
+  const regressionSuite = useRegressionSuite();
+  const inRegressionSuite = regressionSuite.has(scenario.id);
+  const canAddToRegression = !!getScenarioById(scenario.id);
   const total = replay.steps.length;
   const diverged =
     replay.divergenceStep !== undefined && current >= replay.divergenceStep;
@@ -52,6 +59,21 @@ export function ReplayView({
       setCurrent((c) => Math.max(0, Math.min(total - 1, c + dir))),
     [total],
   );
+
+  // Autoplay is useful for the cinematic demo, but should never override an
+  // explicit operating-system preference for reduced motion.
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const stopForReducedMotion = () => {
+      if (preference.matches) setPlaying(false);
+    };
+    const frame = window.requestAnimationFrame(stopForReducedMotion);
+    preference.addEventListener("change", stopForReducedMotion);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      preference.removeEventListener("change", stopForReducedMotion);
+    };
+  }, []);
 
   // Play/pause auto-advance.
   useEffect(() => {
@@ -73,7 +95,13 @@ export function ReplayView({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t?.closest("button, a, input, select, textarea, [contenteditable]")) return;
+      if (
+        t?.closest(
+          "button, a, input, select, textarea, [contenteditable], [role='region']",
+        )
+      ) {
+        return;
+      }
       if (e.key === "ArrowRight") {
         setPlaying(false);
         step(1);
@@ -103,10 +131,10 @@ export function ReplayView({
   );
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={`${styles.replay} flex min-h-screen flex-col`}>
       {/* Header */}
-      <div className="border-b border-edge bg-raised/95 px-8 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={`${styles.header} border-b px-8 py-4`}>
+        <div className={`${styles.headerContent} flex flex-wrap items-center justify-between gap-4`}>
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <Link
@@ -127,22 +155,22 @@ export function ReplayView({
               <SeverityLabel severity={replay.severity} />
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right font-mono text-[13px] tabular-nums text-sub">
+          <div className={styles.headerActions}>
+            <div className={`${styles.runMetrics} text-right font-mono text-[13px] tabular-nums text-sub`}>
               <span title="Run cost">${replay.costUsd.toFixed(3)}</span>
               <span className="mx-2 text-mut">·</span>
               <span title="Latency">{(replay.latencyMs / 1000).toFixed(1)}s</span>
               <span className="mx-2 text-mut">·</span>
               <span title="Tokens">{replay.tokens.toLocaleString()} tok</span>
             </div>
-            {replay.outcome === "fail" && (
+            {replay.outcome === "fail" && canAddToRegression && (
               <Button
                 size="sm"
-                onClick={() => setAdded(true)}
-                disabled={added}
-                className="disabled:opacity-100"
+                onClick={() => regressionSuite.add(scenario, sourceRunId)}
+                disabled={inRegressionSuite}
+                className={`${styles.regressionAction} disabled:opacity-100`}
               >
-                {added ? "✓ In regression suite" : "Add to regression suite"}
+                {inRegressionSuite ? "✓ In regression suite" : "Add to regression suite"}
               </Button>
             )}
           </div>
@@ -150,15 +178,23 @@ export function ReplayView({
       </div>
 
       {/* Three columns */}
-      <div className="grid flex-1 grid-cols-1 gap-px bg-edge lg:grid-cols-[1fr_1.3fr_1fr]">
+      <span className={styles.swipeCue} aria-hidden>
+        SWIPE COLUMNS →
+      </span>
+      <div
+        className={`${styles.columns} flex-1`}
+        role="region"
+        aria-label="Scrollable three-column replay evidence"
+        tabIndex={0}
+      >
         {/* Left — what the agent saw */}
-        <section className="min-w-0 bg-bg px-6 py-6">
+        <section className={`${styles.column} min-w-0 px-6 py-6`}>
           <Eyebrow>What the agent saw</Eyebrow>
           <div className="mt-5 space-y-4">
             {seen.map((s) => (
               <div key={s.i} className="animate-fade-up">
                 {s.actor === "customer" ? (
-                  <div className="rounded-lg rounded-tl-sm border border-edge bg-surface p-4">
+                  <div className={`${styles.evidenceCard} rounded-lg rounded-tl-sm border border-edge bg-surface p-4`}>
                     <div className="mb-1.5 font-mono text-[10px] tracking-wider text-mut">
                       CUSTOMER
                     </div>
@@ -173,7 +209,7 @@ export function ReplayView({
         </section>
 
         {/* Centre — what the agent did */}
-        <section className="min-w-0 bg-bg px-6 py-6">
+        <section className={`${styles.column} ${styles.columnDid} min-w-0 px-6 py-6`}>
           <Eyebrow>What the agent did</Eyebrow>
           <div className="relative mt-5 space-y-1.5">
             {replay.steps.map((s, i) => (
@@ -193,7 +229,7 @@ export function ReplayView({
         </section>
 
         {/* Right — expected path */}
-        <section className="min-w-0 bg-bg px-6 py-6">
+        <section className={`${styles.column} ${styles.columnExpected} min-w-0 px-6 py-6`}>
           <Eyebrow>Expected path</Eyebrow>
           <p className="mt-3 text-[13px] leading-relaxed text-sub">
             {scenario.rubric}
@@ -212,7 +248,7 @@ export function ReplayView({
               return (
                 <div
                   key={i}
-                  className={`flex items-start gap-3 rounded-lg border p-3 transition-colors duration-300 ${
+                  className={`${styles.evidenceCard} flex items-start gap-3 rounded-lg border p-3 transition-colors duration-300 ${
                     violated
                       ? "border-fail/50 bg-fail/8 [animation:ecg-pulse_1.1s_var(--ease-out-quad)_1]"
                       : "border-edge bg-surface"
@@ -331,7 +367,7 @@ export function ReplayView({
       </div>
 
       {/* Scrubber */}
-      <div className="no-print sticky bottom-0 border-t border-edge bg-raised/95 px-8 py-3">
+      <div className={`${styles.scrubber} no-print sticky bottom-0 border-t px-8 py-3`}>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
             <ScrubButton onClick={() => { setPlaying(false); step(-1); }} label="Previous step (←)">
@@ -362,22 +398,35 @@ export function ReplayView({
             {replay.steps.map((_, i) => (
               <button
                 key={i}
+                type="button"
                 aria-label={`Go to step ${i + 1}`}
                 onClick={() => {
                   setPlaying(false);
                   setCurrent(i);
                 }}
-                className={`focus-ring h-1 flex-1 rounded-full transition-colors duration-200 cursor-pointer ${
-                  i === replay.divergenceStep && i <= current
-                    ? "bg-fail"
-                    : i <= current
-                      ? "bg-accent/70"
-                      : "bg-edge"
-                }`}
-              />
+                className="focus-ring group flex h-8 flex-1 cursor-pointer items-center rounded-md"
+              >
+                <span
+                  aria-hidden
+                  className={`h-1 w-full rounded-full transition-colors duration-200 ${
+                    i === replay.divergenceStep && i <= current
+                      ? "bg-fail"
+                      : i <= current
+                        ? "bg-accent/70"
+                        : "bg-edge"
+                  }`}
+                />
+              </button>
             ))}
           </div>
 
+          <span aria-hidden className="hidden items-center gap-1.5 font-mono text-[10px] tracking-wider text-mut md:flex">
+            <span className="rounded border border-edge px-1 py-0.5">␣</span>
+            PLAY
+            <span className="text-edge">·</span>
+            <span className="rounded border border-edge px-1 py-0.5">← →</span>
+            STEP
+          </span>
           <span className="font-mono text-[11px] tabular-nums text-mut">
             {String(current + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
           </span>
@@ -419,7 +468,7 @@ function DiagnosisRow({
 }) {
   return (
     <div
-      className={`rounded-lg border p-3.5 ${
+      className={`${styles.evidenceCard} rounded-lg border p-3.5 ${
         accent ? "border-accent/25 bg-accent/5" : "border-edge bg-surface"
       }`}
     >
@@ -437,7 +486,7 @@ function DiagnosisRow({
 
 function ToolBlock({ label, content }: { label?: string; content: string }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-edge bg-surface">
+    <div className={`${styles.toolBlock} overflow-hidden rounded-lg border border-edge bg-surface`}>
       <div className="border-b border-edge px-3.5 py-2 font-mono text-[10px] tracking-wider text-mut">
         {label?.toUpperCase()}
       </div>
@@ -465,12 +514,12 @@ function TimelineStep({
   return (
     <button
       onClick={onClick}
-      className={`focus-ring block w-full rounded-lg text-left transition-all duration-200 cursor-pointer ${
+      className={`${styles.timelineStep} focus-ring block w-full rounded-lg text-left transition-all duration-200 cursor-pointer ${
         dim ? "opacity-35" : "opacity-100"
       }`}
     >
       <div
-        className={`relative rounded-lg border p-3.5 ${
+        className={`${styles.timelineCard} relative rounded-lg border p-3.5 ${
           active
             ? divergence
               ? "border-fail/60 bg-fail/8"

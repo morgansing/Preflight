@@ -8,6 +8,7 @@ import { checkFreeAllowance, recordFreeUsage } from "@/server/free-grant";
 import { plannedSimCount, toRunListItems } from "@/server/run-list";
 import type { WorkspaceIdentity } from "@/lib/identity";
 import { requireUser } from "@/server/auth";
+import { MAX_SUITE_SIZE } from "@/lib/fixtures/scenarios";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "agentKind must be reference | http | openai | mcp" }, { status: 400 });
   }
   const suite = String(body.suite ?? "smoke");
+  const scenarioIds: string[] | undefined = Array.isArray(body.scenarioIds)
+    ? [...new Set(
+        (body.scenarioIds as unknown[]).filter(
+          (id): id is string => typeof id === "string",
+        ),
+      )]
+    : undefined;
+  if (suite === "regression" && (scenarioIds?.length ?? 0) > MAX_SUITE_SIZE) {
+    return NextResponse.json(
+      { error: `Regression suites support up to ${MAX_SUITE_SIZE.toLocaleString()} scenarios.` },
+      { status: 400 },
+    );
+  }
   const sandbox = body.sandbox === true;
 
   // Token metering. With billing connected and a paid subscription
@@ -49,7 +63,7 @@ export async function POST(request: NextRequest) {
   const plan = typeof body.plan === "string" ? body.plan : undefined;
   const identity = (body.identity ?? undefined) as WorkspaceIdentity | undefined;
   const identified = !!identity && (!!identity.email || !!identity.fingerprint);
-  const sims = await plannedSimCount(suite);
+  const sims = await plannedSimCount(suite, scenarioIds);
   const account = !sandbox ? await getAccount() : null;
   const ledgerMetered =
     !!account && config.billing.enabled && account.subscriptionStatus === "active";
@@ -84,6 +98,7 @@ export async function POST(request: NextRequest) {
     authToken: body.authToken ? String(body.authToken) : undefined,
     systemPrompt: body.systemPrompt ? String(body.systemPrompt) : undefined,
     suite,
+    scenarioIds,
     sandbox,
   });
   if ("error" in result) {

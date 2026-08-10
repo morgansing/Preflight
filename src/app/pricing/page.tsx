@@ -1,6 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  MarketingFooter,
+  MarketingHeader,
+  MarketingMain,
+} from "@/components/marketing-shell";
+import {
   DEFAULT_CATALOG,
   parseCatalog,
   type BillingCatalog,
@@ -163,30 +168,11 @@ export default function PricingPage() {
     <div className={styles.page}>
       <div className={styles.ambient} aria-hidden>
         <div className={styles.grid} />
-        <div className={styles.flareOne} />
-        <div className={styles.flareTwo} />
-        <div className={styles.scan} />
       </div>
 
-      <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="Preflight home">
-          <span className={styles.brandSignal} aria-hidden />
-          <span>PREFLIGHT</span>
-        </Link>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          <Link href="/">Home</Link>
-          <Link href="/product">Product</Link>
-          <Link href="/integrations">Integrations</Link>
-          <Link href="/pricing" aria-current="page">
-            Pricing
-          </Link>
-        </nav>
-        <Link href="/signup" className={styles.headerCta}>
-          Start free <span aria-hidden>→</span>
-        </Link>
-      </header>
+      <MarketingHeader active="pricing" />
 
-      <main className={styles.main}>
+      <MarketingMain className={styles.main}>
         <section
           className={styles.pricingIntro}
           aria-labelledby="pricing-heading"
@@ -200,11 +186,21 @@ export default function PricingPage() {
             </h1>
           </div>
 
-          <p className={styles.introSummary}>
-            Choose how many evaluated scenarios your release cadence needs.
-            Allowance, launch depth, concurrency, and overage are explicit
-            before a run begins.
-          </p>
+          <div className={styles.introSummaryBlock}>
+            <p className={styles.introSummary}>
+              Choose how many evaluated scenarios your release cadence needs.
+              Allowance, launch depth, concurrency, and overage are explicit
+              before a run begins.
+            </p>
+            <div className={`${styles.actionRow} ${styles.introActions}`}>
+              <Link href="/signup" className={styles.primaryButton}>
+                Start free <span aria-hidden>→</span>
+              </Link>
+              <Link href="/share/demo" className={styles.secondaryButton}>
+                Open verified demo
+              </Link>
+            </div>
+          </div>
 
           <div
             className={styles.introLedger}
@@ -435,8 +431,17 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <div className={styles.tableWrap}>
-            <table className={styles.comparisonTable}>
+          <div className={styles.tableStage}>
+            <p className={styles.tableHint} aria-hidden>
+              Swipe to compare <span>→</span>
+            </p>
+            <div
+              className={styles.tableWrap}
+              role="region"
+              aria-label="Scrollable pricing plan comparison"
+              tabIndex={0}
+            >
+              <table className={styles.comparisonTable}>
               <caption className={styles.srOnly}>
                 Comparison of Preflight pricing plans and enforced limits
               </caption>
@@ -508,7 +513,8 @@ export default function PricingPage() {
                   ))}
                 </tr>
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </section>
 
@@ -644,22 +650,9 @@ export default function PricingPage() {
             free grant · no credit card
           </small>
         </section>
-      </main>
+      </MarketingMain>
 
-      <footer className={styles.footer}>
-        <Link href="/" className={styles.brand} aria-label="Preflight home">
-          <span className={styles.brandSignal} aria-hidden />
-          <span>PREFLIGHT</span>
-        </Link>
-        <p>Evaluation infrastructure for production AI agents.</p>
-        <nav aria-label="Footer navigation">
-          <Link href="/">Home</Link>
-          <Link href="/product">Product</Link>
-          <Link href="/integrations">Integrations</Link>
-          <Link href="/runs">Demo</Link>
-          <Link href="/login">Sign in</Link>
-        </nav>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }
