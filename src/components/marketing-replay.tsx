@@ -83,23 +83,19 @@ export function MarketingReplay({
   const actionStackRef = useRef<HTMLDivElement>(null);
   const last = replay.steps.length - 1;
   // Always start from the first step so SSR and the first client paint match.
-  // Reduced-motion users jump to the end after mount.
+  // Reduced-motion users see the final step via derived state (no sync effect).
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const activeIndex = reduceMotion ? last : current;
+  const isPlaying = !reduceMotion && playing;
 
   useEffect(() => {
-    if (!reduceMotion) return;
-    setCurrent(last);
-    setPlaying(false);
-  }, [last, reduceMotion]);
-
-  useEffect(() => {
-    if (!playing || !inView || reduceMotion) return;
+    if (!isPlaying || !inView) return;
     const id = window.setInterval(() => {
-      setCurrent((step) => (step >= last ? 0 : step + 1));
+      setCurrent((value) => (value >= last ? 0 : value + 1));
     }, STEP_MS);
     return () => window.clearInterval(id);
-  }, [inView, last, playing, reduceMotion]);
+  }, [inView, isPlaying, last]);
 
   const seenSteps = useMemo(
     () =>
@@ -113,8 +109,9 @@ export function MarketingReplay({
   );
 
   const hasDiverged =
-    replay.divergenceStep !== undefined && current >= replay.divergenceStep;
-  const completed = current === last;
+    replay.divergenceStep !== undefined &&
+    activeIndex >= replay.divergenceStep;
+  const completed = activeIndex === last;
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -143,7 +140,7 @@ export function MarketingReplay({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [current, reduceMotion]);
+  }, [activeIndex, reduceMotion]);
 
   return (
     <div ref={rootRef} className={styles.shell}>
@@ -172,12 +169,12 @@ export function MarketingReplay({
               <div className={styles.columnLabel}>WHAT THE AGENT SAW</div>
               <div ref={seenStackRef} className={styles.stack}>
                 {seenSteps.map(({ step, index }) => {
-                  const revealed = index <= current;
+                  const revealed = index <= activeIndex;
                   return (
                     <StepCard
                       key={`seen-${index}`}
                       step={step}
-                      active={revealed && index === current}
+                      active={revealed && index === activeIndex}
                       revealed={revealed}
                       divergence={false}
                       reducedMotion={Boolean(reduceMotion)}
@@ -195,12 +192,12 @@ export function MarketingReplay({
               <div className={styles.columnLabel}>WHAT THE AGENT DID</div>
               <div ref={actionStackRef} className={styles.stack}>
                 {replay.steps.map((step, index) => {
-                  const revealed = index <= current;
+                  const revealed = index <= activeIndex;
                   return (
                     <StepCard
                       key={`action-${index}`}
                       step={step}
-                      active={index === current}
+                      active={index === activeIndex}
                       revealed={revealed}
                       divergence={
                         revealed && index === replay.divergenceStep
@@ -295,28 +292,30 @@ export function MarketingReplay({
           type="button"
           className={styles.playButton}
           onClick={() => setPlaying((value) => !value)}
-          aria-label={playing ? "Pause replay" : "Play replay"}
+          aria-label={isPlaying ? "Pause replay" : "Play replay"}
+          disabled={reduceMotion}
         >
-          {playing ? "Ⅱ" : "▶"}
+          {isPlaying ? "Ⅱ" : "▶"}
         </button>
-        <div className={styles.scrubber} aria-label={`Replay step ${current + 1} of ${last + 1}`}>
+        <div className={styles.scrubber} aria-label={`Replay step ${activeIndex + 1} of ${last + 1}`}>
           {replay.steps.map((_, index) => (
             <button
               key={index}
               type="button"
               className={`${styles.scrubStep} ${
-                index <= current ? styles.scrubStepComplete : ""
+                index <= activeIndex ? styles.scrubStepComplete : ""
               } ${index === replay.divergenceStep && hasDiverged ? styles.scrubFail : ""}`}
               onClick={() => {
                 setCurrent(index);
                 setPlaying(false);
               }}
               aria-label={`Go to replay step ${index + 1}`}
+              disabled={reduceMotion}
             />
           ))}
         </div>
         <span className={styles.stepCount}>
-          {String(current + 1).padStart(2, "0")} / {String(last + 1).padStart(2, "0")}
+          {String(activeIndex + 1).padStart(2, "0")} / {String(last + 1).padStart(2, "0")}
         </span>
       </footer>
     </div>

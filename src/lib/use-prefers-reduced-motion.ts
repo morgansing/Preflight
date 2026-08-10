@@ -1,22 +1,28 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
  * SSR-safe reduced-motion flag.
  *
- * Framer's `useReducedMotion()` can resolve to the real media-query value on
- * the first client render, which mismatches the server HTML and triggers a
- * hydration warning. Stay `false` until after mount, then mirror the preference.
+ * Always report `false` during SSR/hydration (`getServerSnapshot`), then mirror
+ * the real media query on the client. Avoids hydration mismatches without a
+ * mount `setState` effect.
  */
+function subscribe(onStoreChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function getSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
 export function usePrefersReducedMotion(): boolean {
-  const reduceMotion = useReducedMotion();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  return mounted ? !!reduceMotion : false;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
