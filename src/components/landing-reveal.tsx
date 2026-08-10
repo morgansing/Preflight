@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 
 export function LandingReveal({
   children,
@@ -9,7 +10,7 @@ export function LandingReveal({
   children: React.ReactNode;
   className?: string;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
 
   return (
     <motion.div

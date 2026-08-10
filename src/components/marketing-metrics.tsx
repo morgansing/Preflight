@@ -1,7 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { demoRun, runStats } from "@/lib/fixtures/run";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import styles from "./marketing-metrics.module.css";
 
 const OUTCOMES = [
@@ -57,7 +58,7 @@ const itemVariants: Variants = {
 };
 
 export function MarketingMetrics() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
 
   return (
     <motion.section
