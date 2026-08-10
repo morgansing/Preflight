@@ -47,9 +47,7 @@ export function MarketingAtmosphere() {
   const cursorRef = useRef<HTMLSpanElement>(null);
   const [phase, setPhase] = useState(0);
   const [heroActive, setHeroActive] = useState(true);
-  // Keep SSR and first client paint identical; resolve real mode after mount.
   const [motionMode, setMotionMode] = useState<MotionMode>("desktop");
-  const [motionReady, setMotionReady] = useState(false);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -69,7 +67,6 @@ export function MarketingAtmosphere() {
         setMotionMode("desktop");
         setHeroActive(true);
       }
-      setMotionReady(true);
     };
 
     updateMode();
@@ -85,7 +82,7 @@ export function MarketingAtmosphere() {
   }, []);
 
   useEffect(() => {
-    if (!motionReady || motionMode !== "desktop") return;
+    if (motionMode !== "desktop") return;
 
     const main = hostRef.current?.closest("main");
     if (!main) return;
@@ -129,7 +126,7 @@ export function MarketingAtmosphere() {
 
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
-  }, [motionMode, motionReady]);
+  }, [motionMode]);
 
   useEffect(() => {
     const cursor = cursorRef.current;
